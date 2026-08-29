@@ -1,21 +1,21 @@
 # MACE–FNO long-range prototype
 
-This repository implements the first three deliberately restricted milestones
-toward a MACE–FNO potential:
+This repository implements a set of deliberately restricted milestones toward
+a MACE–FNO potential:
 
 - smooth cubic B-spline assignment of atom-centred scalar values to a
   two-dimensional periodic mesh;
 - an analytic planar Coulomb operator evaluated with FFTs;
 - a conservative particle–mesh energy whose forces follow from PyTorch
-  autograd; and
-- a direct reciprocal-space reference used to quantify mesh convergence.
+  autograd;
+- a direct reciprocal-space reference used to quantify mesh convergence;
 - native PyTorch linear and nonlinear 2D FNOs with learned complex spectral
-  convolutions; and
+  convolutions;
 - a hybrid 2.5D slab FNO that retains an explicit finite z axis, transforms
   only the periodic x/y directions, and mixes z layers without circular
-  padding; and
+  padding;
 - a fully periodic 3D particle mesh and FNO for bulk systems, with Fourier
-  modes and cubic B-spline wrapping along all three lattice directions; and
+  modes and cubic B-spline wrapping along all three lattice directions;
 - a normalized field-operator adapter that can replace the analytic kernel in
   the same conservative particle–mesh energy; and
 - a frozen-MACE adapter that selects the exact even-scalar (`0e`) columns from
@@ -57,6 +57,31 @@ mesh refinement.
 
 ## Run the verification suite
 
+Install the core package in editable mode with:
+
+```bash
+python3 -m pip install -e .
+```
+
+Training against a frozen MACE checkpoint additionally requires:
+
+```bash
+python3 -m pip install -e '.[mace]'
+```
+
+The LiF/graphene VASP benchmark generators use the separate `vasp` extra:
+
+```bash
+python3 -m pip install -e '.[vasp]'
+```
+
+The implementation is organized by geometry: `fno_2d.py` contains planar
+operators, `fno_slab.py` contains finite-z 2.5D operators, and `fno_3d.py`
+contains periodic bulk and EqGINO-style operators. The historical imports from
+`mace_fno.fno` remain supported, as do the original residual state-dict keys.
+Reusable dataset, cache, initialization, evaluation, and checkpoint utilities
+live under `mace_fno.training`.
+
 No test framework beyond the Python standard library is required:
 
 ```bash
@@ -91,6 +116,9 @@ PYTHONPATH=src python3 examples/train_mace_residual.py \
   --test-cache artifacts/cache/test-float64.pt \
   --checkpoint mace_fno_residual.pt
 ```
+
+After installation, the equivalent packaged command is `mace-fno-train`. The
+example path remains as a compatibility wrapper for existing SLURM scripts.
 
 Select the hybrid 2.5D slab model by adding, for example:
 

@@ -12,7 +12,7 @@ from mace_fno import (
     energy_force_loss,
     mace_invariant_indices,
 )
-from examples.train_mace_residual import ensure_frozen_residual_targets
+from mace_fno.training import ensure_frozen_residual_targets
 
 DTYPE = torch.float64
 

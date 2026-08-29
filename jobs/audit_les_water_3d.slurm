@@ -16,7 +16,7 @@ module --force purge
 module load EasyBuild/2024a Python
 ulimit -s unlimited
 
-PROJECT_ROOT=/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno
+PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
 : "${CHECKPOINT:?Set CHECKPOINT to the trained 3D residual checkpoint}"
 AUDIT_SAMPLES=${AUDIT_SAMPLES:-8}
 AUDIT_OUTPUT=${AUDIT_OUTPUT:-${CHECKPOINT%.pt}_audit.json}

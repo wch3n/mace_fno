@@ -16,7 +16,7 @@ module --force purge
 module load EasyBuild/2024a Python
 ulimit -s unlimited
 
-PROJECT_ROOT=/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno
+PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
 DATA_ROOT=${PROJECT_ROOT}/data/les_au_mgo
 RUN_ROOT=${PROJECT_ROOT}/artifacts/les_au_mgo/mace_r5.5_nl1_l0
 MODEL_DIR=${RUN_ROOT}/models

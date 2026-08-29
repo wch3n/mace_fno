@@ -7,7 +7,7 @@ import torch
 from ase import Atoms
 from ase.calculators.singlepoint import SinglePointCalculator
 
-from examples.train_mace_residual import (
+from mace_fno.training import (
     batch_graphs,
     configure_output_projection_warmup,
     finish_output_projection_warmup,

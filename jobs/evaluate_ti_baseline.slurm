@@ -16,8 +16,8 @@ module --force purge
 module load EasyBuild/2024a Python
 ulimit -s unlimited
 
-PROJECT_ROOT=/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno
-TI_ROOT=/gpfs/scratch/acad/htbase/wchen/mxene/mlip/pbe0-rvv10_8/Ti
+PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
+: "${TI_ROOT:?Set TI_ROOT to the Ti training-data and models directory}"
 MODEL_NAME=${MODEL_NAME:?submit with MODEL_NAME=<checkpoint basename>}
 MODEL_PATH=${TI_ROOT}/models/${MODEL_NAME}.model
 RESULT_PATH=${PROJECT_ROOT}/artifacts/${MODEL_NAME}_1331_baseline.json

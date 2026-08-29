@@ -16,9 +16,9 @@ module --force purge
 module load EasyBuild/2024a Python
 ulimit -s unlimited
 
-PROJECT_ROOT=/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno
-MACE_MODEL=/gpfs/home/acad/ucl-modl/wchen/moire/mos2/mlip/models/mos2_xs_stagetwo.model
-TRAIN_FILE=/gpfs/home/acad/ucl-modl/wchen/moire/mos2/mlip/pbe_1331_train.xyz
+PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
+: "${MACE_MODEL:?Set MACE_MODEL to the frozen MoS2 checkpoint}"
+: "${TRAIN_FILE:?Set TRAIN_FILE to the labeled MoS2 XYZ dataset}"
 NUM_ATOMS=${NUM_ATOMS:-402}
 CHECKPOINT=${CHECKPOINT:-artifacts/mos2_402_tuned.pt}
 CACHE_ROOT=${CACHE_ROOT:-artifacts/cache/mos2_402}

@@ -17,7 +17,7 @@ import numpy as np
 import torch
 
 from mace_fno import MACEFNOResidual
-from train_mace_residual import batch_graphs, clone_graph, load_residual_state_dict
+from mace_fno.training import batch_graphs, clone_graph, load_residual_state_dict
 
 
 def parse_arguments() -> argparse.Namespace:

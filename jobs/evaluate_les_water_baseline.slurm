@@ -16,7 +16,7 @@ module --force purge
 module load EasyBuild/2024a Python
 ulimit -s unlimited
 
-PROJECT_ROOT=/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno
+PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}
 DATA_ROOT=${PROJECT_ROOT}/data/les_water
 MACE_MODEL=${MACE_MODEL:-${PROJECT_ROOT}/artifacts/les_water/pretrained/H20_stagetwo.model}
 RESULT_PATH=${RESULT_PATH:-${PROJECT_ROOT}/artifacts/les_water/H20_r4.5_nl0_baseline.json}
@@ -41,4 +41,3 @@ python3 -u examples/evaluate_mace_baseline.py \
     --device cuda \
     --dtype float64 \
     --output "${RESULT_PATH}"
-

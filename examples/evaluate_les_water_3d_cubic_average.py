@@ -25,7 +25,7 @@ from mace_fno import (
     transform_in_cell_axis_basis,
 )
 from audit_les_water_3d import build_model, choose_device
-from train_mace_residual import clone_graph
+from mace_fno.training import clone_graph
 
 
 LABELS = ("raw", "o24", "oh48")
