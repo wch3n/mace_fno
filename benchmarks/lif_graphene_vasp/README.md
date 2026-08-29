@@ -101,12 +101,20 @@ or a four-job-at-a-time production chain:
 Each array member uses one node and four GPUs, matching the module stack and
 VASP 6.5.0 OpenACC executable in `~/bin/sub-vasp_gpu`. Whole-array `afterok`
 dependencies ensure PBE0 starts only after all PBE cases finish, and rVV10
-starts only after all PBE0 cases finish. On resubmission, a calculation is
-skipped only when `validate_vasprun.py` confirms a complete XML document,
-electronic and ionic convergence, a static 36-atom result, and finite energy
-and forces. A newly run calculation that fails this validation exits nonzero,
-preventing dependent functional stages from starting. No jobs are submitted by
-the generator or validator.
+starts only after all newly submitted PBE0 cases finish. Before submitting each
+stage, `submit_chain.sh` validates the selected indices and omits completed
+cases from its array specification. If an entire predecessor stage is already
+complete, it submits no array for that stage and adds no obsolete dependency
+to the next stage. `run_stage.slurm` repeats the same validation after the job
+starts to guard against races and manual submissions.
+
+A calculation is considered complete only when `validate_vasprun.py` confirms
+a closed XML document, electronic and ionic convergence, a static 36-atom
+result, and finite energy and forces. A newly run calculation that fails this
+validation exits nonzero, preventing dependent functional stages from
+starting. Do not run a second submission chain while an earlier chain is still
+active: the precheck uses completed files and does not attempt to deduplicate
+in-flight Slurm jobs. No jobs are submitted by the generator or validator.
 
 ## Collect
 
