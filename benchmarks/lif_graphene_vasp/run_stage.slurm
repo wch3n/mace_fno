@@ -33,6 +33,10 @@ module --force purge
 module use ~/.local/easybuild/modules/all
 module load EasyBuild/2024a VASP OpenMPI/5.0.3-NVHPC-25.1-CUDA-12.6.0
 
+# The completion validator is standard-library-only. Ignore user site packages
+# so an unrelated binary NumPy/SciPy installation cannot fail the VASP job.
+export PYTHONNOUSERSITE=1
+
 VALIDATOR=${BENCHMARK_ROOT}/validate_vasprun.py
 VALIDATOR_ARGS=(
     "${WORKDIR}/vasprun.xml"

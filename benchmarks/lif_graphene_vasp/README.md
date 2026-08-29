@@ -70,6 +70,11 @@ Generation writes 21 case directories, each containing complete `pbe`, `pbe0`,
 and `pbe0_rvv10` VASP inputs. `cases.tsv`, `cases.list`, and `generation.json`
 are reproducibility manifests.
 
+The scheduler-side `validate_vasprun.py` uses only Python's standard library
+and streams the XML file. It therefore remains usable after the VASP module
+stack is loaded even if user-site NumPy, SciPy, or pymatgen binaries are
+incompatible with that environment. Input generation still requires pymatgen.
+
 ## Submit
 
 Run a two-job-at-a-time debug chain:
