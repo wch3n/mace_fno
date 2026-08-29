@@ -1,0 +1,95 @@
+"""Differentiable particle-mesh components for long-range MACE extensions."""
+
+from .coupling import (
+    FrozenMACEFeatures,
+    MACEFNOResidual,
+    NeutralLatentHead,
+    energy_force_loss,
+    mace_invariant_indices,
+)
+from .fno import (
+    FNO2d,
+    FNO2p5D,
+    FNO3d,
+    FNOFieldOperator,
+    FNOFieldOperator2p5D,
+    FNOFieldOperator3d,
+    EqGINOSpectralConv3d,
+    GlobalZMixing,
+    LinearFNO2d,
+    LinearFNO2p5D,
+    LinearFNO3d,
+    PlanarSpectralConv2p5d,
+    SpectralConv2d,
+    SpectralConv2p5d,
+    SpectralConv3d,
+)
+from .model import (
+    LearnedParticleMeshLongRange,
+    LearnedParticleMeshLongRange2p5D,
+    LearnedParticleMeshLongRange3D,
+    ParticleMeshEnergy,
+    ParticleMeshEnergy2p5D,
+    ParticleMeshEnergy3D,
+    ParticleMeshLongRange,
+)
+from .particle_mesh import (
+    PeriodicParticleMesh2D,
+    PeriodicParticleMesh3D,
+    SlabParticleMesh2p5D,
+)
+from .reference import direct_planar_coulomb_energy
+from .spectral import (
+    PlanarCoulombOperator,
+    mesh_interaction_energy,
+    mesh_interaction_energy_3d,
+    slab_mesh_interaction_energy,
+)
+from .synthetic import generate_planar_coulomb_fields
+from .symmetry import (
+    cubic_signed_permutation_matrices,
+    is_cubic_cell,
+    transform_in_cell_axis_basis,
+)
+
+__all__ = [
+    "FNO2d",
+    "FNO2p5D",
+    "FNO3d",
+    "FNOFieldOperator",
+    "FNOFieldOperator2p5D",
+    "FNOFieldOperator3d",
+    "EqGINOSpectralConv3d",
+    "GlobalZMixing",
+    "FrozenMACEFeatures",
+    "LearnedParticleMeshLongRange",
+    "LearnedParticleMeshLongRange2p5D",
+    "LearnedParticleMeshLongRange3D",
+    "LinearFNO2d",
+    "LinearFNO2p5D",
+    "LinearFNO3d",
+    "MACEFNOResidual",
+    "NeutralLatentHead",
+    "ParticleMeshEnergy",
+    "ParticleMeshEnergy2p5D",
+    "ParticleMeshEnergy3D",
+    "ParticleMeshLongRange",
+    "PeriodicParticleMesh2D",
+    "PeriodicParticleMesh3D",
+    "PlanarSpectralConv2p5d",
+    "PlanarCoulombOperator",
+    "SpectralConv2d",
+    "SpectralConv2p5d",
+    "SpectralConv3d",
+    "SlabParticleMesh2p5D",
+    "direct_planar_coulomb_energy",
+    "cubic_signed_permutation_matrices",
+    "energy_force_loss",
+    "generate_planar_coulomb_fields",
+    "is_cubic_cell",
+    "mace_invariant_indices",
+    "mesh_interaction_energy",
+    "mesh_interaction_energy_3d",
+    "slab_mesh_interaction_energy",
+    "transform_in_cell_axis_basis",
+]

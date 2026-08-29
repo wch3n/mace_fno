@@ -1,0 +1,81 @@
+{
+  "checkpoint": "artifacts/les_au_mgo/les_au_mgo_fno_2p5d_global_mean_seed17_z16_float64.pt",
+  "sample_cache": "artifacts/les_au_mgo/cache/test-float64.pt",
+  "samples": 32,
+  "sample_indices": [
+    453,
+    224,
+    161,
+    315,
+    350,
+    273,
+    493,
+    393,
+    292,
+    443,
+    400,
+    143,
+    344,
+    100,
+    194,
+    389,
+    3,
+    121,
+    474,
+    191,
+    45,
+    297,
+    295,
+    106,
+    467,
+    103,
+    278,
+    211,
+    321,
+    57,
+    377,
+    489
+  ],
+  "z_center": "mean",
+  "z_mixing": "global",
+  "lateral_interlacing": 1,
+  "planar_symmetry": "none",
+  "subset_energy_rmse_mev_per_atom": 0.16229558020225693,
+  "subset_force_rmse_mev_per_angstrom": 12.780881387307206,
+  "subset_force_rmse_by_axis_mev_per_angstrom": [
+    11.00386968517681,
+    11.34447852257545,
+    15.500659537958974
+  ],
+  "max_source_sum": 6.039613253960852e-14,
+  "net_residual_force_rms_mev_per_angstrom": [
+    21.560574184769145,
+    18.50857797250906,
+    4.5022675025675293e-13
+  ],
+  "rigid_translation_distance_angstrom": 0.1,
+  "rigid_translation_energy_max_mev": [
+    24.150082418955833,
+    21.251977119700005,
+    1.1934897514720433e-11
+  ],
+  "translation_derivative_mismatch_max_mev_per_angstrom": [
+    3.4360771714037064e-05,
+    2.6697825360189054e-05,
+    1.9983570354042968e-08
+  ],
+  "one_grid_translation_energy_max_mev": 8.881784197001252e-13,
+  "residual_force_fd_rms_mev_per_angstrom": 7.054824434762523e-06,
+  "residual_force_fd_max_mev_per_angstrom": 1.4899968259207697e-05,
+  "c4_rotation": {
+    "base_energy_change_mev": 0.0,
+    "residual_energy_change_mev": 17.92739355480727,
+    "residual_force_equivariance_rmse_mev_per_angstrom": 17.045349000602954,
+    "total_force_equivariance_rmse_mev_per_angstrom": 17.04534900060294
+  },
+  "in_plane_reflection": {
+    "base_energy_change_mev": 0.0,
+    "residual_energy_change_mev": 4.258748743737383,
+    "residual_force_equivariance_rmse_mev_per_angstrom": 8.180677179495843
+  }
+}

@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mace-fno"
+version = "0.1.0"
+description = "Differentiable particle-mesh prototypes for long-range MACE extensions"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "torch>=2.2",
+]
+
+[project.optional-dependencies]
+mace = [
+    "mace-torch>=0.3.16",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,174 @@
+{
+  "checkpoint": "artifacts/les_water/les_water_fno_3d_seed17_float64.pt",
+  "sample_cache": "artifacts/les_water/cache/test-float64.pt",
+  "samples": 8,
+  "sample_indices": [
+    42,
+    34,
+    44,
+    2,
+    21,
+    37,
+    31,
+    30
+  ],
+  "grid_shape_zxy": [
+    24,
+    24,
+    24
+  ],
+  "n_modes_zxy": [
+    4,
+    4,
+    4
+  ],
+  "subset_frozen_energy_rmse_mev_per_atom": 0.17724867298683883,
+  "subset_corrected_energy_rmse_mev_per_atom": 0.16462214848608295,
+  "subset_frozen_force_rmse_mev_per_angstrom": 27.38615242448954,
+  "subset_corrected_force_rmse_mev_per_angstrom": 27.293514744772924,
+  "subset_frozen_force_rmse_by_axis_mev_per_angstrom": [
+    29.93632988033714,
+    25.846067892827993,
+    26.18780177157073
+  ],
+  "subset_corrected_force_rmse_by_axis_mev_per_angstrom": [
+    28.877459614654025,
+    26.511736624484744,
+    26.420219316413533
+  ],
+  "predicted_residual_energy_rms_mev_per_atom": 0.08587289037856606,
+  "predicted_residual_force_rms_mev_per_angstrom": 8.33213072937238,
+  "max_source_sum": 5.517808432387028e-14,
+  "force_additivity_max_mev_per_angstrom": 4.479056014972116e-12,
+  "net_residual_force_rms_mev_per_angstrom": [
+    4.376604596297553,
+    2.095878270334345,
+    3.651551384487053
+  ],
+  "rigid_translation_distance_angstrom": 0.1,
+  "rigid_translation_energy_max_mev_by_cell_axis": [
+    1.2322753218362856,
+    0.5803397486956559,
+    0.5968997674316092
+  ],
+  "rigid_translation_residual_force_rmse_mev_per_angstrom_by_cell_axis": [
+    0.23809036275579779,
+    0.23469237432078568,
+    0.23012183053817578
+  ],
+  "rigid_translation_residual_force_max_mev_per_angstrom_by_cell_axis": [
+    2.4991027622561344,
+    2.954415404566481,
+    2.8335392501637617
+  ],
+  "translation_derivative_mismatch_max_mev_per_angstrom_by_cell_axis": [
+    2.0691057409094604e-06,
+    1.4596231376340363e-06,
+    2.246808114558796e-06
+  ],
+  "one_grid_translation_energy_change_mev_by_cell_axis": [
+    1.214306433183765e-14,
+    2.0469737016526324e-13,
+    1.1622647289044608e-13
+  ],
+  "full_lattice_translation_energy_change_mev_by_cell_axis": [
+    3.5041414214731503e-13,
+    3.5041414214731503e-13,
+    1.6132928326584306e-13
+  ],
+  "residual_force_fd_rms_mev_per_angstrom": 7.353352249961866e-07,
+  "residual_force_fd_max_mev_per_angstrom": 1.4689988149518829e-06,
+  "cubic_signed_axis_transformations": {
+    "c4_x": {
+      "determinant": 1.0,
+      "base_energy_change_mev": 4.167998213233659e-05,
+      "residual_energy_change_mev": 18.971076140378003,
+      "total_energy_change_mev": 18.971117820342442,
+      "base_force_equivariance_rmse_mev_per_angstrom": 6.924171238697076e-06,
+      "residual_force_equivariance_rmse_mev_per_angstrom": 8.976302398427897,
+      "total_force_equivariance_rmse_mev_per_angstrom": 8.976302412612121
+    },
+    "c4_y": {
+      "determinant": 1.0,
+      "base_energy_change_mev": 0.0,
+      "residual_energy_change_mev": 29.079030911938425,
+      "total_energy_change_mev": 29.079030911930204,
+      "base_force_equivariance_rmse_mev_per_angstrom": 1.620426434819456e-11,
+      "residual_force_equivariance_rmse_mev_per_angstrom": 8.89211146325711,
+      "total_force_equivariance_rmse_mev_per_angstrom": 8.892111463257347
+    },
+    "c4_z": {
+      "determinant": 1.0,
+      "base_energy_change_mev": 3.997240582975792e-05,
+      "residual_energy_change_mev": 35.82896687002999,
+      "total_energy_change_mev": 35.829006842504896,
+      "base_force_equivariance_rmse_mev_per_angstrom": 6.991659430920395e-06,
+      "residual_force_equivariance_rmse_mev_per_angstrom": 9.481014088657625,
+      "total_force_equivariance_rmse_mev_per_angstrom": 9.481013730326122
+    },
+    "cycle_xyz": {
+      "determinant": 1.0,
+      "base_energy_change_mev": 3.997240582975792e-05,
+      "residual_energy_change_mev": 5.976783650810556,
+      "total_energy_change_mev": 5.976823623200289,
+      "base_force_equivariance_rmse_mev_per_angstrom": 6.991659091994684e-06,
+      "residual_force_equivariance_rmse_mev_per_angstrom": 8.446467860431397,
+      "total_force_equivariance_rmse_mev_per_angstrom": 8.446468018964561
+    },
+    "swap_xy": {
+      "determinant": -1.0,
+      "base_energy_change_mev": 3.997240582975792e-05,
+      "residual_energy_change_mev": 12.488653034650694,
+      "total_energy_change_mev": 12.48869300707156,
+      "base_force_equivariance_rmse_mev_per_angstrom": 6.991659081237427e-06,
+      "residual_force_equivariance_rmse_mev_per_angstrom": 8.79972009569135,
+      "total_force_equivariance_rmse_mev_per_angstrom": 8.799720109758312
+    },
+    "inversion": {
+      "determinant": -1.0,
+      "base_energy_change_mev": 0.0,
+      "residual_energy_change_mev": 28.864628044267377,
+      "total_energy_change_mev": 28.86462804428902,
+      "base_force_equivariance_rmse_mev_per_angstrom": 1.867123574023843e-11,
+      "residual_force_equivariance_rmse_mev_per_angstrom": 10.511032393193938,
+      "total_force_equivariance_rmse_mev_per_angstrom": 10.511032393193087
+    }
+  },
+  "promised_exact_checks": {
+    "latent_source_neutrality": {
+      "observed": 5.517808432387028e-14,
+      "threshold": 1e-10,
+      "passed": true
+    },
+    "force_additivity": {
+      "observed": 4.479056014972116e-12,
+      "threshold": 1e-05,
+      "passed": true
+    },
+    "one_grid_translation": {
+      "observed": 2.0469737016526324e-13,
+      "threshold": 1e-07,
+      "passed": true
+    },
+    "full_lattice_translation": {
+      "observed": 3.5041414214731503e-13,
+      "threshold": 1e-07,
+      "passed": true
+    },
+    "translation_energy_force_consistency": {
+      "observed": 2.246808114558796e-06,
+      "threshold": 0.05,
+      "passed": true
+    },
+    "residual_force_finite_difference": {
+      "observed": 1.4689988149518829e-06,
+      "threshold": 0.05,
+      "passed": true
+    }
+  },
+  "diagnostic_status": {
+    "continuous_translation_exact_to_0.01_mev": false,
+    "cubic_residual_energy_exact_to_1e-5_mev": false,
+    "cubic_residual_force_equivariant_to_1e-4_mev_per_angstrom": false
+  }
+}

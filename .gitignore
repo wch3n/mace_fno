@@ -1,0 +1,32 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+build/
+dist/
+
+# Local training data and scheduler output
+data/
+logs/
+
+# Generated checkpoints, pretrained models, and feature caches. Lightweight
+# JSON/Markdown audit summaries under artifacts/ remain versioned.
+artifacts/**/*.pt
+artifacts/**/*.model
+artifacts/**/cache/
+artifacts/**/pretrained/
+artifacts/**/mace_logs/
+artifacts/**/results/
+artifacts/**/*.log
+
+# Generated VASP calculation trees can contain large outputs and licensed
+# pseudopotentials. Keep only the benchmark generators and validators.
+benchmarks/**/calculations/
+benchmarks/**/logs/
+benchmarks/**/POTCAR
+
+# Local editor and operating-system metadata
+.DS_Store
+*.swp
+*~

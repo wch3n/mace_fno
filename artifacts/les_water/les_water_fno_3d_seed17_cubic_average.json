@@ -1,0 +1,141 @@
+{
+  "checkpoint": "artifacts/les_water/les_water_fno_3d_seed17_float64.pt",
+  "sample_cache": "artifacts/les_water/cache/test-float64.pt",
+  "structures": 50,
+  "atoms_per_structure": [
+    192
+  ],
+  "group_sizes": {
+    "o24": 24,
+    "oh48": 48
+  },
+  "elapsed_seconds": 16.71691206842661,
+  "max_source_sum": 1.2434497875801753e-13,
+  "raw_orientation_energy_range": {
+    "mean_mev": 68.80067165999789,
+    "max_mev": 112.87750504078203
+  },
+  "metrics": {
+    "frozen_mace": {
+      "energy_mae_mev_per_atom": 0.18998551379331968,
+      "energy_rmse_mev_per_atom": 0.235151660078037,
+      "energy_bias_mev_per_atom": 0.01292943237988454,
+      "force_mae_mev_per_angstrom": 21.010672840062572,
+      "force_rmse_mev_per_angstrom": 27.419319683822696,
+      "force_rmse_by_axis_mev_per_angstrom": [
+        27.911605032591535,
+        27.08658565677029,
+        27.252824766142265
+      ],
+      "residual_energy_rms_mev_per_atom": 0.0,
+      "residual_force_rms_mev_per_angstrom": 0.0,
+      "net_residual_force_rms_mev_per_angstrom": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    "raw": {
+      "energy_mae_mev_per_atom": 0.16054152044861306,
+      "energy_rmse_mev_per_atom": 0.19746125461281777,
+      "energy_bias_mev_per_atom": 0.006817195521099012,
+      "force_mae_mev_per_angstrom": 21.147121662227466,
+      "force_rmse_mev_per_angstrom": 27.526468020015265,
+      "force_rmse_by_axis_mev_per_angstrom": [
+        27.94149500613558,
+        27.323598818561635,
+        27.30957944376234
+      ],
+      "residual_energy_rms_mev_per_atom": 0.15473851215175874,
+      "residual_force_rms_mev_per_angstrom": 8.389309078096797,
+      "net_residual_force_rms_mev_per_angstrom": [
+        3.6225957668514424,
+        3.2183160755885947,
+        3.573675649936297
+      ]
+    },
+    "o24": {
+      "energy_mae_mev_per_atom": 0.19930660073378925,
+      "energy_rmse_mev_per_atom": 0.24441224923483412,
+      "energy_bias_mev_per_atom": 0.04254823427017366,
+      "force_mae_mev_per_angstrom": 20.51457624666558,
+      "force_rmse_mev_per_angstrom": 26.740602516505405,
+      "force_rmse_by_axis_mev_per_angstrom": [
+        27.13829806342229,
+        26.50707006156051,
+        26.571930374166982
+      ],
+      "residual_energy_rms_mev_per_atom": 0.047429216297426476,
+      "residual_force_rms_mev_per_angstrom": 4.638144704558029,
+      "net_residual_force_rms_mev_per_angstrom": [
+        3.576898302019141,
+        3.0831618510751535,
+        3.5545698104509755
+      ]
+    },
+    "oh48": {
+      "energy_mae_mev_per_atom": 0.19871104936535502,
+      "energy_rmse_mev_per_atom": 0.24381790125116976,
+      "energy_bias_mev_per_atom": 0.04361548383110168,
+      "force_mae_mev_per_angstrom": 20.513555092330126,
+      "force_rmse_mev_per_angstrom": 26.739771824161764,
+      "force_rmse_by_axis_mev_per_angstrom": [
+        27.138618843396028,
+        26.50108210021513,
+        26.57506738307984
+      ],
+      "residual_energy_rms_mev_per_atom": 0.04787294301984939,
+      "residual_force_rms_mev_per_angstrom": 4.630502346243829,
+      "net_residual_force_rms_mev_per_angstrom": [
+        3.5709264241607945,
+        3.081546519718833,
+        3.5586485414125226
+      ]
+    }
+  },
+  "oh48_symmetry_and_force_audit": {
+    "sample_index": 0,
+    "operations": {
+      "c4_x": {
+        "residual_energy_change_mev": 1.38444559635853e-07,
+        "back_rotated_residual_force_rmse_mev_per_angstrom": 5.074452991170043e-08,
+        "back_rotated_residual_force_max_mev_per_angstrom": 2.8127536237654294e-07
+      },
+      "c4_y": {
+        "residual_energy_change_mev": 1.0408340855860843e-14,
+        "back_rotated_residual_force_rmse_mev_per_angstrom": 1.0063250328452717e-13,
+        "back_rotated_residual_force_max_mev_per_angstrom": 6.342582709040201e-13
+      },
+      "c4_z": {
+        "residual_energy_change_mev": 1.6214868336916766e-07,
+        "back_rotated_residual_force_rmse_mev_per_angstrom": 4.7707132117427546e-08,
+        "back_rotated_residual_force_max_mev_per_angstrom": 2.407532263826173e-07
+      },
+      "cycle_xyz": {
+        "residual_energy_change_mev": 1.621489526849873e-07,
+        "back_rotated_residual_force_rmse_mev_per_angstrom": 4.770712241153905e-08,
+        "back_rotated_residual_force_max_mev_per_angstrom": 2.4075317434091303e-07
+      },
+      "swap_xy": {
+        "residual_energy_change_mev": 1.621489444450508e-07,
+        "back_rotated_residual_force_rmse_mev_per_angstrom": 4.770712224725639e-08,
+        "back_rotated_residual_force_max_mev_per_angstrom": 2.4075313617699656e-07
+      },
+      "inversion": {
+        "residual_energy_change_mev": 8.456776945386935e-14,
+        "back_rotated_residual_force_rmse_mev_per_angstrom": 1.249173607198253e-13,
+        "back_rotated_residual_force_max_mev_per_angstrom": 5.971785566050158e-13
+      }
+    },
+    "max_residual_energy_change_mev": 1.621489526849873e-07,
+    "max_back_rotated_residual_force_rmse_mev_per_angstrom": 5.074452991170043e-08,
+    "finite_difference": {
+      "atom": 187,
+      "axis": 1,
+      "step_angstrom": 0.0001,
+      "autograd_force_mev_per_angstrom": -11.131679592412544,
+      "finite_difference_force_mev_per_angstrom": -11.13168002742212,
+      "absolute_error_mev_per_angstrom": 4.3500957697117926e-07
+    }
+  }
+}

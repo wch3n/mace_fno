@@ -1,0 +1,64 @@
+{
+  "generated_at": "2026-08-29T13:49:45.424606+00:00",
+  "generator": "generate_inputs.py",
+  "graphene_lattice_A": 2.46,
+  "graphene_repetitions": [
+    4,
+    4
+  ],
+  "cell_c_A": 40.0,
+  "lif_bond_A": 1.564,
+  "height_definition": "LiF bond midpoint to graphene plane",
+  "heights_A": [
+    3.5,
+    4.0,
+    5.0,
+    6.0,
+    7.0,
+    8.0,
+    10.0
+  ],
+  "orientations": [
+    "li_near",
+    "f_near",
+    "parallel_a1"
+  ],
+  "hollow_fractional": [
+    0.5833333333333334,
+    0.41666666666666663,
+    0.5
+  ],
+  "kpoint_mesh": [
+    4,
+    4,
+    1
+  ],
+  "encut_eV": 600,
+  "functionals": [
+    "pbe",
+    "pbe0",
+    "pbe0_rvv10"
+  ],
+  "pbe0_rvv10_label": "exploratory PBE0+rVV10L(b=10.0)",
+  "potcar_functional": "PBE_54",
+  "potcars": [
+    {
+      "symbol": "C",
+      "titel": "PAW_PBE C 08Apr2002",
+      "enmax_eV": 400.0
+    },
+    {
+      "symbol": "Li_sv",
+      "titel": "PAW_PBE Li_sv 10Sep2004",
+      "enmax_eV": 499.034
+    },
+    {
+      "symbol": "F",
+      "titel": "PAW_PBE F 08Apr2002",
+      "enmax_eV": 400.0
+    }
+  ],
+  "dipole_correction": false,
+  "coulomb_kernel_truncation": false,
+  "number_of_cases": 21
+}

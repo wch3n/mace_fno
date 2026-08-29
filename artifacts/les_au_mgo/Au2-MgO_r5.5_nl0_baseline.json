@@ -1,0 +1,185 @@
+{
+  "model": "/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno/artifacts/les_au_mgo/pretrained/Au2-MgO_r5.5_nl0_stagetwo.model",
+  "head": null,
+  "train_file": "/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno/data/les_au_mgo/train-Au-MgO-Al.xyz",
+  "test_file": "/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno/data/les_au_mgo/test-Au-MgO-Al.xyz",
+  "skipped_train": 0,
+  "skipped_test": 0,
+  "train": {
+    "overall": {
+      "structures": 4500,
+      "energy_eV_per_atom": {
+        "mae": 0.002166042508357534,
+        "rmse": 0.002260075714294473,
+        "bias": 4.8843722522842005e-05
+      },
+      "forces_eV_per_A": {
+        "mae": 0.03231489043075768,
+        "rmse": 0.05627958077568348,
+        "bias": -2.734006609545991e-12
+      }
+    },
+    "by_formula": {
+      "Al3Au2Mg51O54": {
+        "structures": 2264,
+        "energy_eV_per_atom": {
+          "mae": 0.00215110033050939,
+          "rmse": 0.0022393766711749433,
+          "bias": 0.00010826212391569173
+        },
+        "forces_eV_per_A": {
+          "mae": 0.03633818629943587,
+          "rmse": 0.05996736976678681,
+          "bias": -4.323267837183314e-12
+        }
+      },
+      "Au2Mg54O54": {
+        "structures": 2236,
+        "energy_eV_per_atom": {
+          "mae": 0.002181171797556191,
+          "rmse": 0.002280842575756255,
+          "bias": -1.1318737563656982e-05
+        },
+        "forces_eV_per_A": {
+          "mae": 0.028241213397355434,
+          "rmse": 0.05228124638754683,
+          "bias": -1.1248440776186713e-12
+        }
+      }
+    }
+  },
+  "test": {
+    "overall": {
+      "structures": 500,
+      "energy_eV_per_atom": {
+        "mae": 0.0022134020241104404,
+        "rmse": 0.0023119261843859346,
+        "bias": 9.527938082729551e-05
+      },
+      "forces_eV_per_A": {
+        "mae": 0.03270999379577729,
+        "rmse": 0.05698997129135022,
+        "bias": -3.818181929885848e-12
+      }
+    },
+    "by_formula": {
+      "Al3Au2Mg51O54": {
+        "structures": 236,
+        "energy_eV_per_atom": {
+          "mae": 0.0022327196782882482,
+          "rmse": 0.0023175348652519656,
+          "bias": 0.00011368134715171025
+        },
+        "forces_eV_per_A": {
+          "mae": 0.03752216161963733,
+          "rmse": 0.06147718324390608,
+          "bias": 6.420131026419745e-13
+        }
+      },
+      "Au2Mg54O54": {
+        "structures": 264,
+        "energy_eV_per_atom": {
+          "mae": 0.0021961332120424004,
+          "rmse": 0.002306900820162275,
+          "bias": 7.882913820395506e-05
+        },
+        "forces_eV_per_A": {
+          "mae": 0.028408207407781192,
+          "rmse": 0.05265595939638278,
+          "bias": -7.805325932698543e-12
+        }
+      }
+    }
+  },
+  "test_global_offset": {
+    "overall": {
+      "structures": 500,
+      "energy_eV_per_atom": {
+        "mae": 0.0022124251496599837,
+        "rmse": 0.0023104287030766913,
+        "bias": 4.643565830445344e-05
+      },
+      "forces_eV_per_A": {
+        "mae": 0.03270999379577729,
+        "rmse": 0.05698997129135022,
+        "bias": -3.818181929885848e-12
+      }
+    },
+    "by_formula": {
+      "Al3Au2Mg51O54": {
+        "structures": 236,
+        "energy_eV_per_atom": {
+          "mae": 0.0022331336081401363,
+          "rmse": 0.0023156528929301414,
+          "bias": 6.483762462886815e-05
+        },
+        "forces_eV_per_A": {
+          "mae": 0.03752216161963733,
+          "rmse": 0.06147718324390608,
+          "bias": 6.420131026419745e-13
+        }
+      },
+      "Au2Mg54O54": {
+        "structures": 264,
+        "energy_eV_per_atom": {
+          "mae": 0.002193913042836816,
+          "rmse": 0.0023057485739318953,
+          "bias": 2.9985415681113017e-05
+        },
+        "forces_eV_per_A": {
+          "mae": 0.028408207407781192,
+          "rmse": 0.05265595939638278,
+          "bias": -7.805325932698543e-12
+        }
+      }
+    }
+  },
+  "test_formula_offsets": {
+    "overall": {
+      "structures": 500,
+      "energy_eV_per_atom": {
+        "mae": 0.0022141067223076308,
+        "rmse": 0.002310828105284626,
+        "bias": 5.015595177269995e-05
+      },
+      "forces_eV_per_A": {
+        "mae": 0.03270999379577729,
+        "rmse": 0.05698997129135022,
+        "bias": -3.818181929885848e-12
+      }
+    },
+    "by_formula": {
+      "Al3Au2Mg51O54": {
+        "structures": 236,
+        "energy_eV_per_atom": {
+          "mae": 0.0022336371539146524,
+          "rmse": 0.002314751341062081,
+          "bias": 5.419223236018657e-06
+        },
+        "forces_eV_per_A": {
+          "mae": 0.03752216161963733,
+          "rmse": 0.06147718324390608,
+          "bias": 6.420131026419745e-13
+        }
+      },
+      "Au2Mg54O54": {
+        "structures": 264,
+        "energy_eV_per_atom": {
+          "mae": 0.0021966477001134754,
+          "rmse": 0.002307315323171242,
+          "bias": 9.014787576761213e-05
+        },
+        "forces_eV_per_A": {
+          "mae": 0.028408207407781192,
+          "rmse": 0.05265595939638278,
+          "bias": -7.805325932698543e-12
+        }
+      }
+    }
+  },
+  "global_shift_eV_per_atom": -4.8843722522842005e-05,
+  "formula_shifts_eV_per_atom": {
+    "Al3Au2Mg51O54": -0.00010826212391569173,
+    "Au2Mg54O54": 1.1318737563656982e-05
+  }
+}
