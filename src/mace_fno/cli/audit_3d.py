@@ -5,7 +5,7 @@ physical symmetries that a generic Cartesian-grid FNO does not enforce. It
 checks held-out errors, latent-source neutrality, force additivity, the
 acoustic sum rule, arbitrary rigid translations, exact grid and lattice
 translations, residual-force finite differences, and cubic signed-axis
-transformations of a held-out liquid-water snapshot.
+transformations of representative held-out periodic configurations.
 """
 
 from __future__ import annotations
