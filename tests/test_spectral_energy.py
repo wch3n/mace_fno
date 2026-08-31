@@ -24,7 +24,21 @@ class SpectralEnergyTests(unittest.TestCase):
         operator = PlanarCoulombOperator(max_modes=(4, 4))
         density = torch.ones((1, 20, 24), dtype=DTYPE)
         potential = operator(density, self.cell)
-        torch.testing.assert_close(potential, torch.zeros_like(potential), atol=1e-14, rtol=0)
+        torch.testing.assert_close(
+            potential, torch.zeros_like(potential), atol=1e-14, rtol=0
+        )
+
+    def test_planar_operator_batches_different_cell_areas(self) -> None:
+        operator = PlanarCoulombOperator(
+            max_modes=(4, 4), deconvolve_assignment=False
+        )
+        densities = torch.randn((2, 1, 20, 24), dtype=DTYPE)
+        cells = torch.stack((self.cell, 1.2 * self.cell))
+        batched = operator(densities, cells)
+        separate = torch.stack(
+            [operator(density, cell) for density, cell in zip(densities, cells)]
+        )
+        torch.testing.assert_close(batched, separate, atol=2e-13, rtol=2e-13)
 
     def test_model_rejects_non_neutral_input(self) -> None:
         model = ParticleMeshLongRange((32, 32), max_modes=(4, 4))
@@ -77,10 +91,11 @@ class SpectralEnergyTests(unittest.TestCase):
         fine = ParticleMeshLongRange((64, 64), max_modes=max_modes)(
             self.positions, self.charges, self.cell
         )
-        self.assertLess((fine - reference).abs().item(), (coarse - reference).abs().item())
+        self.assertLess(
+            (fine - reference).abs().item(), (coarse - reference).abs().item()
+        )
         self.assertLess(((fine - reference) / reference).abs().item(), 2.0e-3)
 
 
 if __name__ == "__main__":
     unittest.main()
-

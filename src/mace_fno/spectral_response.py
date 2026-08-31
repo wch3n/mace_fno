@@ -195,13 +195,14 @@ def quadratic_mode_response(
 ) -> Tensor:
     """Measure the channel-space energy curvature for a real Fourier mode.
 
-    ``evaluate_batch`` receives fields shaped ``(batch, channels, nz, nx, ny)``
-    and returns one energy per field.  Central differences recover the full
-    symmetric channel-response matrix, including cross-channel terms.
+    ``density`` may be planar ``(channels,nx,ny)`` or volumetric
+    ``(channels,nz,nx,ny)``. ``evaluate_batch`` receives a leading batch
+    dimension and returns one energy per field. Central differences recover
+    the full symmetric channel-response matrix, including cross-channel terms.
     """
-    if density.ndim != 4:
-        raise ValueError("density must have shape (channels, nz, nx, ny)")
-    if mode.shape != density.shape[-3:]:
+    if density.ndim not in {3, 4}:
+        raise ValueError("density must contain channels and two or three mesh axes")
+    if mode.shape != density.shape[1:]:
         raise ValueError("mode must have the density spatial shape")
     if mode.dtype != density.dtype or mode.device != density.device:
         raise ValueError("mode and density must have matching device and dtype")

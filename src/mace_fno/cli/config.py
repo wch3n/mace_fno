@@ -244,7 +244,7 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=0,
         help=(
             "Number of fixed validation structures used for the geometry-aware "
-            "3D/2.5D low-k diagnostic at every validation check; zero disables it"
+            "2D/2.5D/3D low-k diagnostic at every validation check; zero disables it"
         ),
     )
     parser.add_argument(

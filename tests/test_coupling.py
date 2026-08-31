@@ -9,6 +9,7 @@ from mace_fno import (
     FrozenMACEFeatures,
     MACEFNOResidual,
     NeutralLatentHead,
+    ParticleMeshLongRange,
     energy_force_loss,
     mace_invariant_indices,
 )
@@ -437,6 +438,41 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(report["diagnostic_kind"], "periodic_3d")
         self.assertEqual(report["samples"], 1)
         self.assertEqual(len(report["per_sample_response"][0]["modes"]), 13)
+
+        planar_model = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=1,
+            n_modes=(2, 2),
+            fno_architecture="linear",
+            invariant_indices=(0, 2),
+            reference_cell=cubic_cell,
+        ).to(dtype=DTYPE)
+        planar_report = low_k_response_diagnostic(
+            planar_model, [sample], fit_shells=2
+        )
+        self.assertEqual(planar_report["diagnostic_kind"], "planar_2d")
+        self.assertEqual(planar_report["spatial_scheme"], "2d")
+        self.assertEqual(len(planar_report["per_sample_response"][0]["modes"]), 4)
+        self.assertNotIn(
+            "mean_low_k_coulomb_template_relative_error", planar_report
+        )
+
+        planar_model.long_range = ParticleMeshLongRange(
+            (8, 8), deconvolve_assignment=False
+        ).to(dtype=DTYPE)
+        analytic_planar_report = low_k_response_diagnostic(
+            planar_model, [sample], max_mode=2, fit_shells=4
+        )
+        analytic_fit = analytic_planar_report["low_k_planar_response_fit"]
+        self.assertIsNotNone(analytic_fit)
+        assert analytic_fit is not None
+        self.assertAlmostEqual(
+            analytic_fit["free_power_exponent_p"], 1.0, places=10
+        )
+        self.assertAlmostEqual(
+            analytic_fit["reference_power_log_r2"], 1.0, places=10
+        )
 
         slab_model = MACEFNOResidual(
             _FakeMACE(),

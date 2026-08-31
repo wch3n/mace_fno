@@ -225,7 +225,7 @@ evaluated only once. As for slab interlacing, `return_fields=True` is
 unavailable because the eight fields live on different mesh origins.
 
 For a validation-only learning curve of the effective long-range response, a
-periodic 3D run with `--volume-interlacing 1`, or a 2.5D run with
+2D run, a periodic 3D run with `--volume-interlacing 1`, or a 2.5D run with
 `--lateral-interlacing 1`, can add:
 
 ```bash
@@ -239,6 +239,11 @@ periodic 3D run with `--volume-interlacing 1`, or a 2.5D run with
 At each ordinary validation event this perturbs the same fixed held-out
 snapshots and measures the curvature of the complete deposited-field-to-energy
 map. It is not a loss and does not affect checkpoint selection.
+
+For 2D, the channel-space response is measured on physical planar wavevectors
+and compared with the effective thin-sheet Coulomb law \(1/k_\parallel\). This
+checks the planar projection only: a 2D representation contains no information
+about charge separation or screening along z.
 
 For 3D, scalar summaries average modes on equal *physical* \(|\mathbf k|\)
 shells and report free \(k^{-p}\) and fixed \(1/k^2\) fits. Individual

@@ -30,6 +30,7 @@ from .initialization import (
 from .runtime import choose_device, elapsed_since
 from .spectral_diagnostic import (
     low_k_response_diagnostic,
+    planar_2d_response_diagnostic,
     periodic_3d_response_diagnostic,
     slab_2p5d_response_diagnostic,
 )
@@ -52,6 +53,7 @@ __all__ = [
     "load_residual_state_dict",
     "load_samples",
     "low_k_response_diagnostic",
+    "planar_2d_response_diagnostic",
     "periodic_3d_response_diagnostic",
     "print_metrics",
     "reference_energy",

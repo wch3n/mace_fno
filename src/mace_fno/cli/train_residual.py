@@ -41,19 +41,23 @@ from mace_fno.training import (
 
 def _print_low_k_diagnostic(label: str, report: dict[str, Any]) -> None:
     """Print the compact, validation-only infrared response summary."""
-    slab = report.get("diagnostic_kind") == "slab_2p5d"
-    fit = report[
-        "low_k_monopole_response_fit"
-        if slab
-        else "low_k_dominant_eigenvalue_fit"
-    ]
+    diagnostic_kind = report.get("diagnostic_kind")
+    planar = diagnostic_kind == "planar_2d"
+    slab = diagnostic_kind == "slab_2p5d"
+    surface = planar or slab
+    if planar:
+        fit = report["low_k_planar_response_fit"]
+    elif slab:
+        fit = report["low_k_monopole_response_fit"]
+    else:
+        fit = report["low_k_dominant_eigenvalue_fit"]
     if fit is None:
         summary = "no positive leading response on at least two low-k shells"
     else:
-        reference_label = "R2_1/k" if slab else "R2_1/k2"
+        reference_label = "R2_1/k" if surface else "R2_1/k2"
         reference_r2 = (
             fit["reference_power_log_r2"]
-            if slab
+            if surface
             else fit["coulomb_p2_log_r2"]
         )
         summary = (
@@ -67,7 +71,7 @@ def _print_low_k_diagnostic(label: str, report: dict[str, Any]) -> None:
                 " | z_template_relerr="
                 f"{report['mean_low_k_coulomb_template_relative_error']:.3f}"
             )
-        if not slab:
+        if not surface:
             tensor_fit = report.get("pooled_anisotropic_inverse_quadratic_fit")
             if tensor_fit is not None and tensor_fit["log_response_r2"] is not None:
                 summary += f" | tensor_R2={tensor_fit['log_response_r2']:.3f}"
@@ -204,10 +208,8 @@ def main() -> None:
             "--spectral-diagnostic-output requires --spectral-diagnostic-samples"
         )
     if spectral_diagnostic_enabled:
-        if spatial_scheme not in {"3d", "2.5d"}:
-            raise ValueError(
-                "the spectral diagnostic is available for periodic 3D and 2.5D"
-            )
+        if spatial_scheme not in {"3d", "2.5d", "2d"}:
+            raise ValueError("unsupported spatial scheme for the spectral diagnostic")
         if spatial_scheme == "3d" and args.volume_interlacing != 1:
             raise ValueError(
                 "the 3D diagnostic requires --volume-interlacing 1 because "

@@ -47,6 +47,20 @@ class ParticleMeshEnergy(nn.Module):
                 f"channel sums are {values_2d.sum(dim=0).detach().cpu().tolist()}"
             )
 
+    def energy_from_density(
+        self,
+        density: Tensor,
+        cell: Tensor,
+        *,
+        return_potential: bool = False,
+    ) -> Tensor | tuple[Tensor, Tensor]:
+        """Evaluate a deposited planar field on the native periodic mesh."""
+        potential = self.field_operator(density, cell)
+        energy = mesh_interaction_energy(density, potential, cell)
+        if return_potential:
+            return energy, potential
+        return energy
+
     def forward(
         self,
         positions: Tensor,
@@ -59,8 +73,12 @@ class ParticleMeshEnergy(nn.Module):
         if self.check_neutrality:
             self._validate_neutrality(values)
         density = self.assignment(positions, values, cell, batch=batch)
-        potential = self.field_operator(density, cell)
-        energy = mesh_interaction_energy(density, potential, cell)
+        if return_fields:
+            energy, potential = self.energy_from_density(
+                density, cell, return_potential=True
+            )
+        else:
+            energy = self.energy_from_density(density, cell)
         if return_fields:
             return energy, density, potential
         return energy

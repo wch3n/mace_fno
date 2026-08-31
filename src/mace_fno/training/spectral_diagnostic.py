@@ -1,4 +1,4 @@
-"""Validation-only low-wavevector diagnostics for 3D and 2.5D residuals."""
+"""Validation-only low-wavevector diagnostics for 2D, 2.5D, and 3D residuals."""
 
 from __future__ import annotations
 
@@ -282,6 +282,154 @@ def periodic_3d_response_diagnostic(
     }
 
 
+def planar_2d_response_diagnostic(
+    model: MACEFNOResidual,
+    samples: list[dict[str, Any]],
+    *,
+    sample_indices: Sequence[int] | None = None,
+    max_mode: int = 1,
+    fit_shells: int = 2,
+    relative_amplitude: float = 0.05,
+    field_batch_size: int = 32,
+) -> dict[str, Any]:
+    r"""Measure the effective thin-sheet response of a planar 2D FNO."""
+    if model.spatial_scheme != "2d":
+        raise ValueError("planar_2d_response_diagnostic requires the 2D scheme")
+    selected_indices = _validate_common(
+        samples,
+        sample_indices,
+        max_mode=max_mode,
+        fit_shells=fit_shells,
+        relative_amplitude=relative_amplitude,
+        field_batch_size=field_batch_size,
+    )
+    grid_shape = tuple(int(value) for value in model.long_range.assignment.grid_shape)
+    if len(grid_shape) != 2:
+        raise RuntimeError("the planar 2D mesh must expose (nx,ny)")
+    if 2 * max_mode >= min(grid_shape):
+        raise ValueError("max_mode must remain below the planar mesh Nyquist limit")
+
+    device = next(model.parameters()).device
+    dtype = next(model.parameters()).dtype
+    modes = unique_integer_modes_2d(max_mode)
+    was_training = model.training
+    per_sample: list[dict[str, Any]] = []
+    low_k_points: list[tuple[float, float]] = []
+    full_range_points: list[tuple[float, float]] = []
+    model.eval()
+    try:
+        with torch.no_grad():
+            for sample_index in selected_indices:
+                graph, _, _ = collate_samples([samples[sample_index]], device, dtype)
+                output = model(
+                    graph, training=False, compute_force=False, return_fields=True
+                )
+                density = output["density"][0]
+                if density.ndim != 3:
+                    raise RuntimeError("the 2D path must return one unbatched density")
+                cell = graph["cell"].reshape(-1, 3, 3)[0]
+                area = torch.linalg.vector_norm(
+                    torch.linalg.cross(cell[0], cell[1])
+                )
+                density_rms = density.square().mean().sqrt().clamp_min(
+                    torch.finfo(dtype).eps
+                )
+                amplitude = density_rms * relative_amplitude
+                mode_reports: list[dict[str, Any]] = []
+                for mode_xy in modes:
+                    perturbation = unit_rms_cosine_mode_2d(
+                        grid_shape, mode_xy, device=device, dtype=dtype
+                    )
+                    response = quadratic_mode_response(
+                        density,
+                        perturbation,
+                        amplitude,
+                        lambda fields: _field_energies(
+                            model, fields, cell, batch_size=field_batch_size
+                        ),
+                    ) / area
+                    eigenvalues = torch.linalg.eigvalsh(response).flip(0)
+                    dominant = float(eigenvalues[0])
+                    k_vector = planar_wavevector(cell, mode_xy)
+                    k_norm = float(torch.linalg.vector_norm(k_vector))
+                    mode_reports.append(
+                        {
+                            "mode_xy": list(mode_xy),
+                            "k_cartesian_inverse_angstrom": [
+                                float(component) for component in k_vector
+                            ],
+                            "k_parallel_inverse_angstrom": k_norm,
+                            "k_inverse_angstrom": k_norm,
+                            "channel_eigenvalues_per_area": eigenvalues.cpu().tolist(),
+                            "dominant_positive_eigenvalue_per_area": (
+                                dominant if dominant > 0.0 else None
+                            ),
+                        }
+                    )
+                shell_count = _assign_physical_shell_ranks(mode_reports)
+                sample_low_k_points = _shell_average_points(
+                    mode_reports,
+                    "dominant_positive_eigenvalue_per_area",
+                    maximum_rank=fit_shells,
+                )
+                sample_full_range_points = _shell_average_points(
+                    mode_reports,
+                    "dominant_positive_eigenvalue_per_area",
+                    maximum_rank=None,
+                )
+                low_k_points.extend(sample_low_k_points)
+                full_range_points.extend(sample_full_range_points)
+                per_sample.append(
+                    {
+                        "sample_index": sample_index,
+                        "in_plane_area_angstrom2": float(area),
+                        "density_rms_latent_units_per_angstrom2": float(density_rms),
+                        "probe_amplitude_latent_units_per_angstrom2": float(amplitude),
+                        "physical_shells": shell_count,
+                        "low_k_planar_response_fit": fit_reference_power_response(
+                            sample_low_k_points, 1.0
+                        ),
+                        "full_probed_range_planar_response_fit": (
+                            fit_reference_power_response(
+                                sample_full_range_points, 1.0
+                            )
+                        ),
+                        "modes": mode_reports,
+                    }
+                )
+    finally:
+        model.train(was_training)
+
+    return {
+        "diagnostic_kind": "planar_2d",
+        "spatial_scheme": "2d",
+        "samples": len(per_sample),
+        "sample_indices": selected_indices,
+        "grid_shape_xy": list(grid_shape),
+        "max_mode": max_mode,
+        "low_k_fit_shells": fit_shells,
+        "relative_amplitude": relative_amplitude,
+        "field_batch_size": field_batch_size,
+        "probes_per_mode": int(model.source_head.channels),
+        "field_evaluations_per_mode": int(
+            2 * model.source_head.channels**2 + 1
+        ),
+        "description": (
+            "Validation-only channel curvature under neutral planar Fourier "
+            "probes. The dominant response is compared with the effective "
+            "thin-sheet Coulomb kernel 1/k_parallel; no z-profile information "
+            "exists in this representation."
+        ),
+        "low_k_planar_response_fit": fit_reference_power_response(
+            low_k_points, 1.0
+        ),
+        "full_probed_range_planar_response_fit": fit_reference_power_response(
+            full_range_points, 1.0
+        ),
+        "per_sample_response": per_sample,
+    }
+
+
 def _slab_probe_basis(
     density: torch.Tensor,
     planar_mode: torch.Tensor,
@@ -548,10 +696,10 @@ def low_k_response_diagnostic(
     }
     if model.spatial_scheme == "3d":
         return periodic_3d_response_diagnostic(model, samples, **common)
+    if model.spatial_scheme == "2d":
+        return planar_2d_response_diagnostic(model, samples, **common)
     if model.spatial_scheme == "2.5d":
         return slab_2p5d_response_diagnostic(
             model, samples, z_profiles=z_profiles, **common
         )
-    raise ValueError(
-        "the low-k diagnostic supports periodic 3D and finite-z 2.5D schemes"
-    )
+    raise ValueError("unsupported spatial scheme for the low-k diagnostic")

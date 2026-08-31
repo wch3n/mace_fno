@@ -68,15 +68,27 @@ class PlanarCoulombOperator(nn.Module):
         return kernel
 
     def forward(self, density: Tensor, cell: Tensor) -> Tensor:
-        if density.ndim != 3:
+        if density.ndim not in {3, 4}:
             raise ValueError(
-                "density must have shape (channels, nx, ny); "
+                "density must have shape (channels, nx, ny) or "
+                "(batch, channels, nx, ny); "
                 f"received {tuple(density.shape)}"
             )
-        kernel = self.kernel(cell, (density.shape[-2], density.shape[-1]))
-        density_k = torch.fft.fft2(density, dim=(-2, -1))
-        potential_k = density_k * kernel[None, :, :]
-        return torch.fft.ifft2(potential_k, dim=(-2, -1)).real
+        unbatched = density.ndim == 3
+        density_batch = density.unsqueeze(0) if unbatched else density
+        cells = cell.unsqueeze(0) if cell.ndim == 2 else cell
+        if cells.ndim != 3 or cells.shape != (density_batch.shape[0], 3, 3):
+            raise ValueError("cell batch size must match the density batch size")
+        kernels = torch.stack(
+            [
+                self.kernel(value, (density.shape[-2], density.shape[-1]))
+                for value in cells
+            ]
+        )
+        density_k = torch.fft.fft2(density_batch, dim=(-2, -1))
+        potential_k = density_k * kernels[:, None, :, :]
+        potential = torch.fft.ifft2(potential_k, dim=(-2, -1)).real
+        return potential.squeeze(0) if unbatched else potential
 
 
 def mesh_interaction_energy(density: Tensor, potential: Tensor, cell: Tensor) -> Tensor:

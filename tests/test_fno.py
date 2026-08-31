@@ -105,6 +105,34 @@ class FNOTests(unittest.TestCase):
             force[0, 1], finite_difference, atol=2e-8, rtol=2e-5
         )
 
+    def test_native_density_api_matches_planar_particle_mesh_forward(self) -> None:
+        cell = torch.diag(torch.tensor((10.0, 12.0, 20.0), dtype=DTYPE))
+        positions = torch.tensor(
+            ((1.37, 2.11, 0.0), (7.08, 8.63, 0.0), (4.29, 3.54, 0.0)),
+            dtype=DTYPE,
+        )
+        charges = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
+        model = LearnedParticleMeshLongRange(
+            (12, 12),
+            channels=1,
+            n_modes=(3, 3),
+            hidden_channels=4,
+            n_layers=1,
+        ).to(dtype=DTYPE)
+
+        particle_energy, density, particle_potential = model(
+            positions, charges, cell, return_fields=True
+        )
+        density_energy, density_potential = model.energy_from_density(
+            density, cell, return_potential=True
+        )
+        torch.testing.assert_close(
+            density_energy, particle_energy, atol=3e-14, rtol=3e-14
+        )
+        torch.testing.assert_close(
+            density_potential, particle_potential, atol=3e-14, rtol=3e-14
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
