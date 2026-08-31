@@ -8,7 +8,7 @@
 #SBATCH --account=htbase
 #SBATCH --time=00:30:00
 #SBATCH --mem=48G
-#SBATCH --output=logs/water-scan-spectrum-%j.out
+# Scheduler output is supplied by submit.sh so it stays outside the checkout.
 
 set -Eeuo pipefail
 
@@ -26,10 +26,11 @@ SPECTRUM_MAX_MODE=${SPECTRUM_MAX_MODE:-2}
 SPECTRUM_RELATIVE_AMPLITUDE=${SPECTRUM_RELATIVE_AMPLITUDE:-0.05}
 SPECTRUM_BATCH_SIZE=${SPECTRUM_BATCH_SIZE:-32}
 SPECTRUM_OUTPUT=${SPECTRUM_OUTPUT:-${CHECKPOINT%.pt}_spectral_response.json}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${SPECTRUM_OUTPUT}")/work}
 
-cd "${PROJECT_ROOT}"
-mkdir -p logs "$(dirname "${SPECTRUM_OUTPUT}")"
+mkdir -p "$(dirname "${SPECTRUM_OUTPUT}")" "${JOB_WORK_ROOT}"
 test -s "${CHECKPOINT}"
+cd "${JOB_WORK_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1

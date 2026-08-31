@@ -8,7 +8,7 @@
 #SBATCH --account=htbase
 #SBATCH --time=00:30:00
 #SBATCH --mem=48G
-#SBATCH --output=logs/audit-water-scan-%j.out
+# Scheduler output is supplied by submit.sh so it stays outside the checkout.
 
 set -Eeuo pipefail
 
@@ -26,6 +26,7 @@ AUDIT_FD_STEP=${AUDIT_FD_STEP:-1.0e-4}
 AUDIT_FD_COMPONENTS=${AUDIT_FD_COMPONENTS:-12}
 AUDIT_STRICT=${AUDIT_STRICT:-1}
 AUDIT_OUTPUT=${AUDIT_OUTPUT:-${CHECKPOINT%.pt}_audit.json}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${AUDIT_OUTPUT}")/work}
 
 strict_args=()
 case "${AUDIT_STRICT}" in
@@ -38,9 +39,9 @@ case "${AUDIT_STRICT}" in
         ;;
 esac
 
-cd "${PROJECT_ROOT}"
-mkdir -p logs "$(dirname "${AUDIT_OUTPUT}")"
+mkdir -p "$(dirname "${AUDIT_OUTPUT}")" "${JOB_WORK_ROOT}"
 test -s "${CHECKPOINT}"
+cd "${JOB_WORK_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1

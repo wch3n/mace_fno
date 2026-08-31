@@ -8,7 +8,7 @@
 #SBATCH --account=htbase
 #SBATCH --time=02:00:00
 #SBATCH --mem=48G
-#SBATCH --output=logs/water-scan-eval-%j.out
+# Scheduler output is supplied by submit.sh so it stays outside the checkout.
 
 set -Eeuo pipefail
 
@@ -21,10 +21,11 @@ source "${PROJECT_ROOT}/benchmarks/runtime_paths.sh"
 DATA_ROOT=${DATA_ROOT:-${PROJECT_ROOT}/data/water_scan_qnep/prepared}
 MACE_MODEL=${MACE_MODEL:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/mace_r4p5_nl0_e100_s2e50/models/water-SCAN-r4p5-nl0_stagetwo.model}
 RESULT_PATH=${RESULT_PATH:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/mace_r4p5_nl0_e100_s2e50/baseline.json}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${RESULT_PATH}")/work}
 
-cd "${PROJECT_ROOT}"
-mkdir -p "$(dirname "${RESULT_PATH}")" logs
+mkdir -p "$(dirname "${RESULT_PATH}")" "${JOB_WORK_ROOT}"
 test -s "${MACE_MODEL}"
+cd "${JOB_WORK_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1

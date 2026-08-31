@@ -8,7 +8,7 @@
 #SBATCH --account=htbase
 #SBATCH --time=2:00:00
 #SBATCH --mem=64G
-#SBATCH --output=logs/water-scan-fno-%j.out
+# Scheduler output is supplied by submit.sh so it stays outside the checkout.
 
 set -Eeuo pipefail
 
@@ -50,13 +50,14 @@ FORCE_SCALE=${FORCE_SCALE:-0.10}
 FORCE_WEIGHT=${FORCE_WEIGHT:-1}
 CHECKPOINT=${CHECKPOINT:-${RUN_ROOT}/water_scan_fno_3d_seed${FNO_SEED}_${MODEL_DTYPE}.pt}
 SPECTRAL_DIAGNOSTIC_OUTPUT=${SPECTRAL_DIAGNOSTIC_OUTPUT:-${CHECKPOINT%.pt}_spectral_training.json}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-${RUN_ROOT}/work}
 
-cd "${PROJECT_ROOT}"
-mkdir -p "${RUN_ROOT}" "${CACHE_ROOT}" logs
+mkdir -p "${RUN_ROOT}" "${CACHE_ROOT}" "${JOB_WORK_ROOT}"
 test -s "${MACE_MODEL}"
 for split in train validation test; do
     test -s "${DATA_ROOT}/${split}.xyz"
 done
+cd "${JOB_WORK_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1

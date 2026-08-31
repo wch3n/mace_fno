@@ -8,7 +8,7 @@
 #SBATCH --account=htbase
 #SBATCH --time=2:00:00
 #SBATCH --mem=64G
-#SBATCH --output=logs/water-scan-mace-%j.out
+# Scheduler output is supplied by submit.sh so it stays outside the checkout.
 
 set -Eeuo pipefail
 
@@ -21,6 +21,7 @@ source "${PROJECT_ROOT}/benchmarks/runtime_paths.sh"
 DATA_ROOT=${DATA_ROOT:-${PROJECT_ROOT}/data/water_scan_qnep/prepared}
 RUN_ROOT=${RUN_ROOT:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/mace_r4p5_nl0_e100_s2e50}
 MODEL_DIR=${MODEL_DIR:-${RUN_ROOT}/models}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-${RUN_ROOT}/work}
 MACE_SEED=${MACE_SEED:-17}
 BATCH_SIZE=${BATCH_SIZE:-4}
 MAX_EPOCHS=${MAX_EPOCHS:-100}
@@ -38,13 +39,13 @@ case "${RESTART_LATEST}" in
         ;;
 esac
 
-cd "${PROJECT_ROOT}"
 mkdir -p "${MODEL_DIR}" "${RUN_ROOT}/checkpoints" "${RUN_ROOT}/results" \
-    "${RUN_ROOT}/mace_logs" logs
+    "${RUN_ROOT}/mace_logs" "${JOB_WORK_ROOT}"
 
 for split in train validation test; do
     test -s "${DATA_ROOT}/${split}.xyz"
 done
+cd "${JOB_WORK_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1
