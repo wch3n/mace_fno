@@ -180,15 +180,21 @@ def _resolve_stored_path(value: str | Path, checkpoint_path: Path) -> Path:
     )
 
 
-def load_mace_fno_model(
+def load_mace_fno_components(
     checkpoint_path: str | Path,
     *,
     device: str | torch.device = "cpu",
     dtype: torch.dtype | str | None = None,
     mace_model_path: str | Path | None = None,
     mace_head: str | None = None,
-) -> tuple[MACEFNOResidual, dict[str, Any]]:
-    """Load the frozen MACE file and residual checkpoint as one model."""
+) -> tuple[MACEFNOResidual, dict[str, Any], Any]:
+    """Load the combined model plus MACE's atom-to-graph converter.
+
+    The returned MACE calculator owns the species table, cutoff, and graph
+    construction settings used by its checkpoint.  It is exposed so inference
+    adapters such as the ASE calculator can build exactly the same graph as
+    standalone MACE without loading the backbone twice.
+    """
     path = Path(checkpoint_path).expanduser()
     checkpoint = load_checkpoint_payload(path)
     stored_model = mace_model_path or _required(checkpoint, "mace_model")
@@ -216,6 +222,25 @@ def load_mace_fno_model(
         calculator.models[0],
         device=resolved_device,
         dtype=dtype,
+    )
+    return model, checkpoint, calculator
+
+
+def load_mace_fno_model(
+    checkpoint_path: str | Path,
+    *,
+    device: str | torch.device = "cpu",
+    dtype: torch.dtype | str | None = None,
+    mace_model_path: str | Path | None = None,
+    mace_head: str | None = None,
+) -> tuple[MACEFNOResidual, dict[str, Any]]:
+    """Load the frozen MACE file and residual checkpoint as one model."""
+    model, checkpoint, _ = load_mace_fno_components(
+        checkpoint_path,
+        device=device,
+        dtype=dtype,
+        mace_model_path=mace_model_path,
+        mace_head=mace_head,
     )
     return model, checkpoint
 

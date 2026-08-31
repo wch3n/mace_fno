@@ -1,5 +1,6 @@
 """Differentiable particle-mesh components for long-range MACE extensions."""
 
+from .calculators import MACEFNOCalculator
 from .coupling import (
     FrozenMACEFeatures,
     MACEFNOResidual,
@@ -101,6 +102,7 @@ __all__ = [
     "LinearFNO3d",
     "LinearFNO3D",
     "MACEFNOResidual",
+    "MACEFNOCalculator",
     "NeutralLatentHead",
     "ParticleMeshEnergy",
     "ParticleMeshEnergy2p5D",

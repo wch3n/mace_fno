@@ -399,6 +399,28 @@ head and FNO without updating MACE. Frozen baseline energies and forces can be
 cached, but MACE descriptors are deliberately recomputed: detaching cached
 descriptors would omit part of the residual force derivative.
 
+Use a trained residual checkpoint directly in ASE with:
+
+```python
+from mace_fno import MACEFNOCalculator
+
+atoms.calc = MACEFNOCalculator(
+    "mace_fno_residual.pt",
+    device="cuda",  # or "cpu" / "auto"
+)
+energy = atoms.get_potential_energy()
+forces = atoms.get_forces()
+```
+
+The calculator loads the frozen MACE model named by the residual checkpoint,
+uses MACE's own atom-to-graph conversion, and differentiates the combined
+scalar energy. Its result dictionary also contains `mace_energy` and
+`residual_energy`. Stress is deliberately not advertised: virial derivatives
+of the FNO branch have not yet been validated. The checkpoint cell contract is
+enforced during inference (fixed in-plane vectors for 2D/2.5D, and either the
+fixed 3D cell or the trained isotropic-scaling mode for 3D). A 2D/2.5D model
+requires x/y periodicity; a 3D model requires full periodicity.
+
 The next scientific milestone is a matched larger-supercell experiment with
 distance-stratified diagnostics showing that improvements come from
 interactions beyond the MACE receptive field rather than from extra generic
