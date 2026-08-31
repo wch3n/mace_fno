@@ -259,13 +259,20 @@ Only FNO-branch parameters are optimized. For energy and force scales
  w_F\left(\frac{\RMSE_F}{\sigma_F}\right)^2 .
  \label{eq:validation-objective}
 \end{equation}
+In both benchmarks, \(w_E=1\), \(w_F=10\),
+\(\sigma_E=1\)~eV atom\(^{-1}\), and
+\(\sigma_F=1\)~eV \angstrom\(^{-1}\). Thus the numerical validation
+objective is dimensionless and gives the force RMSE ten times the quadratic
+weight of the energy RMSE after conversion to these common eV-based scales.
 The reported test sets and Au$_2$/MgO wetting endpoints are never used to
 choose a checkpoint or a convergence-sweep configuration.
 
 For the Au$_2$/MgO sweep, a selection rule was fixed before inspecting
 endpoints: minimize Eq.~\eqref{eq:validation-objective}; regard configurations
 within 1\% of the best value as tied; among tied configurations select the
-lower-cost model. The sweep changes one factor at a time around
+lower-cost model. Cost is ordered first by the number of trainable residual
+parameters and then, if still tied, by the number of mesh points. The sweep
+changes one factor at a time around
 \((n_x,n_y,n_z)=(24,24,16)\), four retained in-plane modes, and four latent
 channels. All members use seed 17, 20\,000 optimization steps, float64,
 global \(z\) mixing, mean-\(z\) centering, two-way lateral interlacing and D4
@@ -329,7 +336,10 @@ and force RMSE by about 14\% when comparing NEP with qNEP mode 2. Our
 relative reductions are larger, and our final errors are smaller, but this
 does not establish that FNO is intrinsically more accurate: our local model,
 validation split, optimizer, and parameterization differ. A defensible
-conclusion is that both studies find measurable energy and force information
+comparison must also note that the qNEP study supplied Born-effective-charge
+targets for 194 water structures to learn dielectric response, whereas our
+FNO fit uses only energies and forces and does not predict electrical
+observables. A defensible conclusion is that both studies find measurable energy and force information
 beyond their corresponding local baselines on this data set.
 
 \subsection{Spectral and numerical audit}
@@ -507,7 +517,14 @@ polarization and Born effective charges from energy--force training
 
 qNEP also predicts environment-dependent charges but couples them to explicit
 electrostatics implemented with Ewald summation or particle--particle
-particle--mesh methods \citep{fan2026qnep}. The physical source/kernel
+particle--mesh methods \citep{fan2026qnep}. Mode~1 includes the real-space,
+reciprocal-space and self-energy Ewald terms, whereas mode~2 retains only the
+reciprocal-space term on the premise that the local potential already captures
+short-range electrostatics. Their similar errors support the residual-design
+principle, although not any particular FNO parameterization. The reported
+PPPM implementation costs roughly 1.5--3 times its corresponding NEP and
+scales to million-atom simulations on a single consumer GPU. The physical
+source/kernel
 factorization supports charge-aware observables and efficient large-scale
 molecular dynamics.
 
