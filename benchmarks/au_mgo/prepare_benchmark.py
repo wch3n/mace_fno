@@ -23,6 +23,22 @@ FILES = {
         "model/Au2-MgO_r5.5_nl0_stagetwo.model",
         "8b3c5b7d106f4ad62c1f4b4487683424e879723a4622fb2a4881693b06b7d46f",
     ),
+    "data-benchmark/analysis-Au-MgO/dft-optimized-struct/1-doped.xyz": (
+        "wetting/1-doped.xyz",
+        "19a8d8768b8b618d5a06edb1966c2b3691cd9620b40f25493e5663e092fd868b",
+    ),
+    "data-benchmark/analysis-Au-MgO/dft-optimized-struct/3-doped.xyz": (
+        "wetting/3-doped.xyz",
+        "a09ba8de2b8fd000a7eb2b30fd5c3bd721c9a03daa12e076fb3a31c27bfe9576",
+    ),
+    "data-benchmark/analysis-Au-MgO/dft-optimized-struct/1-undoped.xyz": (
+        "wetting/1-undoped.xyz",
+        "4361bf9e4f7685965af17084ee3fd24888dbdfc7662907f58e16a5ba48165ae8",
+    ),
+    "data-benchmark/analysis-Au-MgO/dft-optimized-struct/3-undoped.xyz": (
+        "wetting/3-undoped.xyz",
+        "77fa635a0bc642f9b81d2219dc21a9fa4e5867e235e1d0059c609e87cbd03b85",
+    ),
 }
 
 
@@ -95,6 +111,14 @@ def main() -> None:
         "data/test-Au-MgO-Al.xyz": data_root / "test-Au-MgO-Al.xyz",
         "model/Au2-MgO_r5.5_nl0_stagetwo.model": (
             work_root / "pretrained" / "Au2-MgO_r5.5_nl0_stagetwo.model"
+        ),
+        "wetting/1-doped.xyz": work_root / "wetting_switch" / "inputs" / "1-doped.xyz",
+        "wetting/3-doped.xyz": work_root / "wetting_switch" / "inputs" / "3-doped.xyz",
+        "wetting/1-undoped.xyz": (
+            work_root / "wetting_switch" / "inputs" / "1-undoped.xyz"
+        ),
+        "wetting/3-undoped.xyz": (
+            work_root / "wetting_switch" / "inputs" / "3-undoped.xyz"
         ),
     }
     for relative_source, (destination_key, checksum) in FILES.items():

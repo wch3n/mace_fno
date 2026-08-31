@@ -42,6 +42,29 @@ sbatch --export=ALL,CHECKPOINT=/path/to/checkpoint.pt \
   benchmarks/au_mgo/audit_2p5d.slurm
 ```
 
+## Remote-Al wetting sign reversal
+
+The preparation command also stages the four DFT-optimized endpoints used in
+the published Au2-MgO wetting test. Structures `1` and `3` are the
+non-wetting and wetting endpoints, respectively. The evaluator follows the
+published protocol: the Mg/O/Al substrate is fixed, only Au is relaxed with
+ASE FIRE, and convergence is requested at 0.01 eV/A within 500 steps. It
+reports `Delta E = E(wetting) - E(non-wetting)` for both compositions.
+
+Submit a frozen-MACE plus FNO test while keeping all output outside Git:
+
+```bash
+source benchmarks/runtime_paths.sh
+run_root="$MACE_FNO_WORK_ROOT/les_au_mgo/wetting_switch"
+sbatch --output="$run_root/fno-%j.out" \
+  --export=ALL,MODEL_KIND=mace-fno,MODEL=/path/to/fno.pt,RUN_NAME=fno \
+  benchmarks/au_mgo/evaluate_wetting.slurm
+```
+
+Use `MODEL_KIND=mace` with a MACE `.model` file for the local-model
+controls. The DFT target is a sign reversal from positive (undoped) to
+negative (doped), not merely a low aggregate validation RMSE.
+
 `train_mace.slurm` is retained as the two-interaction local-MACE
 capacity control. All paths and optimization settings can be overridden by
 environment variables.
