@@ -57,4 +57,5 @@ if [[ -n "${MACE_HEAD:-}" ]]; then
     arguments+=(--mace-head "${MACE_HEAD}")
 fi
 
-python3 -u -m mace_fno.cli.evaluate_adsorption_switch "${arguments[@]}"
+python3 -u "${PROJECT_ROOT}/benchmarks/au_mgo/evaluate_adsorption_switch.py" \
+    "${arguments[@]}"

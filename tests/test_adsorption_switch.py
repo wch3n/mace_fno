@@ -1,15 +1,23 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from runpy import run_path
 
 import numpy as np
 from ase import Atoms
 
-from mace_fno.cli.evaluate_adsorption_switch import (
-    force_max,
-    movable_indices,
-    summarize_switch,
+BENCHMARK = run_path(
+    str(
+        Path(__file__).resolve().parents[1]
+        / "benchmarks"
+        / "au_mgo"
+        / "evaluate_adsorption_switch.py"
+    )
 )
+force_max = BENCHMARK["force_max"]
+movable_indices = BENCHMARK["movable_indices"]
+summarize_switch = BENCHMARK["summarize_switch"]
 
 
 def record(reference: float, predicted: float) -> dict[str, float]:

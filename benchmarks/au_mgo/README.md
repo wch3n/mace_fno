@@ -50,6 +50,9 @@ non-wetting and wetting endpoints, respectively. The evaluator follows the
 published protocol: the Mg/O/Al substrate is fixed, only Au is relaxed with
 ASE FIRE, and convergence is requested at 0.01 eV/A within 500 steps. It
 reports `Delta E = E(wetting) - E(non-wetting)` for both compositions.
+The protocol-specific evaluator lives beside the benchmark as
+`evaluate_adsorption_switch.py`; it is deliberately not installed as a
+general package command.
 
 Submit a frozen-MACE plus FNO test while keeping all output outside Git:
 
