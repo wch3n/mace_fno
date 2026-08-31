@@ -170,14 +170,36 @@ def build_mace_fno_model(
     return model
 
 
-def _resolve_stored_path(value: str | Path, checkpoint_path: Path) -> Path:
+def resolve_checkpoint_model_path(
+    value: str | Path, checkpoint_path: str | Path
+) -> Path:
+    """Resolve a frozen-MACE path, including a relocated legacy run tree."""
     stored = Path(value).expanduser()
-    if stored.is_absolute():
+    if stored.is_absolute() and stored.exists():
         return stored
-    candidates = (Path.cwd() / stored, checkpoint_path.parent / stored)
-    return next(
-        (candidate for candidate in candidates if candidate.exists()), candidates[0]
-    )
+    checkpoint_location = Path(checkpoint_path).expanduser().resolve()
+    if not stored.is_absolute():
+        candidates = (Path.cwd() / stored, checkpoint_location.parent / stored)
+        existing = next(
+            (candidate for candidate in candidates if candidate.exists()), None
+        )
+        if existing is not None:
+            return existing
+
+    # Version-0 checkpoints often contain an absolute path below the former
+    # repository-local artifacts/ directory. If the complete run tree was
+    # moved to scratch, recover the same suffix relative to a checkpoint
+    # ancestor instead of requiring binary checkpoint rewriting.
+    artifact_indices = [
+        index for index, part in enumerate(stored.parts) if part == "artifacts"
+    ]
+    if artifact_indices:
+        suffix = stored.parts[artifact_indices[-1] + 1 :]
+        for ancestor in (checkpoint_location.parent, *checkpoint_location.parents):
+            relocated = ancestor.joinpath(*suffix)
+            if relocated.exists():
+                return relocated
+    return stored
 
 
 def load_mace_fno_components(
@@ -198,7 +220,7 @@ def load_mace_fno_components(
     path = Path(checkpoint_path).expanduser()
     checkpoint = load_checkpoint_payload(path)
     stored_model = mace_model_path or _required(checkpoint, "mace_model")
-    resolved_model_path = _resolve_stored_path(stored_model, path)
+    resolved_model_path = resolve_checkpoint_model_path(stored_model, path)
     try:
         from mace.calculators import MACECalculator
     except ImportError as error:

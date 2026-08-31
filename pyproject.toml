@@ -24,6 +24,10 @@ dev = [
 
 [project.scripts]
 mace-fno-train = "mace_fno.cli.train_residual:main"
+mace-fno-evaluate-mace = "mace_fno.cli.evaluate_mace:main"
+mace-fno-audit-2p5d = "mace_fno.cli.audit_2p5d:main"
+mace-fno-audit-3d = "mace_fno.cli.audit_3d:main"
+mace-fno-audit-spectral = "mace_fno.cli.audit_spectral:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -51,32 +51,34 @@ The Water-SCAN job uses no volume interlacing by default, which keeps the
 
 Submit the stages individually:
 
+    source benchmarks/runtime_paths.sh
     mkdir -p logs
-    sbatch jobs/train_water_scan_mace.slurm
-    sbatch --dependency=afterok:MACE_JOB_ID jobs/evaluate_water_scan_mace.slurm
-    sbatch --dependency=afterok:MACE_JOB_ID jobs/train_water_scan_fno_3d.slurm
-    sbatch --dependency=afterok:FNO_JOB_ID jobs/audit_water_scan_fno_3d.slurm
-    sbatch --dependency=afterok:FNO_JOB_ID jobs/audit_water_scan_fno_spectral_response.slurm
+    sbatch benchmarks/water_scan_qnep/train_mace.slurm
+    sbatch --dependency=afterok:MACE_JOB_ID benchmarks/water_scan_qnep/evaluate_mace.slurm
+    sbatch --dependency=afterok:MACE_JOB_ID benchmarks/water_scan_qnep/train_fno_3d.slurm
+    sbatch --dependency=afterok:FNO_JOB_ID benchmarks/water_scan_qnep/audit_3d.slurm
+    sbatch --dependency=afterok:FNO_JOB_ID \
+      benchmarks/water_scan_qnep/audit_spectral.slurm
 
 Or prepare the data and submit the dependency graph in one command:
 
-    bash jobs/submit_water_scan_qnep.sh
+    bash benchmarks/water_scan_qnep/submit.sh
 
 Important outputs are:
 
-- artifacts/water_scan_qnep/mace_r4p5_nl0_e100_s2e50/models/
+- `$MACE_FNO_WORK_ROOT/water_scan_qnep/mace_r4p5_nl0_e100_s2e50/models/`
   water-SCAN-r4p5-nl0_stagetwo.model
-- artifacts/water_scan_qnep/mace_r4p5_nl0_e100_s2e50/baseline.json
-- artifacts/water_scan_qnep/fno_3d_eqgino/
+- `$MACE_FNO_WORK_ROOT/water_scan_qnep/mace_r4p5_nl0_e100_s2e50/baseline.json`
+- `$MACE_FNO_WORK_ROOT/water_scan_qnep/fno_3d_eqgino/`
   water_scan_fno_3d_seed17_float32.pt
 - the corresponding suffix _audit.json
 - the corresponding suffix _spectral_response.json
 
 All job settings can be overridden as environment variables. Useful examples:
 
-    MAX_EPOCHS=200 START_STAGE_TWO=100 sbatch jobs/train_water_scan_mace.slurm
-    STEPS=200 GRID=16 MODES=3 sbatch jobs/train_water_scan_fno_3d.slurm
-    VOLUME_INTERLACING=2 sbatch jobs/train_water_scan_fno_3d.slurm
+    MAX_EPOCHS=200 START_STAGE_TWO=100 sbatch benchmarks/water_scan_qnep/train_mace.slurm
+    STEPS=200 GRID=16 MODES=3 sbatch benchmarks/water_scan_qnep/train_fno_3d.slurm
+    VOLUME_INTERLACING=2 sbatch benchmarks/water_scan_qnep/train_fno_3d.slurm
 
 The default FNO loss scales are 0.01 eV/atom and 0.10 eV/A. After the first
 baseline evaluation, these can be replaced with the frozen-MACE validation

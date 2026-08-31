@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import torch
 from torch import nn
@@ -20,6 +22,7 @@ from mace_fno.training import (
     ensure_frozen_residual_targets,
     infer_checkpoint_z_mixing,
     low_k_response_diagnostic,
+    resolve_checkpoint_model_path,
     residual_state_dict,
 )
 
@@ -874,6 +877,30 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(parameters["fno_z_modes"], 3)
         self.assertEqual(parameters["fno_spectral_symmetry"], "eqgino")
         self.assertEqual(parameters["fno_spectral_groups"], 4)
+
+    def test_legacy_artifact_model_path_follows_relocated_checkpoint(self) -> None:
+        with TemporaryDirectory() as directory:
+            run_root = Path(directory) / "runs"
+            checkpoint = run_root / "les_au_mgo" / "residual.pt"
+            model = (
+                run_root
+                / "les_au_mgo"
+                / "pretrained"
+                / "Au2-MgO_stagetwo.model"
+            )
+            checkpoint.parent.mkdir(parents=True)
+            model.parent.mkdir(parents=True)
+            checkpoint.touch()
+            model.touch()
+            stored = (
+                Path("/old/repository/artifacts")
+                / "les_au_mgo"
+                / "pretrained"
+                / model.name
+            )
+            self.assertEqual(
+                resolve_checkpoint_model_path(stored, checkpoint), model
+            )
 
 
 if __name__ == "__main__":

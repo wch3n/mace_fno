@@ -10,6 +10,7 @@ from .checkpoint import (
     load_mace_fno_components,
     load_mace_fno_model,
     load_residual_state_dict,
+    resolve_checkpoint_model_path,
     residual_state_dict,
 )
 from .data import (
@@ -80,6 +81,7 @@ __all__ = [
     "print_metrics",
     "reference_energy",
     "reference_forces",
+    "resolve_checkpoint_model_path",
     "residual_state_dict",
     "sample_cache_metadata",
     "save_sample_cache",
