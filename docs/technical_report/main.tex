@@ -162,6 +162,19 @@ filters and nonlinear, environment-dependent couplings. This flexibility is
 the motivation for using it as a residual model and also the reason that
 interpretability must be demonstrated rather than assumed.
 
+The \code{neuralop.models.TFNO} class is an FNO whose spectral weight tensor
+is Tucker-factorized. Tensorized operators can greatly reduce parameter and
+memory cost when dense Fourier weights dominate \citep{kossaifi2024mgtfno},
+but TFNO is not a different long-range physical prior. It does not by itself
+provide atom--mesh deposition, a conservative scalar energy, slab boundary
+conditions, or point-group equivariance. In the present periodic 3D model,
+EqGINO shell sharing supplies a stronger symmetry-aligned compression; in the
+2.5D model, tensorizing the finite-\(z\) and channel maps remains a reasonable
+future optimization after grid, mode and channel convergence is established.
+An off-the-shelf FNO or TFNO block could therefore replace an internal field
+operator, but not the surrounding atomistic construction.
+
+
 \subsection{What the FNO learns here}
 
 The input to the FNO is not a nuclear charge density and the output is not a
@@ -217,10 +230,23 @@ over the lateral mesh. It neither wraps nor identifies the top and bottom
 boundaries. Centering the finite window on the instantaneous mean \(z\)
 coordinate makes a rigid normal translation exactly invariant.
 
+The electrostatic reference is different from the 3D-periodic \(1/k^2\)
+kernel. After Fourier transforming only the surface plane, an isolated-slab
+Coulomb Green's function has the form
+\begin{equation}
+ G_{2\mathrm D}(k_\parallel;z,z')\propto
+ \frac{\exp[-k_\parallel|z-z'|]}{k_\parallel},\qquad k_\parallel>0.
+\end{equation}
+The 2.5D spectral diagnostic therefore tests a \(1/k_\parallel\) planar
+monopole response and the associated finite-\(z\) profile, rather than applying
+the bulk \(1/k^2\) criterion.
+
+
 Four half-grid lateral origins are averaged when
 \code{lateral-interlacing=2}. This reduces, but does not eliminate, the
 continuous particle--mesh egg-box error. D4 averaging enforces the discrete
-rotations and reflections of a square lateral grid at inference.
+rotations and reflections of a square lateral grid in every forward
+evaluation.
 
 \subsection{Periodic 3D and the EqGINO-style contraction}
 
@@ -296,7 +322,12 @@ The residual uses a \(24^3\) mesh, four modes per direction, four latent
 source channels, two FNO blocks with 16 hidden channels, EqGINO shell sharing
 with four spectral groups, float64 arithmetic, and no volume interlacing.
 Training runs for 60\,000 steps with validation every 500 steps. The selected
-checkpoint is step 57\,500.
+checkpoint is step 57\,500. The residual branch has 12\,112 trainable
+parameters; a matched dense-wavevector 3D FNO has 271\,824, so the
+EqGINO-style contraction reduces this count by a factor of 22.4 for this
+configuration.
+The complete 60\,000-step job took 5\,377~s on one NVIDIA A100 GPU.
+
 
 \subsection{Accuracy}
 
@@ -420,7 +451,10 @@ structures. A fixed 225-structure validation subset is selected from the
 \(r_{\max}=5.5\)~\angstrom. The established 2.5D residual uses a
 \(24\times24\times16\) mesh, four in-plane modes, four latent channels,
 two 16-channel FNO blocks, global finite-\(z\) mixing, two-way lateral
-interlacing, D4 averaging and float64 arithmetic.
+interlacing, D4 averaging and float64 arithmetic. The established residual
+branch has 50\,624 trainable parameters.
+The corresponding 20\,000-step job took 1~h 13~min on one A100 GPU.
+
 
 \subsection{Established test accuracy and endpoint result}
 
@@ -546,6 +580,7 @@ and makes extrapolation less constrained.
 \caption{Conceptual comparison. Entries describe the cited implementations
 and this report, not every possible extension.}
 \label{tab:method-comparison}
+\small
 \begin{tabularx}{\textwidth}{>{\bfseries}lXXX}
 \toprule
  & qNEP & LES & Frozen-MACE FNO\\
@@ -633,6 +668,10 @@ plausible for the water model; it does not prove it.
  metric-aware spectral coordinates or shape buckets.
  \item \textbf{Physical identifiability.} Latent channels are not charges.
  Electrical observables require additional structure or supervision.
+ \item \textbf{Net charge.} Per-channel mean subtraction removes the
+ \(k=0\) latent source and is appropriate for the neutral systems studied
+ here. Charged cells and compensating-background conventions are not yet
+ represented.
  \item \textbf{Stress.} Cell derivatives and virials have not been audited,
  so the ASE calculator intentionally returns only energy and forces.
  \item \textbf{Statistics.} The final models use one split and seed.
