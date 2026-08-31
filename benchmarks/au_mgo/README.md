@@ -35,6 +35,12 @@ sbatch benchmarks/au_mgo/train_fno_2d.slurm
 sbatch benchmarks/au_mgo/train_fno_2p5d.slurm
 ```
 
+For convergence studies, the 2.5D launcher exposes `GRID`, `MODES`,
+`Z_GRID`, `CHANNELS`, `SOURCE_HIDDEN_CHANNELS`,
+`FNO_HIDDEN_CHANNELS`, and `FNO_LAYERS` as environment variables. Set an
+explicit external `CHECKPOINT` and pass an external Slurm `--output` path
+so generated runs remain outside the checkout.
+
 Audit the selected 2.5D checkpoint with:
 
 ```bash

@@ -16,9 +16,13 @@ module --force purge
 module load EasyBuild/2024a Python
 ulimit -s unlimited
 
-PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+PROJECT_ROOT=${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-}}
+if [[ -z "${PROJECT_ROOT}" || ! -f "${PROJECT_ROOT}/benchmarks/runtime_paths.sh" ]]; then
+    echo "Submit from the repository root or export PROJECT_ROOT." >&2
+    exit 2
+fi
 source "${PROJECT_ROOT}/benchmarks/runtime_paths.sh"
-DATA_ROOT=${PROJECT_ROOT}/data/les_au_mgo
+DATA_ROOT=${DATA_ROOT:-${PROJECT_ROOT}/data/les_au_mgo}
 MACE_MODEL=${MACE_MODEL:-${MACE_FNO_WORK_ROOT}/les_au_mgo/pretrained/Au2-MgO_r5.5_nl0_stagetwo.model}
 VALIDATION_INDICES=${VALIDATION_INDICES:-${PROJECT_ROOT}/benchmarks/au_mgo/validation_indices_seed123.txt}
 CACHE_ROOT=${CACHE_ROOT:-${MACE_FNO_WORK_ROOT}/les_au_mgo/cache}
@@ -31,6 +35,12 @@ ACCUMULATION_STEPS=${ACCUMULATION_STEPS:-1}
 EVALUATION_SCOPE=${EVALUATION_SCOPE:-validation-test}
 MODEL_DTYPE=${MODEL_DTYPE:-float64}
 Z_GRID=${Z_GRID:-16}
+GRID=${GRID:-24}
+MODES=${MODES:-4}
+CHANNELS=${CHANNELS:-4}
+SOURCE_HIDDEN_CHANNELS=${SOURCE_HIDDEN_CHANNELS:-64}
+FNO_HIDDEN_CHANNELS=${FNO_HIDDEN_CHANNELS:-16}
+FNO_LAYERS=${FNO_LAYERS:-2}
 Z_EXTENT=${Z_EXTENT:-22.0}
 Z_CENTER=${Z_CENTER:-mean}
 LATERAL_INTERLACING=${LATERAL_INTERLACING:-1}
@@ -58,10 +68,10 @@ SYMMETRY_SUFFIX=""
 if [[ "${PLANAR_SYMMETRY}" != "none" ]]; then
     SYMMETRY_SUFFIX="_${PLANAR_SYMMETRY}"
 fi
-CHECKPOINT=${CHECKPOINT:-${MACE_FNO_WORK_ROOT}/les_au_mgo/les_au_mgo_fno_2p5d_${Z_MIXING}_${Z_CENTER}${INTERLACING_SUFFIX}${SYMMETRY_SUFFIX}_seed${FNO_SEED}_z${Z_GRID}_${MODEL_DTYPE}.pt}
+CHECKPOINT=${CHECKPOINT:-${MACE_FNO_WORK_ROOT}/les_au_mgo/les_au_mgo_fno_2p5d_${Z_MIXING}_${Z_CENTER}${INTERLACING_SUFFIX}${SYMMETRY_SUFFIX}_g${GRID}_m${MODES}_z${Z_GRID}_c${CHANNELS}_h${FNO_HIDDEN_CHANNELS}_l${FNO_LAYERS}_seed${FNO_SEED}_${MODEL_DTYPE}.pt}
 
 cd "${PROJECT_ROOT}"
-mkdir -p "$(dirname "${CHECKPOINT}")" "${CACHE_ROOT}" logs
+mkdir -p "$(dirname "${CHECKPOINT}")" "${CACHE_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1
@@ -109,8 +119,8 @@ python3 -u -m mace_fno.cli.train_residual \
     --forces-key forces \
     --allow-periodic-z \
     --steps "${STEPS}" \
-    --grid 24 \
-    --modes 4 \
+    --grid "${GRID}" \
+    --modes "${MODES}" \
     --z-grid "${Z_GRID}" \
     --z-extent "${Z_EXTENT}" \
     --z-center "${Z_CENTER}" \
@@ -118,10 +128,10 @@ python3 -u -m mace_fno.cli.train_residual \
     --planar-symmetry "${PLANAR_SYMMETRY}" \
     --z-kernel-size "${Z_KERNEL_SIZE}" \
     --z-mixing "${Z_MIXING}" \
-    --channels 4 \
-    --source-hidden-channels 64 \
-    --fno-hidden-channels 16 \
-    --fno-layers 2 \
+    --channels "${CHANNELS}" \
+    --source-hidden-channels "${SOURCE_HIDDEN_CHANNELS}" \
+    --fno-hidden-channels "${FNO_HIDDEN_CHANNELS}" \
+    --fno-layers "${FNO_LAYERS}" \
     --architecture nonlinear \
     --learning-rate "${LEARNING_RATE}" \
     --lr-scheduler "${LR_SCHEDULER}" \
