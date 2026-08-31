@@ -268,6 +268,14 @@ These checks identify electrostatic-like scaling and anisotropy, but do not
 make a latent channel a physical charge density or prove that the learned
 residual is exclusively electrostatic.
 
+Before interpreting a fitted exponent, run the post-training
+`amplitude_convergence_diagnostic` at several relative field amplitudes. It
+aligns every sampled reciprocal mode and reports the variation of its leading
+curvature, response-sign stability, exponent range, and fixed-kernel fit
+quality. The default amplitudes are 0.025, 0.05, and 0.1 times the deposited
+field RMS. This deeper check is intentionally separate from routine validation
+because its cost is the sum of all constituent spectral audits.
+
 The Au2-MgO job keeps this relatively expensive check off by default. Enable a
 single fixed validation structure with, for example,
 `SPECTRAL_DIAGNOSTIC_SAMPLES=1 sbatch jobs/train_les_au_mgo_fno_2p5d.slurm`.

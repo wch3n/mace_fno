@@ -29,14 +29,17 @@ from .initialization import (
 )
 from .runtime import choose_device, elapsed_since
 from .spectral_diagnostic import (
+    amplitude_convergence_diagnostic,
     low_k_response_diagnostic,
     planar_2d_response_diagnostic,
     periodic_3d_response_diagnostic,
     slab_2p5d_response_diagnostic,
+    summarize_amplitude_convergence,
 )
 
 __all__ = [
     "CACHE_FORMAT_VERSION",
+    "amplitude_convergence_diagnostic",
     "batch_graphs",
     "choose_device",
     "clone_graph",
@@ -62,6 +65,7 @@ __all__ = [
     "sample_cache_metadata",
     "save_sample_cache",
     "slab_2p5d_response_diagnostic",
+    "summarize_amplitude_convergence",
     "split_samples",
     "validation_objective",
 ]

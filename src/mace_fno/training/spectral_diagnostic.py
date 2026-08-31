@@ -703,3 +703,208 @@ def low_k_response_diagnostic(
             model, samples, z_profiles=z_profiles, **common
         )
     raise ValueError("unsupported spatial scheme for the low-k diagnostic")
+
+
+def _response_fit(report: dict[str, Any]) -> dict[str, float] | None:
+    kind = report["diagnostic_kind"]
+    if kind == "periodic_3d":
+        return report["low_k_dominant_eigenvalue_fit"]
+    if kind == "planar_2d":
+        return report["low_k_planar_response_fit"]
+    if kind == "slab_2p5d":
+        return report["low_k_monopole_response_fit"]
+    raise ValueError(f"unsupported diagnostic kind {kind!r}")
+
+
+def _mode_key_and_response(
+    diagnostic_kind: str,
+    sample_index: int,
+    mode: dict[str, Any],
+) -> tuple[tuple[int, ...], float]:
+    if diagnostic_kind == "periodic_3d":
+        mode_key = tuple(int(value) for value in mode["mode_zxy"])
+        response = float(mode["eigenvalues_per_volume"][0])
+    elif diagnostic_kind == "planar_2d":
+        mode_key = tuple(int(value) for value in mode["mode_xy"])
+        response = float(mode["channel_eigenvalues_per_area"][0])
+    elif diagnostic_kind == "slab_2p5d":
+        mode_key = tuple(int(value) for value in mode["mode_xy"])
+        response = float(
+            mode["monopole_channel_eigenvalues_per_effective_volume"][0]
+        )
+    else:
+        raise ValueError(f"unsupported diagnostic kind {diagnostic_kind!r}")
+    return (sample_index, *mode_key), response
+
+
+def summarize_amplitude_convergence(
+    reports: Sequence[dict[str, Any]],
+    *,
+    relative_span_tolerance: float = 0.05,
+) -> dict[str, Any]:
+    """Summarize finite-amplitude stability of matched spectral curvatures."""
+    if len(reports) < 2:
+        raise ValueError("at least two amplitude reports are required")
+    if relative_span_tolerance <= 0.0:
+        raise ValueError("relative_span_tolerance must be positive")
+    diagnostic_kind = reports[0]["diagnostic_kind"]
+    spatial_scheme = reports[0]["spatial_scheme"]
+    sample_indices = reports[0]["sample_indices"]
+    max_mode = reports[0]["max_mode"]
+    for report in reports[1:]:
+        if (
+            report["diagnostic_kind"] != diagnostic_kind
+            or report["spatial_scheme"] != spatial_scheme
+            or report["sample_indices"] != sample_indices
+            or report["max_mode"] != max_mode
+        ):
+            raise ValueError(
+                "amplitude reports must probe identical geometry and modes"
+            )
+
+    response_maps: list[dict[tuple[int, ...], float]] = []
+    for report in reports:
+        response_map: dict[tuple[int, ...], float] = {}
+        for sample in report["per_sample_response"]:
+            sample_index = int(sample["sample_index"])
+            for mode in sample["modes"]:
+                key, response = _mode_key_and_response(
+                    diagnostic_kind, sample_index, mode
+                )
+                response_map[key] = response
+        response_maps.append(response_map)
+
+    union_keys = set().union(*(set(mapping) for mapping in response_maps))
+    common_keys = set.intersection(*(set(mapping) for mapping in response_maps))
+    relative_spans: list[float] = []
+    sign_stable = 0
+    mode_summaries: list[dict[str, Any]] = []
+    for key in sorted(common_keys):
+        values = [mapping[key] for mapping in response_maps]
+        maximum_absolute = max(abs(value) for value in values)
+        span = max(values) - min(values)
+        relative_span = span / maximum_absolute if maximum_absolute > 0.0 else 0.0
+        signs = {0 if value == 0.0 else (1 if value > 0.0 else -1) for value in values}
+        stable_sign = len(signs - {0}) <= 1
+        sign_stable += int(stable_sign)
+        relative_spans.append(relative_span)
+        mode_summaries.append(
+            {
+                "sample_and_mode": list(key),
+                "leading_curvatures": values,
+                "relative_span": relative_span,
+                "sign_stable": stable_sign,
+            }
+        )
+
+    sorted_spans = sorted(relative_spans)
+    median_span = None
+    if sorted_spans:
+        middle = len(sorted_spans) // 2
+        median_span = (
+            sorted_spans[middle]
+            if len(sorted_spans) % 2
+            else 0.5 * (sorted_spans[middle - 1] + sorted_spans[middle])
+        )
+    fits = [_response_fit(report) for report in reports]
+    exponents = [
+        float(fit["free_power_exponent_p"]) for fit in fits if fit is not None
+    ]
+    reference_r2 = [
+        float(fit["reference_power_log_r2"]) for fit in fits if fit is not None
+    ]
+    template_errors = [
+        report.get("mean_low_k_coulomb_template_relative_error")
+        for report in reports
+        if report.get("mean_low_k_coulomb_template_relative_error") is not None
+    ]
+    all_modes_within_tolerance = bool(relative_spans) and all(
+        span <= relative_span_tolerance for span in relative_spans
+    )
+    return {
+        "diagnostic_kind": diagnostic_kind,
+        "spatial_scheme": spatial_scheme,
+        "matched_modes": len(common_keys),
+        "union_modes": len(union_keys),
+        "all_modes_present_at_every_amplitude": len(common_keys) == len(union_keys),
+        "sign_stable_modes": sign_stable,
+        "relative_span_tolerance": relative_span_tolerance,
+        "median_mode_relative_span": median_span,
+        "maximum_mode_relative_span": (
+            max(relative_spans) if relative_spans else None
+        ),
+        "fraction_modes_within_tolerance": (
+            sum(span <= relative_span_tolerance for span in relative_spans)
+            / len(relative_spans)
+            if relative_spans
+            else None
+        ),
+        "curvature_stable_within_tolerance": (
+            all_modes_within_tolerance
+            and sign_stable == len(common_keys)
+            and len(common_keys) == len(union_keys)
+        ),
+        "free_power_exponents": exponents,
+        "free_power_exponent_range": (
+            max(exponents) - min(exponents) if len(exponents) >= 2 else None
+        ),
+        "reference_power_log_r2": reference_r2,
+        "slab_template_relative_errors": template_errors,
+        "per_mode": mode_summaries,
+    }
+
+
+def amplitude_convergence_diagnostic(
+    model: MACEFNOResidual,
+    samples: list[dict[str, Any]],
+    *,
+    relative_amplitudes: Sequence[float] = (0.025, 0.05, 0.1),
+    relative_span_tolerance: float = 0.05,
+    sample_indices: Sequence[int] | None = None,
+    max_mode: int = 1,
+    fit_shells: int = 3,
+    field_batch_size: int = 32,
+    z_profiles: int = 3,
+) -> dict[str, Any]:
+    """Repeat a spectral diagnostic to test finite-amplitude convergence."""
+    amplitudes = sorted(float(value) for value in relative_amplitudes)
+    if len(amplitudes) < 2 or any(value <= 0.0 for value in amplitudes):
+        raise ValueError("relative_amplitudes must contain at least two positives")
+    if len(set(amplitudes)) != len(amplitudes):
+        raise ValueError("relative_amplitudes must be distinct")
+    reports = [
+        low_k_response_diagnostic(
+            model,
+            samples,
+            sample_indices=sample_indices,
+            max_mode=max_mode,
+            fit_shells=fit_shells,
+            relative_amplitude=amplitude,
+            field_batch_size=field_batch_size,
+            z_profiles=z_profiles,
+        )
+        for amplitude in amplitudes
+    ]
+    estimated_field_evaluations = sum(
+        int(report["field_evaluations_per_mode"])
+        * sum(
+            len(sample["modes"])
+            for sample in report["per_sample_response"]
+        )
+        for report in reports
+    )
+    return {
+        "diagnostic_kind": "amplitude_convergence",
+        "spatial_scheme": model.spatial_scheme,
+        "relative_amplitudes": amplitudes,
+        "estimated_field_evaluations": estimated_field_evaluations,
+        "description": (
+            "Post-training finite-amplitude check. A quadratic local response "
+            "should give amplitude-independent curvature after division by the "
+            "squared perturbation amplitude. This diagnostic is not a loss."
+        ),
+        "summary": summarize_amplitude_convergence(
+            reports, relative_span_tolerance=relative_span_tolerance
+        ),
+        "runs": reports,
+    }

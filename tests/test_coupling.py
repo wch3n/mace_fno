@@ -13,7 +13,11 @@ from mace_fno import (
     energy_force_loss,
     mace_invariant_indices,
 )
-from mace_fno.training import ensure_frozen_residual_targets, low_k_response_diagnostic
+from mace_fno.training import (
+    amplitude_convergence_diagnostic,
+    ensure_frozen_residual_targets,
+    low_k_response_diagnostic,
+)
 
 DTYPE = torch.float64
 
@@ -473,6 +477,26 @@ class CouplingTests(unittest.TestCase):
         self.assertAlmostEqual(
             analytic_fit["reference_power_log_r2"], 1.0, places=10
         )
+        amplitude_report = amplitude_convergence_diagnostic(
+            planar_model,
+            [sample],
+            relative_amplitudes=(0.025, 0.05, 0.1),
+            max_mode=2,
+            fit_shells=4,
+        )
+        amplitude_summary = amplitude_report["summary"]
+        self.assertEqual(amplitude_report["estimated_field_evaluations"], 108)
+        self.assertTrue(amplitude_summary["curvature_stable_within_tolerance"])
+        self.assertLess(amplitude_summary["maximum_mode_relative_span"], 1.0e-8)
+        for exponent in amplitude_summary["free_power_exponents"]:
+            self.assertAlmostEqual(exponent, 1.0, places=10)
+
+        with self.assertRaisesRegex(ValueError, "distinct"):
+            amplitude_convergence_diagnostic(
+                planar_model,
+                [sample],
+                relative_amplitudes=(0.05, 0.05),
+            )
 
         slab_model = MACEFNOResidual(
             _FakeMACE(),
