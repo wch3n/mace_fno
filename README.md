@@ -69,12 +69,6 @@ Training against a frozen MACE checkpoint additionally requires:
 python3 -m pip install -e '.[mace]'
 ```
 
-The LiF/graphene VASP benchmark generators use the separate `vasp` extra:
-
-```bash
-python3 -m pip install -e '.[vasp]'
-```
-
 The implementation is organized by geometry: `fno_2d.py` contains planar
 operators, `fno_slab.py` contains finite-z 2.5D operators, and `fno_3d.py`
 contains periodic bulk and EqGINO-style operators. The historical imports from
