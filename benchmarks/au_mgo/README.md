@@ -44,9 +44,16 @@ so generated runs remain outside the checkout.
 Audit the selected 2.5D checkpoint with:
 
 ```bash
-sbatch --export=ALL,CHECKPOINT=/path/to/checkpoint.pt \
+source benchmarks/runtime_paths.sh
+run_root="$MACE_FNO_WORK_ROOT/les_au_mgo/audits"
+mkdir -p "$run_root"
+sbatch --output="$run_root/audit-2p5d-%j.out" \
+  --export=ALL,CHECKPOINT=/path/to/checkpoint.pt,AUDIT_OUTPUT="$run_root/audit.json" \
   benchmarks/au_mgo/audit_2p5d.slurm
 ```
+
+If `--output` is omitted, the launchers fall back to `/tmp` instead of
+creating a `logs/` directory in the source tree.
 
 ## Remote-Al wetting sign reversal
 

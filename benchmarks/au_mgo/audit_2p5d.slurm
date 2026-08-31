@@ -8,7 +8,7 @@
 #SBATCH --account=htbase
 #SBATCH --time=00:20:00
 #SBATCH --mem=32G
-#SBATCH --output=logs/audit-au-mgo-2p5d-%j.out
+#SBATCH --output=/tmp/audit-au-mgo-2p5d-%j.out
 
 set -Eeuo pipefail
 
@@ -16,13 +16,17 @@ module --force purge
 module load EasyBuild/2024a Python
 ulimit -s unlimited
 
-PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
+PROJECT_ROOT=${PROJECT_ROOT:-${SLURM_SUBMIT_DIR:-}}
+if [[ -z "${PROJECT_ROOT}" || ! -f "${PROJECT_ROOT}/benchmarks/runtime_paths.sh" ]]; then
+    echo "Submit from the repository root or export PROJECT_ROOT." >&2
+    exit 2
+fi
 : "${CHECKPOINT:?Set CHECKPOINT to the trained 2.5D residual checkpoint}"
 AUDIT_SAMPLES=${AUDIT_SAMPLES:-32}
 AUDIT_OUTPUT=${AUDIT_OUTPUT:-${CHECKPOINT%.pt}_audit.json}
 
 cd "${PROJECT_ROOT}"
-mkdir -p logs "$(dirname "${AUDIT_OUTPUT}")"
+mkdir -p "$(dirname "${AUDIT_OUTPUT}")"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1

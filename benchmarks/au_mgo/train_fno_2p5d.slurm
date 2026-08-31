@@ -8,7 +8,7 @@
 #SBATCH --account=htbase
 #SBATCH --time=02:00:00
 #SBATCH --mem=64G
-#SBATCH --output=logs/au-mgo-fno-2p5d-%j.out
+#SBATCH --output=/tmp/au-mgo-fno-2p5d-%j.out
 
 set -Eeuo pipefail
 
