@@ -238,7 +238,10 @@ For a validation-only learning curve of the effective long-range response, a
 
 At each ordinary validation event this perturbs the same fixed held-out
 snapshots and measures the curvature of the complete deposited-field-to-energy
-map. It is not a loss and does not affect checkpoint selection.
+map. Routine 2.5D validation always uses the inexpensive monopole z profile;
+`--spectral-diagnostic-z-profiles` controls only the richer audit after the
+best checkpoint has been restored. It is not a loss and does not affect
+checkpoint selection.
 
 For 2D, the channel-space response is measured on physical planar wavevectors
 and compared with the effective thin-sheet Coulomb law \(1/k_\parallel\). This
@@ -258,23 +261,33 @@ with \(1/k_\parallel\), while the full channel/profile curvature is compared
 with the open-boundary template
 \(2\pi e^{-k_\parallel|z-z'|}/k_\parallel\). The reported relative Frobenius
 error measures the z-profile shape after optimizing a latent channel metric.
-Use `--spectral-diagnostic-z-profiles 1` for the least expensive monopole-only
-power-law check; with only one profile the z-shape error is deliberately left
-undefined. Three profiles provide the more discriminating slab diagnostic, at
-a cost that grows quadratically with the number of latent-channel/profile
-probes.
+Use `--spectral-diagnostic-z-profiles 1` to keep even the selected-checkpoint
+audit monopole-only; with one profile the z-shape error is deliberately left
+undefined. The default three profiles provide the more discriminating final
+slab diagnostic, at a cost that grows quadratically with the number of
+latent-channel/profile probes.
 
 These checks identify electrostatic-like scaling and anisotropy, but do not
 make a latent channel a physical charge density or prove that the learned
 residual is exclusively electrostatic.
 
-Before interpreting a fitted exponent, run the post-training
-`amplitude_convergence_diagnostic` at several relative field amplitudes. It
-aligns every sampled reciprocal mode and reports the variation of its leading
-curvature, response-sign stability, exponent range, and fixed-kernel fit
-quality. The default amplitudes are 0.025, 0.05, and 0.1 times the deposited
-field RMS. This deeper check is intentionally separate from routine validation
-because its cost is the sum of all constituent spectral audits.
+Before interpreting a fitted exponent, enable the selected-checkpoint
+finite-amplitude audit with:
+
+```bash
+  --spectral-diagnostic-depth deep \
+  --spectral-diagnostic-amplitudes 0.025 0.05 0.1
+```
+
+It aligns every sampled reciprocal mode and reports the variation of its
+leading curvature, response-sign stability, exponent range, and fixed-kernel
+fit quality. The main `--spectral-diagnostic-relative-amplitude` is inserted
+into the sweep automatically if needed. This deeper check runs only once after
+the best checkpoint is restored; routine validation retains the single cheap
+probe. The checkpoint and diagnostic JSON retain the convergence summary
+without duplicating all full per-amplitude matrices. For a complete standalone
+report, pass the same amplitudes to
+`examples/audit_fno_spectral_response.py --relative-amplitudes ...`.
 
 The Au2-MgO job keeps this relatively expensive check off by default. Enable a
 single fixed validation structure with, for example,

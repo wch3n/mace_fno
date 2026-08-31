@@ -277,9 +277,32 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         choices=(1, 2, 3),
         default=3,
         help=(
-            "For 2.5D, use monopole only, monopole+dipole, or "
-            "monopole+dipole+quadrupole z probes"
+            "For the selected 2.5D checkpoint, use monopole only, "
+            "monopole+dipole, or monopole+dipole+quadrupole z probes; "
+            "routine validation always uses the cheaper monopole probe"
         ),
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-depth",
+        choices=("fast", "deep"),
+        default="fast",
+        help=(
+            "Use one final spectral probe (fast), or run a final finite-amplitude "
+            "convergence audit in addition to cheap validation probes (deep)"
+        ),
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-amplitudes",
+        type=float,
+        nargs="+",
+        default=(0.025, 0.05, 0.1),
+        help="Relative field amplitudes for the deep selected-checkpoint audit",
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-relative-span-tolerance",
+        type=float,
+        default=0.05,
+        help="Maximum relative curvature span considered amplitude-converged",
     )
     parser.add_argument(
         "--spectral-diagnostic-output",

@@ -20,6 +20,7 @@ from mace_fno import MACEFNOResidual, energy_force_loss
 from mace_fno.cli.config import parse_arguments
 from mace_fno.training import (
     CHECKPOINT_FORMAT_VERSION,
+    amplitude_convergence_diagnostic,
     choose_device,
     collate_samples,
     configure_output_projection_warmup,
@@ -77,6 +78,31 @@ def _print_low_k_diagnostic(label: str, report: dict[str, Any]) -> None:
             if tensor_fit is not None and tensor_fit["log_response_r2"] is not None:
                 summary += f" | tensor_R2={tensor_fit['log_response_r2']:.3f}"
     print(f"{label:<32} | {summary}", flush=True)
+
+
+def _print_amplitude_diagnostic(label: str, report: dict[str, Any]) -> None:
+    """Print the compact finite-amplitude convergence result."""
+    summary = report["summary"]
+    stable = "yes" if summary["curvature_stable_within_tolerance"] else "no"
+    median_span = summary["median_mode_relative_span"]
+    maximum_span = summary["maximum_mode_relative_span"]
+    exponent_range = summary["free_power_exponent_range"]
+    fields = [
+        f"stable={stable}",
+        f"matched_modes={summary['matched_modes']}",
+    ]
+    if median_span is not None:
+        fields.append(f"median_span={median_span:.3e}")
+    if maximum_span is not None:
+        fields.append(f"max_span={maximum_span:.3e}")
+    if exponent_range is not None:
+        fields.append(f"p_range={exponent_range:.3e}")
+    print(f"{label:<32} | {' | '.join(fields)}", flush=True)
+
+
+def _compact_amplitude_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Keep convergence evidence without duplicating every full spectral run."""
+    return {key: value for key, value in report.items() if key != "runs"}
 
 
 def _write_low_k_history(
@@ -230,10 +256,31 @@ def main() -> None:
                 "spectral diagnostic mode, fit-shell, and field-batch settings "
                 "must be positive"
             )
-        if args.spectral_diagnostic_relative_amplitude <= 0.0:
+        if (
+            not np.isfinite(args.spectral_diagnostic_relative_amplitude)
+            or args.spectral_diagnostic_relative_amplitude <= 0.0
+        ):
             raise ValueError(
                 "spectral_diagnostic_relative_amplitude must be positive"
             )
+        if (
+            not np.isfinite(args.spectral_diagnostic_relative_span_tolerance)
+            or args.spectral_diagnostic_relative_span_tolerance < 0.0
+        ):
+            raise ValueError(
+                "spectral_diagnostic_relative_span_tolerance must be non-negative"
+            )
+        if args.spectral_diagnostic_depth == "deep":
+            amplitudes = args.spectral_diagnostic_amplitudes
+            if len(amplitudes) < 2 or any(
+                not np.isfinite(value) or value <= 0.0 for value in amplitudes
+            ):
+                raise ValueError(
+                    "deep spectral diagnostics require at least two positive "
+                    "amplitudes"
+                )
+            if len(set(amplitudes)) != len(amplitudes):
+                raise ValueError("spectral diagnostic amplitudes must be distinct")
         diagnostic_grid_minimum = (
             min(args.z_grid, args.grid) if spatial_scheme == "3d" else args.grid
         )
@@ -373,6 +420,10 @@ def main() -> None:
     spectral_sample_indices: list[int] = []
     spectral_history: list[dict[str, Any]] = []
     spectral_configuration: dict[str, Any] | None = None
+    spectral_validation_z_profiles = (
+        1 if spatial_scheme == "2.5d" else args.spectral_diagnostic_z_profiles
+    )
+    spectral_final_amplitudes: list[float] = []
     if spectral_diagnostic_enabled:
         if not validation_samples:
             raise ValueError("the spectral diagnostic requires validation samples")
@@ -380,6 +431,11 @@ def main() -> None:
         spectral_sample_indices = torch.randperm(
             len(validation_samples), generator=selection_generator
         )[: min(args.spectral_diagnostic_samples, len(validation_samples))].tolist()
+        if args.spectral_diagnostic_depth == "deep":
+            spectral_final_amplitudes = sorted(
+                set(map(float, args.spectral_diagnostic_amplitudes))
+                | {float(args.spectral_diagnostic_relative_amplitude)}
+            )
         spectral_configuration = {
             "spatial_scheme": spatial_scheme,
             "sample_indices": spectral_sample_indices,
@@ -388,9 +444,17 @@ def main() -> None:
             "relative_amplitude": args.spectral_diagnostic_relative_amplitude,
             "field_batch_size": args.spectral_diagnostic_field_batch_size,
             "z_profiles": args.spectral_diagnostic_z_profiles,
+            "validation_z_profiles": spectral_validation_z_profiles,
+            "selected_z_profiles": args.spectral_diagnostic_z_profiles,
+            "depth": args.spectral_diagnostic_depth,
+            "selected_amplitudes": spectral_final_amplitudes,
+            "relative_span_tolerance": (
+                args.spectral_diagnostic_relative_span_tolerance
+            ),
             "description": (
-                "Validation-only geometry-aware latent-field curvature diagnostic. "
-                "It does not enter the optimization loss."
+                "Geometry-aware latent-field curvature diagnostic. Routine "
+                "validation uses the inexpensive probe; deeper settings apply "
+                "only after restoring the selected checkpoint. It is not a loss."
             ),
         }
 
@@ -690,7 +754,7 @@ def main() -> None:
                     fit_shells=args.spectral_diagnostic_fit_shells,
                     relative_amplitude=args.spectral_diagnostic_relative_amplitude,
                     field_batch_size=args.spectral_diagnostic_field_batch_size,
-                    z_profiles=args.spectral_diagnostic_z_profiles,
+                    z_profiles=spectral_validation_z_profiles,
                 )
                 spectral_report.update(
                     {
@@ -771,16 +835,38 @@ def main() -> None:
         evaluate(model, test_samples, batch_size=evaluation_batch_size),
     )
     if spectral_diagnostic_enabled:
-        selected_spectral_report = low_k_response_diagnostic(
-            model,
-            validation_samples,
-            sample_indices=spectral_sample_indices,
-            max_mode=args.spectral_diagnostic_max_mode,
-            fit_shells=args.spectral_diagnostic_fit_shells,
-            relative_amplitude=args.spectral_diagnostic_relative_amplitude,
-            field_batch_size=args.spectral_diagnostic_field_batch_size,
-            z_profiles=args.spectral_diagnostic_z_profiles,
-        )
+        amplitude_report: dict[str, Any] | None = None
+        if args.spectral_diagnostic_depth == "deep":
+            amplitude_report = amplitude_convergence_diagnostic(
+                model,
+                validation_samples,
+                sample_indices=spectral_sample_indices,
+                relative_amplitudes=spectral_final_amplitudes,
+                relative_span_tolerance=(
+                    args.spectral_diagnostic_relative_span_tolerance
+                ),
+                max_mode=args.spectral_diagnostic_max_mode,
+                fit_shells=args.spectral_diagnostic_fit_shells,
+                field_batch_size=args.spectral_diagnostic_field_batch_size,
+                z_profiles=args.spectral_diagnostic_z_profiles,
+            )
+            selected_spectral_report = next(
+                report
+                for report in amplitude_report["runs"]
+                if report["relative_amplitude"]
+                == float(args.spectral_diagnostic_relative_amplitude)
+            )
+        else:
+            selected_spectral_report = low_k_response_diagnostic(
+                model,
+                validation_samples,
+                sample_indices=spectral_sample_indices,
+                max_mode=args.spectral_diagnostic_max_mode,
+                fit_shells=args.spectral_diagnostic_fit_shells,
+                relative_amplitude=args.spectral_diagnostic_relative_amplitude,
+                field_batch_size=args.spectral_diagnostic_field_batch_size,
+                z_profiles=args.spectral_diagnostic_z_profiles,
+            )
         selected_spectral_report.update(
             {
                 "step": best_step,
@@ -790,6 +876,19 @@ def main() -> None:
         )
         spectral_history.append(selected_spectral_report)
         _print_low_k_diagnostic("low-k response selected", selected_spectral_report)
+        if amplitude_report is not None:
+            compact_amplitude_report = _compact_amplitude_report(amplitude_report)
+            compact_amplitude_report.update(
+                {
+                    "step": best_step,
+                    "stage": "selected_amplitude_convergence",
+                    "validation_objective": best_validation_objective,
+                }
+            )
+            spectral_history.append(compact_amplitude_report)
+            _print_amplitude_diagnostic(
+                "amplitude convergence selected", amplitude_report
+            )
         assert spectral_configuration is not None
         _write_low_k_history(
             args.spectral_diagnostic_output,

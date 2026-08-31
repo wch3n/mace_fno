@@ -41,6 +41,28 @@ class PublicAPITests(unittest.TestCase):
         self.assertEqual(args.spectral_diagnostic_samples, 0)
         self.assertEqual(args.spectral_diagnostic_max_mode, 1)
         self.assertEqual(args.spectral_diagnostic_z_profiles, 3)
+        self.assertEqual(args.spectral_diagnostic_depth, "fast")
+        self.assertEqual(
+            tuple(args.spectral_diagnostic_amplitudes), (0.025, 0.05, 0.1)
+        )
+        self.assertEqual(args.spectral_diagnostic_relative_span_tolerance, 0.05)
+
+    def test_deep_spectral_diagnostic_arguments_can_be_overridden(self) -> None:
+        args = parse_arguments(
+            [
+                "--mace-model",
+                "model.pt",
+                "--train-file",
+                "train.xyz",
+                "--spectral-diagnostic-depth",
+                "deep",
+                "--spectral-diagnostic-amplitudes",
+                "0.01",
+                "0.04",
+            ]
+        )
+        self.assertEqual(args.spectral_diagnostic_depth, "deep")
+        self.assertEqual(args.spectral_diagnostic_amplitudes, [0.01, 0.04])
 
 
 if __name__ == "__main__":
