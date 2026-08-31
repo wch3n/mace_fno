@@ -8,6 +8,8 @@ use true multi-configuration batches for MACE and the particle-mesh residual.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from time import perf_counter
 from typing import Any
 
@@ -28,12 +30,67 @@ from mace_fno.training import (
     initialize_zero_residual,
     load_or_create_samples,
     load_residual_state_dict,
+    low_k_response_diagnostic,
     print_metrics,
     residual_state_dict,
     save_sample_cache,
     split_samples,
     validation_objective,
 )
+
+
+def _print_low_k_diagnostic(label: str, report: dict[str, Any]) -> None:
+    """Print the compact, validation-only infrared response summary."""
+    slab = report.get("diagnostic_kind") == "slab_2p5d"
+    fit = report[
+        "low_k_monopole_response_fit"
+        if slab
+        else "low_k_dominant_eigenvalue_fit"
+    ]
+    if fit is None:
+        summary = "no positive leading response on at least two low-k shells"
+    else:
+        reference_label = "R2_1/k" if slab else "R2_1/k2"
+        reference_r2 = (
+            fit["reference_power_log_r2"]
+            if slab
+            else fit["coulomb_p2_log_r2"]
+        )
+        summary = (
+            f"p={fit['free_power_exponent_p']:.3f} | "
+            f"R2_free={fit['free_log_r2']:.3f} | "
+            f"{reference_label}={reference_r2:.3f} | "
+            f"points={fit['points']}"
+        )
+        if slab and report["mean_low_k_coulomb_template_relative_error"] is not None:
+            summary += (
+                " | z_template_relerr="
+                f"{report['mean_low_k_coulomb_template_relative_error']:.3f}"
+            )
+        if not slab:
+            tensor_fit = report.get("pooled_anisotropic_inverse_quadratic_fit")
+            if tensor_fit is not None and tensor_fit["log_response_r2"] is not None:
+                summary += f" | tensor_R2={tensor_fit['log_response_r2']:.3f}"
+    print(f"{label:<32} | {summary}", flush=True)
+
+
+def _write_low_k_history(
+    output: Path | None,
+    *,
+    configuration: dict[str, Any],
+    history: list[dict[str, Any]],
+) -> None:
+    """Persist the diagnostic trace independently of the model checkpoint."""
+    if output is None:
+        return
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(
+        json.dumps(
+            {"configuration": configuration, "history": history}, indent=2
+        )
+        + "\n"
+    )
+
 
 def main() -> None:
     total_start = perf_counter()
@@ -49,7 +106,9 @@ def main() -> None:
     if args.output_warmup_steps and args.architecture != "nonlinear":
         raise ValueError("output-projection warm-up requires --architecture nonlinear")
     if args.output_initialization_scale and args.architecture != "nonlinear":
-        raise ValueError("scaled output initialization requires --architecture nonlinear")
+        raise ValueError(
+            "scaled output initialization requires --architecture nonlinear"
+        )
     if args.output_initialization_scale and args.random_residual_initialization:
         raise ValueError(
             "--output-initialization-scale and --random-residual-initialization "
@@ -67,6 +126,12 @@ def main() -> None:
     spatial_scheme = args.spatial_scheme
     if spatial_scheme == "auto":
         spatial_scheme = "2.5d" if args.z_grid else "2d"
+    if args.cell_mode == "isotropic" and spatial_scheme != "3d":
+        raise ValueError("--cell-mode isotropic requires --spatial-scheme 3d")
+    if args.cell_mode == "isotropic" and args.architecture != "nonlinear":
+        raise ValueError(
+            "--cell-mode isotropic requires --architecture nonlinear"
+        )
     resolved_z_modes = args.z_modes or args.modes
     if args.spectral_groups < 1:
         raise ValueError("spectral_groups must be positive")
@@ -131,6 +196,48 @@ def main() -> None:
                 raise ValueError(
                     "EqGINO spectral channels must be divisible by spectral_groups"
                 )
+    if args.spectral_diagnostic_samples < 0:
+        raise ValueError("spectral_diagnostic_samples must be non-negative")
+    spectral_diagnostic_enabled = args.spectral_diagnostic_samples > 0
+    if args.spectral_diagnostic_output is not None and not spectral_diagnostic_enabled:
+        raise ValueError(
+            "--spectral-diagnostic-output requires --spectral-diagnostic-samples"
+        )
+    if spectral_diagnostic_enabled:
+        if spatial_scheme not in {"3d", "2.5d"}:
+            raise ValueError(
+                "the spectral diagnostic is available for periodic 3D and 2.5D"
+            )
+        if spatial_scheme == "3d" and args.volume_interlacing != 1:
+            raise ValueError(
+                "the 3D diagnostic requires --volume-interlacing 1 because "
+                "the interlaced mesh has no unique deposited field"
+            )
+        if spatial_scheme == "2.5d" and args.lateral_interlacing != 1:
+            raise ValueError(
+                "the 2.5D diagnostic requires --lateral-interlacing 1 because "
+                "the interlaced mesh has no unique deposited field"
+            )
+        if min(
+            args.spectral_diagnostic_max_mode,
+            args.spectral_diagnostic_fit_shells,
+            args.spectral_diagnostic_field_batch_size,
+        ) < 1:
+            raise ValueError(
+                "spectral diagnostic mode, fit-shell, and field-batch settings "
+                "must be positive"
+            )
+        if args.spectral_diagnostic_relative_amplitude <= 0.0:
+            raise ValueError(
+                "spectral_diagnostic_relative_amplitude must be positive"
+            )
+        diagnostic_grid_minimum = (
+            min(args.z_grid, args.grid) if spatial_scheme == "3d" else args.grid
+        )
+        if 2 * args.spectral_diagnostic_max_mode >= diagnostic_grid_minimum:
+            raise ValueError(
+                "spectral diagnostic max mode must remain below the mesh Nyquist limit"
+            )
     if min(args.eval_interval, args.accumulation_steps, args.batch_size) < 1:
         raise ValueError(
             "eval_interval, accumulation_steps, and batch_size must be positive"
@@ -193,6 +300,7 @@ def main() -> None:
         args.train_cache,
         args.rebuild_cache,
         spatial_scheme=spatial_scheme,
+        cell_mode=args.cell_mode,
     )
     if args.validation_file is None:
         validation_indices = None
@@ -227,6 +335,7 @@ def main() -> None:
             args.rebuild_cache,
             reference_cell=reference_cell,
             spatial_scheme=spatial_scheme,
+            cell_mode=args.cell_mode,
         )
     if args.validation_file is None:
         validation_cache_metadata = None
@@ -252,10 +361,35 @@ def main() -> None:
             args.rebuild_cache,
             reference_cell=reference_cell,
             spatial_scheme=spatial_scheme,
+            cell_mode=args.cell_mode,
         )
     else:
         test_cache_metadata = None
         test_cache_hit = False
+
+    spectral_sample_indices: list[int] = []
+    spectral_history: list[dict[str, Any]] = []
+    spectral_configuration: dict[str, Any] | None = None
+    if spectral_diagnostic_enabled:
+        if not validation_samples:
+            raise ValueError("the spectral diagnostic requires validation samples")
+        selection_generator = torch.Generator().manual_seed(args.seed + 947)
+        spectral_sample_indices = torch.randperm(
+            len(validation_samples), generator=selection_generator
+        )[: min(args.spectral_diagnostic_samples, len(validation_samples))].tolist()
+        spectral_configuration = {
+            "spatial_scheme": spatial_scheme,
+            "sample_indices": spectral_sample_indices,
+            "max_mode": args.spectral_diagnostic_max_mode,
+            "fit_shells": args.spectral_diagnostic_fit_shells,
+            "relative_amplitude": args.spectral_diagnostic_relative_amplitude,
+            "field_batch_size": args.spectral_diagnostic_field_batch_size,
+            "z_profiles": args.spectral_diagnostic_z_profiles,
+            "description": (
+                "Validation-only geometry-aware latent-field curvature diagnostic. "
+                "It does not enter the optimization loss."
+            ),
+        }
 
     model = MACEFNOResidual(
         calculator.models[0],
@@ -279,6 +413,7 @@ def main() -> None:
         fno_spectral_symmetry=args.spectral_symmetry,
         fno_spectral_groups=args.spectral_groups,
         reference_cell=reference_cell,
+        cell_mode=args.cell_mode,
     ).to(device=device, dtype=dtype)
     if args.output_initialization_scale:
         initialize_scaled_residual_output(model, args.output_initialization_scale)
@@ -543,6 +678,34 @@ def main() -> None:
                 f"validation objective step {step + 1}: {score:.6e}",
                 flush=True,
             )
+            if spectral_diagnostic_enabled:
+                spectral_report = low_k_response_diagnostic(
+                    model,
+                    validation_samples,
+                    sample_indices=spectral_sample_indices,
+                    max_mode=args.spectral_diagnostic_max_mode,
+                    fit_shells=args.spectral_diagnostic_fit_shells,
+                    relative_amplitude=args.spectral_diagnostic_relative_amplitude,
+                    field_batch_size=args.spectral_diagnostic_field_batch_size,
+                    z_profiles=args.spectral_diagnostic_z_profiles,
+                )
+                spectral_report.update(
+                    {
+                        "step": step + 1,
+                        "stage": "validation",
+                        "validation_objective": score,
+                    }
+                )
+                spectral_history.append(spectral_report)
+                _print_low_k_diagnostic(
+                    f"low-k response step {step + 1}", spectral_report
+                )
+                assert spectral_configuration is not None
+                _write_low_k_history(
+                    args.spectral_diagnostic_output,
+                    configuration=spectral_configuration,
+                    history=spectral_history,
+                )
             improved = score < best_validation_objective
             if improved:
                 best_step = step + 1
@@ -604,6 +767,32 @@ def main() -> None:
         "selected held-out test",
         evaluate(model, test_samples, batch_size=evaluation_batch_size),
     )
+    if spectral_diagnostic_enabled:
+        selected_spectral_report = low_k_response_diagnostic(
+            model,
+            validation_samples,
+            sample_indices=spectral_sample_indices,
+            max_mode=args.spectral_diagnostic_max_mode,
+            fit_shells=args.spectral_diagnostic_fit_shells,
+            relative_amplitude=args.spectral_diagnostic_relative_amplitude,
+            field_batch_size=args.spectral_diagnostic_field_batch_size,
+            z_profiles=args.spectral_diagnostic_z_profiles,
+        )
+        selected_spectral_report.update(
+            {
+                "step": best_step,
+                "stage": "selected",
+                "validation_objective": best_validation_objective,
+            }
+        )
+        spectral_history.append(selected_spectral_report)
+        _print_low_k_diagnostic("low-k response selected", selected_spectral_report)
+        assert spectral_configuration is not None
+        _write_low_k_history(
+            args.spectral_diagnostic_output,
+            configuration=spectral_configuration,
+            history=spectral_history,
+        )
     final_evaluation_seconds = elapsed_since(final_evaluation_start, device)
 
     if args.checkpoint is not None:
@@ -634,6 +823,7 @@ def main() -> None:
                     else (args.modes, args.modes)
                 ),
                 "spatial_scheme": spatial_scheme,
+                "cell_mode": args.cell_mode,
                 "z_grid_size": args.z_grid or None,
                 "z_extent": args.z_extent if spatial_scheme == "2.5d" else None,
                 "z_center": args.z_center if spatial_scheme == "2.5d" else None,
@@ -705,6 +895,19 @@ def main() -> None:
                 ),
                 "best_step": best_step,
                 "best_validation_objective": best_validation_objective,
+                "spectral_diagnostic": (
+                    {
+                        "configuration": spectral_configuration,
+                        "history": spectral_history,
+                        "output": (
+                            str(args.spectral_diagnostic_output)
+                            if args.spectral_diagnostic_output is not None
+                            else None
+                        ),
+                    }
+                    if spectral_diagnostic_enabled
+                    else None
+                ),
                 "seed": args.seed,
             },
             args.checkpoint,

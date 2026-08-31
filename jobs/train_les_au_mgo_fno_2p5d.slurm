@@ -38,6 +38,11 @@ Z_KERNEL_SIZE=${Z_KERNEL_SIZE:-3}
 Z_MIXING=${Z_MIXING:-global}
 STEPS=${STEPS:-1500}
 EVAL_INTERVAL=${EVAL_INTERVAL:-250}
+SPECTRAL_DIAGNOSTIC_SAMPLES=${SPECTRAL_DIAGNOSTIC_SAMPLES:-0}
+SPECTRAL_DIAGNOSTIC_MAX_MODE=${SPECTRAL_DIAGNOSTIC_MAX_MODE:-1}
+SPECTRAL_DIAGNOSTIC_FIT_SHELLS=${SPECTRAL_DIAGNOSTIC_FIT_SHELLS:-2}
+SPECTRAL_DIAGNOSTIC_Z_PROFILES=${SPECTRAL_DIAGNOSTIC_Z_PROFILES:-3}
+SPECTRAL_DIAGNOSTIC_FIELD_BATCH_SIZE=${SPECTRAL_DIAGNOSTIC_FIELD_BATCH_SIZE:-32}
 LR_SCHEDULER=${LR_SCHEDULER:-none}
 LR_DECAY_FACTOR=${LR_DECAY_FACTOR:-0.5}
 LR_PATIENCE_EVALS=${LR_PATIENCE_EVALS:-4}
@@ -63,6 +68,23 @@ export PYTHONPATH="${PROJECT_ROOT}/src"
 export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
 export MPLCONFIGDIR="${TMPDIR:-/tmp}/mace-fno-matplotlib-${SLURM_JOB_ID}"
 mkdir -p "${MPLCONFIGDIR}"
+
+SPECTRAL_DIAGNOSTIC_ARGS=()
+if (( SPECTRAL_DIAGNOSTIC_SAMPLES > 0 )); then
+    if (( LATERAL_INTERLACING != 1 )); then
+        echo "The 2.5D spectral diagnostic requires LATERAL_INTERLACING=1" >&2
+        exit 2
+    fi
+    SPECTRAL_DIAGNOSTIC_OUTPUT=${SPECTRAL_DIAGNOSTIC_OUTPUT:-${CHECKPOINT%.pt}_spectral_training.json}
+    SPECTRAL_DIAGNOSTIC_ARGS=(
+        --spectral-diagnostic-samples "${SPECTRAL_DIAGNOSTIC_SAMPLES}"
+        --spectral-diagnostic-max-mode "${SPECTRAL_DIAGNOSTIC_MAX_MODE}"
+        --spectral-diagnostic-fit-shells "${SPECTRAL_DIAGNOSTIC_FIT_SHELLS}"
+        --spectral-diagnostic-z-profiles "${SPECTRAL_DIAGNOSTIC_Z_PROFILES}"
+        --spectral-diagnostic-field-batch-size "${SPECTRAL_DIAGNOSTIC_FIELD_BATCH_SIZE}"
+        --spectral-diagnostic-output "${SPECTRAL_DIAGNOSTIC_OUTPUT}"
+    )
+fi
 
 if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi
@@ -110,6 +132,7 @@ python3 -u examples/train_mace_residual.py \
     --force-scale 0.056280 \
     --validation-fraction 0.05 \
     --eval-interval "${EVAL_INTERVAL}" \
+    "${SPECTRAL_DIAGNOSTIC_ARGS[@]}" \
     --batch-size "${BATCH_SIZE}" \
     --evaluation-batch-size "${EVALUATION_BATCH_SIZE}" \
     --accumulation-steps "${ACCUMULATION_STEPS}" \

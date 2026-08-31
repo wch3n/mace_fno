@@ -89,6 +89,7 @@ def build_model(checkpoint: dict[str, Any], device: torch.device) -> MACEFNOResi
         fno_spectral_groups=checkpoint.get("spectral_groups", 1),
         fno_volume_interlacing=checkpoint.get("volume_interlacing", 1),
         reference_cell=checkpoint["reference_cell"],
+        cell_mode=checkpoint.get("cell_mode", "fixed"),
     ).to(device=device, dtype=dtype)
     load_residual_state_dict(model, checkpoint["residual_state_dict"])
     model.eval()

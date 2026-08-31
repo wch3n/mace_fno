@@ -338,6 +338,7 @@ class MACEFNOResidual(nn.Module):
         invariant_indices: Sequence[int] | None = None,
         reference_cell: Tensor | None = None,
         cell_tolerance: float = 1.0e-6,
+        cell_mode: str = "fixed",
     ) -> None:
         super().__init__()
         self.backbone = FrozenMACEFeatures(
@@ -370,6 +371,12 @@ class MACEFNOResidual(nn.Module):
             raise ValueError("fno_spectral_groups must be positive")
         if fno_spectral_symmetry == "none" and fno_spectral_groups != 1:
             raise ValueError("fno_spectral_groups applies only to EqGINO symmetry")
+        if cell_mode not in {"fixed", "isotropic"}:
+            raise ValueError("cell_mode must be 'fixed' or 'isotropic'")
+        if cell_mode == "isotropic" and resolved_scheme != "3d":
+            raise ValueError("isotropic cell mode applies only to the 3D scheme")
+        if cell_mode == "isotropic" and fno_architecture != "nonlinear":
+            raise ValueError("isotropic cell mode requires a nonlinear FNO")
 
         if resolved_scheme == "2d":
             if z_grid_size is not None:
@@ -438,6 +445,9 @@ class MACEFNOResidual(nn.Module):
                 architecture=fno_architecture,
                 spectral_symmetry=fno_spectral_symmetry,
                 spectral_groups=fno_spectral_groups,
+                cell_conditioning=(
+                    "isotropic" if cell_mode == "isotropic" else "none"
+                ),
                 volume_interlacing=fno_volume_interlacing,
                 check_neutrality=False,
             )
@@ -455,14 +465,32 @@ class MACEFNOResidual(nn.Module):
         self.register_buffer("reference_cell", reference_cell.detach().clone())
         self.fno_spectral_symmetry = fno_spectral_symmetry
         self.cell_tolerance = float(cell_tolerance)
+        self.cell_mode = cell_mode
 
-    def _validate_fixed_cells(self, cells: Tensor) -> None:
+    def _validate_cells(self, cells: Tensor) -> None:
         if self.fno_spectral_symmetry == "eqgino":
             if any(not is_cubic_cell(cell) for cell in cells):
                 raise ValueError("EqGINO symmetry requires cubic cells")
         if self.reference_cell.numel() == 0:
             return
         reference = self.reference_cell.to(dtype=cells.dtype, device=cells.device)
+        if self.cell_mode == "isotropic":
+            reference_norm = reference.square().sum()
+            if bool((reference_norm <= 0).detach().cpu()):
+                raise ValueError("reference_cell must have positive volume")
+            scales = torch.einsum("bij,ij->b", cells, reference) / reference_norm
+            residual = cells - scales[:, None, None] * reference
+            error = residual.abs().amax(dim=(-2, -1))
+            cell_scale = cells.abs().amax(dim=(-2, -1)).clamp_min(1.0)
+            invalid = (scales <= 0) | (error > self.cell_tolerance * cell_scale)
+            if bool(invalid.any().detach().cpu()):
+                raise ValueError(
+                    "isotropic cell mode requires every cell to be a positive "
+                    "uniform scaling of reference_cell"
+                )
+            if any(not is_cubic_cell(cell) for cell in cells):
+                raise ValueError("isotropic cell mode requires cubic cells")
+            return
         # Planar/slab operators depend only on the first two vectors, whereas
         # the bulk operator uses all three reciprocal lattice directions.
         compared_cells = cells if self.spatial_scheme == "3d" else cells[:, :2]
@@ -504,7 +532,7 @@ class MACEFNOResidual(nn.Module):
             batch = batch.to(torch.long)
         num_graphs = int(batch.max().detach().cpu()) + 1
         cells = _graph_cells(data["cell"], num_graphs)
-        self._validate_fixed_cells(cells)
+        self._validate_cells(cells)
         sources = self.source_head(invariants, batch)
 
         result = self.long_range(

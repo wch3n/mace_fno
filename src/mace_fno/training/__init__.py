@@ -28,6 +28,11 @@ from .initialization import (
     initialize_zero_residual,
 )
 from .runtime import choose_device, elapsed_since
+from .spectral_diagnostic import (
+    low_k_response_diagnostic,
+    periodic_3d_response_diagnostic,
+    slab_2p5d_response_diagnostic,
+)
 
 __all__ = [
     "CACHE_FORMAT_VERSION",
@@ -46,12 +51,15 @@ __all__ = [
     "load_or_create_samples",
     "load_residual_state_dict",
     "load_samples",
+    "low_k_response_diagnostic",
+    "periodic_3d_response_diagnostic",
     "print_metrics",
     "reference_energy",
     "reference_forces",
     "residual_state_dict",
     "sample_cache_metadata",
     "save_sample_cache",
+    "slab_2p5d_response_diagnostic",
     "split_samples",
     "validation_objective",
 ]

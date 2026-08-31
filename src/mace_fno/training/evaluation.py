@@ -165,23 +165,61 @@ def evaluate(
     return result
 
 
+_METRIC_LABEL_WIDTH = 32
+_METRIC_VALUE_WIDTH = 10
+
+
+def _metric_value(value: float | None) -> str:
+    if value is None:
+        return f"{'--':>{_METRIC_VALUE_WIDTH}}"
+    return f"{1000.0 * value:>{_METRIC_VALUE_WIDTH}.4f}"
+
+
+def _metric_row(
+    label: str,
+    *,
+    energy_mae: float | None,
+    energy_rmse: float | None,
+    energy_bias: float | None,
+    force_mae: float | None,
+    force_rmse: float | None,
+) -> str:
+    return (
+        f"{label:<{_METRIC_LABEL_WIDTH}} | "
+        f"E_MAE={_metric_value(energy_mae)} | "
+        f"E_RMSE={_metric_value(energy_rmse)} | "
+        f"E_ME={_metric_value(energy_bias)} | "
+        f"F_MAE={_metric_value(force_mae)} | "
+        f"F_RMSE={_metric_value(force_rmse)} | "
+        "units: E=meV/atom, F=meV/A"
+    )
+
+
 def print_metrics(label: str, metrics: dict[str, Any]) -> None:
-    """Print the standard residual benchmark metrics."""
+    """Print standard residual metrics in stable, fixed-width columns."""
     if not metrics:
         return
     print(
-        f"{label}: E_MAE={1000.0 * metrics['energy_mae']:.4f} meV/atom, "
-        f"E_RMSE={1000.0 * metrics['energy_rmse']:.4f} meV/atom, "
-        f"E_bias={1000.0 * metrics['energy_bias']:.4f} meV/atom, "
-        f"F_MAE={1000.0 * metrics['force_mae']:.4f} meV/A, "
-        f"F_RMSE={1000.0 * metrics['force_rmse']:.4f} meV/A",
+        _metric_row(
+            label,
+            energy_mae=metrics["energy_mae"],
+            energy_rmse=metrics["energy_rmse"],
+            energy_bias=metrics["energy_bias"],
+            force_mae=metrics["force_mae"],
+            force_rmse=metrics["force_rmse"],
+        ),
         flush=True,
     )
     for formula, group in metrics.get("by_formula", {}).items():
         print(
-            f"  {formula} (n={metrics['formula_counts'][formula]}): "
-            f"E_RMSE={1000.0 * group['energy_rmse']:.4f} meV/atom, "
-            f"F_RMSE={1000.0 * group['force_rmse']:.4f} meV/A",
+            _metric_row(
+                f"  {formula} (n={metrics['formula_counts'][formula]})",
+                energy_mae=None,
+                energy_rmse=group["energy_rmse"],
+                energy_bias=None,
+                force_mae=None,
+                force_rmse=group["force_rmse"],
+            ),
             flush=True,
         )
 

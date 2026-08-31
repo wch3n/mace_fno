@@ -12,7 +12,7 @@ from mace_fno import (
     energy_force_loss,
     mace_invariant_indices,
 )
-from mace_fno.training import ensure_frozen_residual_targets
+from mace_fno.training import ensure_frozen_residual_targets, low_k_response_diagnostic
 
 DTYPE = torch.float64
 
@@ -394,6 +394,102 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(output["residual_forces"].shape, data["positions"].shape)
         self.assertTrue(torch.isfinite(output["residual_forces"]).all())
 
+    def test_low_k_diagnostic_is_validation_only_for_periodic_3d(self) -> None:
+        data = _batch_data()
+        cubic_cell = 8.0 * torch.eye(3, dtype=DTYPE)
+        graph = {
+            "positions": data["positions"][:3].clone(),
+            "cell": cubic_cell.unsqueeze(0),
+            "batch": torch.zeros(3, dtype=torch.long),
+            "ptr": torch.tensor((0, 3), dtype=torch.long),
+            "node_attrs": data["node_attrs"][:3].clone(),
+        }
+        sample = {
+            "data": graph,
+            "energy": torch.zeros(1, dtype=DTYPE),
+            "forces": torch.zeros((3, 3), dtype=DTYPE),
+            "num_atoms": 3,
+            "formula": "X",
+        }
+        model = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=1,
+            n_modes=(2, 2),
+            fno_architecture="linear",
+            spatial_scheme="3d",
+            z_grid_size=8,
+            fno_z_modes=2,
+            invariant_indices=(0, 2),
+            reference_cell=cubic_cell,
+        ).to(dtype=DTYPE)
+        model.train()
+
+        report = low_k_response_diagnostic(
+            model,
+            [sample],
+            max_mode=1,
+            fit_shells=3,
+            field_batch_size=8,
+        )
+        self.assertTrue(model.training)
+        self.assertEqual(report["spatial_scheme"], "3d")
+        self.assertEqual(report["diagnostic_kind"], "periodic_3d")
+        self.assertEqual(report["samples"], 1)
+        self.assertEqual(len(report["per_sample_response"][0]["modes"]), 13)
+
+        slab_model = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=1,
+            n_modes=(2, 2),
+            fno_architecture="linear",
+            z_grid_size=6,
+            z_extent=6.0,
+            invariant_indices=(0, 2),
+            reference_cell=cubic_cell,
+        ).to(dtype=DTYPE)
+        slab_report = low_k_response_diagnostic(
+            slab_model, [sample], fit_shells=2, z_profiles=3
+        )
+        self.assertEqual(slab_report["diagnostic_kind"], "slab_2p5d")
+        self.assertEqual(
+            slab_report["z_profile_names"], ["monopole", "dipole", "quadrupole"]
+        )
+        self.assertEqual(len(slab_report["per_sample_response"][0]["modes"]), 4)
+        self.assertEqual(slab_report["probes_per_mode"], 3)
+
+        monopole_report = low_k_response_diagnostic(
+            slab_model, [sample], fit_shells=2, z_profiles=1
+        )
+        self.assertIsNone(
+            monopole_report["mean_low_k_coulomb_template_relative_error"]
+        )
+
+        anisotropic_model = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=1,
+            n_modes=(2, 2),
+            fno_architecture="linear",
+            spatial_scheme="3d",
+            z_grid_size=8,
+            fno_z_modes=2,
+            invariant_indices=(0, 2),
+            reference_cell=data["cell"][0],
+        ).to(dtype=DTYPE)
+        anisotropic_graph = dict(graph)
+        anisotropic_graph["cell"] = data["cell"][:1].clone()
+        anisotropic_sample = dict(sample)
+        anisotropic_sample["data"] = anisotropic_graph
+        anisotropic_report = low_k_response_diagnostic(
+            anisotropic_model, [anisotropic_sample]
+        )
+        self.assertEqual(anisotropic_report["diagnostic_kind"], "periodic_3d")
+        self.assertGreater(
+            anisotropic_report["per_sample_response"][0]["physical_shells"], 3
+        )
+
     def test_3d_reference_cell_guard_includes_third_vector(self) -> None:
         data = _batch_data()
         model = MACEFNOResidual(
@@ -410,6 +506,51 @@ class CouplingTests(unittest.TestCase):
         data["cell"][1, 2, 2] += 0.1
         with self.assertRaisesRegex(ValueError, "fixed-cell"):
             model(data, compute_force=False)
+
+    def test_isotropic_3d_cell_mode_accepts_uniform_scalings(self) -> None:
+        data = _batch_data()
+        data["cell"] = torch.stack(
+            (8.0 * torch.eye(3, dtype=DTYPE), 10.0 * torch.eye(3, dtype=DTYPE))
+        )
+        model = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=2,
+            n_modes=(2, 2),
+            source_hidden_channels=8,
+            fno_hidden_channels=4,
+            fno_layers=1,
+            spatial_scheme="3d",
+            z_grid_size=8,
+            fno_z_modes=2,
+            invariant_indices=(0, 2),
+            reference_cell=data["cell"][0],
+            cell_mode="isotropic",
+        ).to(dtype=DTYPE)
+        output = model(data, compute_force=False, compute_residual_force=True)
+        self.assertEqual(output["energy"].shape, (2,))
+        self.assertTrue(torch.isfinite(output["residual_forces"]).all())
+        self.assertEqual(
+            model.long_range.field_operator.cell_conditioning, "isotropic"
+        )
+
+        invalid = {key: value.clone() for key, value in data.items()}
+        invalid["cell"][1, 2, 2] = 11.0
+        with self.assertRaisesRegex(ValueError, "uniform scaling"):
+            model(invalid, compute_force=False)
+
+        with self.assertRaisesRegex(ValueError, "requires a nonlinear"):
+            MACEFNOResidual(
+                _FakeMACE(),
+                (8, 8),
+                channels=1,
+                n_modes=(2, 2),
+                fno_architecture="linear",
+                spatial_scheme="3d",
+                z_grid_size=8,
+                invariant_indices=(0, 2),
+                cell_mode="isotropic",
+            )
 
     def test_eqgino_3d_coupling_requires_cubic_geometry(self) -> None:
         cubic_cell = 8.0 * torch.eye(3, dtype=DTYPE)

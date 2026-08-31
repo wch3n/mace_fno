@@ -7,6 +7,7 @@ import torch
 from mace_fno import (
     EqGINOSpectralConv3d,
     FNO3d,
+    FNOFieldOperator3d,
     LearnedParticleMeshLongRange3D,
     LinearFNO3d,
     PeriodicParticleMesh3D,
@@ -149,6 +150,42 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         expected = model(first) + scale * model(second)
         torch.testing.assert_close(actual, expected, atol=4e-12, rtol=4e-12)
 
+    def test_isotropic_cell_conditioning_shape_and_gradients(self) -> None:
+        model = FNOFieldOperator3d(
+            2,
+            (2, 2, 2),
+            hidden_channels=4,
+            n_layers=1,
+            cell_conditioning="isotropic",
+        ).to(dtype=DTYPE)
+        density = torch.randn(
+            (2, 2, 8, 8, 8), dtype=DTYPE, requires_grad=True
+        )
+        cells = torch.stack(
+            (8.0 * torch.eye(3, dtype=DTYPE), 10.0 * torch.eye(3, dtype=DTYPE))
+        )
+        output = model(density, cells)
+        self.assertEqual(output.shape, density.shape)
+        self.assertEqual(model.fno.in_channels, 3)
+        output.square().mean().backward()
+        self.assertIsNotNone(density.grad)
+        self.assertTrue(torch.isfinite(density.grad).all())
+
+        with self.assertRaisesRegex(ValueError, "requires cell"):
+            model(density.detach())
+        with self.assertRaisesRegex(ValueError, "requires cubic"):
+            model(
+                density.detach(),
+                torch.stack(
+                    (cells[0], torch.diag(torch.tensor((10.0, 10.0, 11.0))))
+                ),
+            )
+
+        with self.assertRaisesRegex(ValueError, "requires architecture"):
+            FNOFieldOperator3d(
+                1, (2, 2, 2), architecture="linear", cell_conditioning="isotropic"
+            )
+
     def test_energy_has_conservative_force_along_third_lattice_direction(self) -> None:
         cell = torch.tensor(
             ((9.0, 0.0, 0.0), (0.8, 10.0, 0.0), (0.3, -0.2, 11.0)),
@@ -185,6 +222,37 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         projected_force = torch.dot(force[0], direction)
         torch.testing.assert_close(
             projected_force, finite_difference, atol=5e-8, rtol=5e-5
+        )
+
+    def test_native_density_api_matches_particle_mesh_forward(self) -> None:
+        """The direct-field probe must preserve the native particle-mesh energy."""
+        cell = torch.tensor(
+            ((9.0, 0.0, 0.0), (0.8, 10.0, 0.0), (0.3, -0.2, 11.0)),
+            dtype=DTYPE,
+        )
+        fractional = torch.tensor(
+            ((0.17, 0.21, 0.31), (0.68, 0.73, 0.62), (0.41, 0.36, 0.84)),
+            dtype=DTYPE,
+        )
+        positions = fractional @ cell
+        charges = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
+        model = LearnedParticleMeshLongRange3D(
+            (8, 10, 12),
+            channels=1,
+            n_modes=(3, 3, 3),
+            hidden_channels=4,
+            n_layers=1,
+        ).to(dtype=DTYPE)
+
+        particle_energy, density, particle_potential = model(
+            positions, charges, cell, return_fields=True
+        )
+        density_energy, density_potential = model.energy_from_density(
+            density, cell, return_potential=True
+        )
+        torch.testing.assert_close(density_energy, particle_energy, atol=3e-14, rtol=3e-14)
+        torch.testing.assert_close(
+            density_potential, particle_potential, atol=3e-14, rtol=3e-14
         )
 
     def test_volume_interlacing_matches_eight_shift_average(self) -> None:

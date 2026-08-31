@@ -379,7 +379,14 @@ class FNO3d(nn.Module):
 
 
 class FNOFieldOperator3d(nn.Module):
-    """Normalized field-operator adapter for fully periodic 3D fields."""
+    """Normalized field operator for periodic 3D fields.
+
+    ``cell_conditioning='isotropic'`` appends the logarithmic cubic cell
+    length as a spatially constant input channel.  This lets one nonlinear
+    operator distinguish structures represented on the same fractional mesh
+    but at different physical volumes, while preserving translation and cubic
+    signed-axis symmetries.
+    """
 
     def __init__(
         self,
@@ -392,17 +399,24 @@ class FNOFieldOperator3d(nn.Module):
         architecture: str = "nonlinear",
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        cell_conditioning: str = "none",
     ) -> None:
         super().__init__()
         if architecture not in {"linear", "nonlinear"}:
             raise ValueError("architecture must be 'linear' or 'nonlinear'")
+        if cell_conditioning not in {"none", "isotropic"}:
+            raise ValueError("cell_conditioning must be 'none' or 'isotropic'")
+        if cell_conditioning != "none" and architecture != "nonlinear":
+            raise ValueError("cell conditioning requires architecture='nonlinear'")
         self.architecture = architecture
         self.channels = int(channels)
         self.spectral_symmetry = spectral_symmetry
         self.spectral_groups = int(spectral_groups)
+        self.cell_conditioning = cell_conditioning
+        input_channels = channels + int(cell_conditioning == "isotropic")
         if architecture == "linear":
             self.fno = LinearFNO3d(
-                channels,
+                input_channels,
                 channels,
                 n_modes,
                 spectral_symmetry=spectral_symmetry,
@@ -410,7 +424,7 @@ class FNOFieldOperator3d(nn.Module):
             )
         else:
             self.fno = FNO3d(
-                channels,
+                input_channels,
                 channels,
                 n_modes,
                 hidden_channels=hidden_channels,
@@ -441,13 +455,15 @@ class FNOFieldOperator3d(nn.Module):
         self.output_scale.copy_(output_rms.clamp_min(minimum_scale))
 
     def forward(self, density: Tensor, cell: Tensor | None = None) -> Tensor:
-        if self.spectral_symmetry == "eqgino" and cell is not None:
+        cells = None
+        if cell is not None:
             if cell.ndim == 2 and cell.shape == (3, 3):
                 cells = cell.unsqueeze(0)
             elif cell.ndim == 3 and cell.shape[-2:] == (3, 3):
                 cells = cell
             else:
                 raise ValueError("cell must have shape (3, 3) or (batch, 3, 3)")
+        if self.spectral_symmetry == "eqgino" and cells is not None:
             if any(not is_cubic_cell(value) for value in cells):
                 raise ValueError("EqGINO symmetry requires cubic cells")
         unbatched = density.ndim == 4
@@ -458,5 +474,19 @@ class FNOFieldOperator3d(nn.Module):
                 f"(batch, {self.channels}, nz, nx, ny)"
             )
         normalized = density_batch / self.input_scale
+        if self.cell_conditioning == "isotropic":
+            if cells is None:
+                raise ValueError("isotropic cell conditioning requires cell")
+            if cells.shape[0] != density_batch.shape[0]:
+                raise ValueError("cell batch size must match density batch size")
+            if any(not is_cubic_cell(value) for value in cells):
+                raise ValueError("isotropic cell conditioning requires cubic cells")
+            lengths = cells.det().abs().pow(1.0 / 3.0)
+            if bool((lengths <= 0).any().detach().cpu()):
+                raise ValueError("cell volumes must be positive")
+            condition = lengths.log().reshape(-1, 1, 1, 1, 1).expand(
+                -1, 1, *density_batch.shape[-3:]
+            )
+            normalized = torch.cat((normalized, condition), dim=1)
         potential = self.fno(normalized) * self.output_scale
         return potential.squeeze(0) if unbatched else potential

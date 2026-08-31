@@ -224,6 +224,49 @@ work and memory by roughly a factor of eight; the frozen MACE backbone is still
 evaluated only once. As for slab interlacing, `return_fields=True` is
 unavailable because the eight fields live on different mesh origins.
 
+For a validation-only learning curve of the effective long-range response, a
+periodic 3D run with `--volume-interlacing 1`, or a 2.5D run with
+`--lateral-interlacing 1`, can add:
+
+```bash
+  --spectral-diagnostic-samples 4 \
+  --spectral-diagnostic-max-mode 1 \
+  --spectral-diagnostic-fit-shells 3 \
+  --spectral-diagnostic-z-profiles 3 \
+  --spectral-diagnostic-output spectral_training.json
+```
+
+At each ordinary validation event this perturbs the same fixed held-out
+snapshots and measures the curvature of the complete deposited-field-to-energy
+map. It is not a loss and does not affect checkpoint selection.
+
+For 3D, scalar summaries average modes on equal *physical* \(|\mathbf k|\)
+shells and report free \(k^{-p}\) and fixed \(1/k^2\) fits. Individual
+reciprocal vectors are also fitted to
+\(R(\mathbf k)=1/(\mathbf k^{\mathsf T}B\mathbf k)\). The trace-normalized
+\(B\) tensor diagnoses directional dielectric-like response in orthorhombic or
+triclinic cells; its absolute scale remains in latent units.
+
+For 2.5D, planar Fourier modes are combined with orthonormal monopole, dipole,
+and quadrupole profiles along the finite z axis. The monopole branch is compared
+with \(1/k_\parallel\), while the full channel/profile curvature is compared
+with the open-boundary template
+\(2\pi e^{-k_\parallel|z-z'|}/k_\parallel\). The reported relative Frobenius
+error measures the z-profile shape after optimizing a latent channel metric.
+Use `--spectral-diagnostic-z-profiles 1` for the least expensive monopole-only
+power-law check; with only one profile the z-shape error is deliberately left
+undefined. Three profiles provide the more discriminating slab diagnostic, at
+a cost that grows quadratically with the number of latent-channel/profile
+probes.
+
+These checks identify electrostatic-like scaling and anisotropy, but do not
+make a latent channel a physical charge density or prove that the learned
+residual is exclusively electrostatic.
+
+The Au2-MgO job keeps this relatively expensive check off by default. Enable a
+single fixed validation structure with, for example,
+`SPECTRAL_DIAGNOSTIC_SAMPLES=1 sbatch jobs/train_les_au_mgo_fno_2p5d.slurm`.
+
 Unlike the reference EqGINO implementation, this real density-to-potential
 model stores real radial weights. For a scalar isotropic real-to-real operator,
 `W(-k)=W(k)` and Hermitian consistency together require this restriction. The

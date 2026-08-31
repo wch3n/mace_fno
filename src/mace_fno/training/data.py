@@ -12,7 +12,24 @@ import torch
 from ase.io import read
 
 
-CACHE_FORMAT_VERSION = 1
+CACHE_FORMAT_VERSION = 2
+
+
+def _is_positive_isotropic_scaling(
+    cell: torch.Tensor,
+    reference: torch.Tensor,
+    *,
+    atol: float = 1.0e-6,
+    rtol: float = 1.0e-6,
+) -> bool:
+    """Return whether the cell is a positive uniform scaling of the reference."""
+    reference_norm = reference.square().sum()
+    if bool(reference_norm <= 0):
+        return False
+    scale = (cell * reference).sum() / reference_norm
+    if bool(scale <= 0):
+        return False
+    return bool(torch.allclose(cell, scale * reference, atol=atol, rtol=rtol))
 
 
 def clone_graph(
@@ -131,6 +148,7 @@ def sample_cache_metadata(
     allow_periodic_z: bool,
     skip_cell_mismatch: bool,
     spatial_scheme: str = "2d",
+    cell_mode: str = "fixed",
 ) -> dict[str, Any]:
     """Build the compatibility fingerprint stored beside preprocessed samples."""
     source = filename.resolve()
@@ -152,6 +170,7 @@ def sample_cache_metadata(
         "allow_periodic_z": allow_periodic_z,
         "skip_cell_mismatch": skip_cell_mismatch,
         "spatial_scheme": spatial_scheme,
+        "cell_mode": cell_mode,
     }
     if dtype == torch.float32:
         metadata["mixed_precision_atomic_energy"] = "float64-reference-v1"
@@ -195,6 +214,7 @@ def load_or_create_samples(
     rebuild_cache: bool,
     reference_cell: torch.Tensor | None = None,
     spatial_scheme: str = "2d",
+    cell_mode: str = "fixed",
 ) -> tuple[list[dict[str, Any]], torch.Tensor, dict[str, Any], bool]:
     """Load a compatible cache or construct samples from an extended XYZ file."""
     metadata = sample_cache_metadata(
@@ -207,6 +227,7 @@ def load_or_create_samples(
         allow_periodic_z=allow_periodic_z,
         skip_cell_mismatch=skip_cell_mismatch,
         spatial_scheme=spatial_scheme,
+        cell_mode=cell_mode,
     )
     if cache_file is not None and cache_file.is_file() and not rebuild_cache:
         payload = torch.load(cache_file, map_location="cpu", weights_only=False)
@@ -218,10 +239,18 @@ def load_or_create_samples(
                 if reference_cell is not None
                 else None
             )
-            if compared_reference is not None and not torch.allclose(
-                compared_cached, compared_reference, atol=1.0e-6, rtol=1.0e-6
-            ):
-                raise ValueError(f"cached fixed-cell mismatch in {cache_file}")
+            if compared_reference is not None:
+                cells_match = (
+                    _is_positive_isotropic_scaling(
+                        compared_cached, compared_reference
+                    )
+                    if cell_mode == "isotropic"
+                    else torch.allclose(
+                        compared_cached, compared_reference, atol=1.0e-6, rtol=1.0e-6
+                    )
+                )
+                if not cells_match:
+                    raise ValueError(f"cached cell mismatch in {cache_file}")
             print(f"loaded sample cache: {cache_file}", flush=True)
             return payload["samples"], cached_cell, metadata, True
         print(f"warning: rebuilding incompatible cache {cache_file}", flush=True)
@@ -237,6 +266,7 @@ def load_or_create_samples(
         skip_cell_mismatch,
         reference_cell=reference_cell,
         spatial_scheme=spatial_scheme,
+        cell_mode=cell_mode,
     )
     return samples, loaded_cell, metadata, False
 
@@ -252,8 +282,13 @@ def load_samples(
     skip_cell_mismatch: bool,
     reference_cell: torch.Tensor | None = None,
     spatial_scheme: str = "2d",
+    cell_mode: str = "fixed",
 ) -> tuple[list[dict[str, Any]], torch.Tensor]:
     """Read labeled structures and build the corresponding MACE graph samples."""
+    if cell_mode not in {"fixed", "isotropic"}:
+        raise ValueError("cell_mode must be 'fixed' or 'isotropic'")
+    if cell_mode == "isotropic" and spatial_scheme != "3d":
+        raise ValueError("isotropic cell mode applies only to the 3D scheme")
     configurations = read(filename, index=":")
     if not isinstance(configurations, list):
         configurations = [configurations]
@@ -314,15 +349,21 @@ def load_samples(
         compared_reference = (
             reference_cell if spatial_scheme == "3d" else reference_cell[:2]
         )
-        if not torch.allclose(
-            compared_cell, compared_reference, atol=1.0e-6, rtol=1.0e-6
-        ):
+        cells_match = (
+            _is_positive_isotropic_scaling(compared_cell, compared_reference)
+            if cell_mode == "isotropic"
+            else torch.allclose(
+                compared_cell, compared_reference, atol=1.0e-6, rtol=1.0e-6
+            )
+        )
+        if not cells_match:
             if skip_cell_mismatch:
                 cell_mismatch_count += 1
                 continue
             raise ValueError(
-                "this fixed-cell FNO experiment requires the same relevant "
-                f"cell vectors in every configuration; mismatch at index {index}"
+                f"cell mismatch at index {index}: cell_mode={cell_mode!r} "
+                "requires the same relevant vectors (fixed) or a positive "
+                "uniform scaling of the reference cubic cell (isotropic)"
             )
         batch = calculator._atoms_to_batch(atoms)
         batch_dict = batch.to("cpu").to_dict()

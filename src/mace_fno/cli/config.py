@@ -83,6 +83,16 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--cell-mode",
+        choices=("fixed", "isotropic"),
+        default="fixed",
+        help=(
+            "Cell treatment for the FNO residual. Isotropic accepts positive "
+            "uniform scalings of a cubic 3D reference cell and conditions the "
+            "nonlinear operator on log(cell length)."
+        ),
+    )
+    parser.add_argument(
         "--z-grid",
         type=int,
         default=0,
@@ -228,6 +238,54 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--force-scale", type=float, default=1.0)
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--eval-interval", type=int, default=100)
+    parser.add_argument(
+        "--spectral-diagnostic-samples",
+        type=int,
+        default=0,
+        help=(
+            "Number of fixed validation structures used for the geometry-aware "
+            "3D/2.5D low-k diagnostic at every validation check; zero disables it"
+        ),
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-max-mode",
+        type=int,
+        default=1,
+        help="Largest integer reciprocal component used by the low-k probe",
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-fit-shells",
+        type=int,
+        default=3,
+        help="Number of smallest physical reciprocal shells used for the low-k fit",
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-relative-amplitude",
+        type=float,
+        default=0.05,
+        help="Fourier probe amplitude relative to the deposited-field RMS",
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-field-batch-size",
+        type=int,
+        default=32,
+        help="Direct-field probes evaluated together by the FNO diagnostic",
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-z-profiles",
+        type=int,
+        choices=(1, 2, 3),
+        default=3,
+        help=(
+            "For 2.5D, use monopole only, monopole+dipole, or "
+            "monopole+dipole+quadrupole z probes"
+        ),
+    )
+    parser.add_argument(
+        "--spectral-diagnostic-output",
+        type=Path,
+        help="Optional JSON file updated with the validation low-k diagnostic history",
+    )
     parser.add_argument(
         "--evaluation-scope",
         choices=("all", "validation-test"),

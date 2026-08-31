@@ -36,7 +36,11 @@ class PublicAPITests(unittest.TestCase):
             ["--mace-model", "model.pt", "--train-file", "train.xyz"]
         )
         self.assertEqual(args.spatial_scheme, "auto")
+        self.assertEqual(args.cell_mode, "fixed")
         self.assertEqual(args.batch_size, 1)
+        self.assertEqual(args.spectral_diagnostic_samples, 0)
+        self.assertEqual(args.spectral_diagnostic_max_mode, 1)
+        self.assertEqual(args.spectral_diagnostic_z_profiles, 3)
 
 
 if __name__ == "__main__":

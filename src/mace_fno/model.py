@@ -160,6 +160,30 @@ class ParticleMeshEnergy2p5D(nn.Module):
                 f"channel sums are {values_2d.sum(dim=0).detach().cpu().tolist()}"
             )
 
+    def energy_from_density(
+        self,
+        density: Tensor,
+        cell: Tensor,
+        *,
+        return_potential: bool = False,
+    ) -> Tensor | tuple[Tensor, Tensor]:
+        """Evaluate a deposited finite-z field on the native lateral mesh."""
+        if self.lateral_interlacing != 1:
+            raise ValueError(
+                "energy_from_density is unavailable with lateral interlacing because "
+                "there is no unique native mesh density"
+            )
+        potential = self.field_operator(density, cell)
+        energy = slab_mesh_interaction_energy(
+            density,
+            potential,
+            cell,
+            self.assignment.z_extent,
+        )
+        if return_potential:
+            return energy, potential
+        return energy
+
     def forward(
         self,
         positions: Tensor,
@@ -173,13 +197,12 @@ class ParticleMeshEnergy2p5D(nn.Module):
             self._validate_neutrality(values)
         if self.lateral_interlacing == 1:
             density = self.assignment(positions, values, cell, batch=batch)
-            potential = self.field_operator(density, cell)
-            energy = slab_mesh_interaction_energy(
-                density,
-                potential,
-                cell,
-                self.assignment.z_extent,
-            )
+            if return_fields:
+                energy, potential = self.energy_from_density(
+                    density, cell, return_potential=True
+                )
+            else:
+                energy = self.energy_from_density(density, cell)
         else:
             if return_fields:
                 raise ValueError(
@@ -328,6 +351,32 @@ class ParticleMeshEnergy3D(nn.Module):
                 f"channel sums are {values_2d.sum(dim=0).detach().cpu().tolist()}"
             )
 
+    def energy_from_density(
+        self,
+        density: Tensor,
+        cell: Tensor,
+        *,
+        return_potential: bool = False,
+    ) -> Tensor | tuple[Tensor, Tensor]:
+        """Evaluate the native single-mesh energy of a deposited field.
+
+        This is useful for interrogating a learned field operator directly,
+        for example by applying neutral Fourier-mode perturbations to its
+        input density.  An interlaced calculation averages several different
+        mesh origins and therefore has no unique native density; callers must
+        use the full particle path in that case.
+        """
+        if self.volume_interlacing != 1:
+            raise ValueError(
+                "energy_from_density is unavailable with volume interlacing because "
+                "there is no unique native mesh density"
+            )
+        potential = self.field_operator(density, cell)
+        energy = mesh_interaction_energy_3d(density, potential, cell)
+        if return_potential:
+            return energy, potential
+        return energy
+
     def forward(
         self,
         positions: Tensor,
@@ -341,8 +390,12 @@ class ParticleMeshEnergy3D(nn.Module):
             self._validate_neutrality(values)
         if self.volume_interlacing == 1:
             density = self.assignment(positions, values, cell, batch=batch)
-            potential = self.field_operator(density, cell)
-            energy = mesh_interaction_energy_3d(density, potential, cell)
+            if return_fields:
+                energy, potential = self.energy_from_density(
+                    density, cell, return_potential=True
+                )
+            else:
+                energy = self.energy_from_density(density, cell)
         else:
             if return_fields:
                 raise ValueError(
@@ -409,7 +462,7 @@ class ParticleMeshEnergy3D(nn.Module):
 
 
 class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
-    """Learned fixed-cell FNO correction on a fully periodic 3D mesh."""
+    """Learned FNO correction on a fully periodic 3D mesh."""
 
     def __init__(
         self,
@@ -423,6 +476,7 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
         architecture: str = "nonlinear",
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        cell_conditioning: str = "none",
         volume_interlacing: int = 1,
         check_neutrality: bool = True,
         neutrality_tolerance: float = 1.0e-10,
@@ -436,6 +490,7 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
             architecture=architecture,
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
+            cell_conditioning=cell_conditioning,
         )
         super().__init__(
             grid_shape,
