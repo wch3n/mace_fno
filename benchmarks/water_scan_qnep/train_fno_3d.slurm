@@ -71,6 +71,19 @@ if command -v nvidia-smi >/dev/null 2>&1; then
     nvidia-smi
 fi
 
+spectral_diagnostic_args=()
+if (( SPECTRAL_DIAGNOSTIC_SAMPLES > 0 )); then
+    spectral_diagnostic_args+=(
+        --spectral-diagnostic-samples "${SPECTRAL_DIAGNOSTIC_SAMPLES}"
+        --spectral-diagnostic-max-mode "${SPECTRAL_DIAGNOSTIC_MAX_MODE}"
+        --spectral-diagnostic-fit-shells "${SPECTRAL_DIAGNOSTIC_FIT_SHELLS}"
+        --spectral-diagnostic-relative-amplitude "${SPECTRAL_DIAGNOSTIC_RELATIVE_AMPLITUDE}"
+        --spectral-diagnostic-field-batch-size "${SPECTRAL_DIAGNOSTIC_FIELD_BATCH_SIZE}"
+        --spectral-diagnostic-depth "${SPECTRAL_DIAGNOSTIC_DEPTH}"
+        --spectral-diagnostic-output "${SPECTRAL_DIAGNOSTIC_OUTPUT}"
+    )
+fi
+
 # The cells are aligned cubes with varying lengths. Isotropic conditioning
 # supplies log(cell length) to the nonlinear EqGINO operator. Interlacing is
 # intentionally disabled by default for throughput.
@@ -113,13 +126,7 @@ python3 -u -m mace_fno.cli.train_residual \
     --force-scale "${FORCE_SCALE}" \
     --validation-fraction 0.10 \
     --eval-interval "${EVAL_INTERVAL}" \
-    --spectral-diagnostic-samples "${SPECTRAL_DIAGNOSTIC_SAMPLES}" \
-    --spectral-diagnostic-max-mode "${SPECTRAL_DIAGNOSTIC_MAX_MODE}" \
-    --spectral-diagnostic-fit-shells "${SPECTRAL_DIAGNOSTIC_FIT_SHELLS}" \
-    --spectral-diagnostic-relative-amplitude "${SPECTRAL_DIAGNOSTIC_RELATIVE_AMPLITUDE}" \
-    --spectral-diagnostic-field-batch-size "${SPECTRAL_DIAGNOSTIC_FIELD_BATCH_SIZE}" \
-    --spectral-diagnostic-depth "${SPECTRAL_DIAGNOSTIC_DEPTH}" \
-    --spectral-diagnostic-output "${SPECTRAL_DIAGNOSTIC_OUTPUT}" \
+    "${spectral_diagnostic_args[@]}" \
     --batch-size "${BATCH_SIZE}" \
     --evaluation-batch-size "${EVALUATION_BATCH_SIZE}" \
     --accumulation-steps "${ACCUMULATION_STEPS}" \
