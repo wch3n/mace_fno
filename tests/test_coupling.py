@@ -15,8 +15,12 @@ from mace_fno import (
 )
 from mace_fno.training import (
     amplitude_convergence_diagnostic,
+    build_mace_fno_model,
+    checkpoint_model_parameters,
     ensure_frozen_residual_targets,
+    infer_checkpoint_z_mixing,
     low_k_response_diagnostic,
+    residual_state_dict,
 )
 
 DTYPE = torch.float64
@@ -796,6 +800,80 @@ class CouplingTests(unittest.TestCase):
         data["cell"][1, 0, 0] += 0.1
         with self.assertRaisesRegex(ValueError, "fixed-cell"):
             model(data, compute_force=False)
+
+    def test_legacy_checkpoint_reconstructs_2p5d_model(self) -> None:
+        reference_cell = _batch_data()["cell"][0]
+        original = MACEFNOResidual(
+            _FakeMACE(with_irreps=True),
+            (8, 10),
+            channels=2,
+            n_modes=(2, 3),
+            source_hidden_channels=7,
+            fno_hidden_channels=5,
+            fno_layers=2,
+            spatial_scheme="2.5d",
+            z_grid_size=6,
+            z_extent=7.5,
+            fno_z_mixing="global",
+            reference_cell=reference_cell,
+        ).to(dtype=DTYPE)
+        checkpoint = {
+            "residual_state_dict": residual_state_dict(original),
+            "grid_shape": (8, 10),
+            "n_modes": (2, 3),
+            "spatial_scheme": "2.5d",
+            "z_grid_size": 6,
+            "z_extent": 7.5,
+            "z_center": "mean",
+            "z_kernel_size": 3,
+            "channels": 2,
+            "source_hidden_channels": 7,
+            "fno_hidden_channels": 5,
+            "fno_layers": 2,
+            "architecture": "nonlinear",
+            "reference_cell": reference_cell,
+            "dtype": "float64",
+        }
+
+        self.assertEqual(infer_checkpoint_z_mixing(checkpoint), "global")
+        parameters = checkpoint_model_parameters(checkpoint)
+        self.assertEqual(parameters["cell_mode"], "fixed")
+        self.assertEqual(parameters["fno_lateral_interlacing"], 1)
+        self.assertEqual(parameters["fno_planar_symmetry"], "none")
+
+        restored = build_mace_fno_model(
+            checkpoint,
+            _FakeMACE(with_irreps=True),
+        )
+        self.assertFalse(restored.training)
+        self.assertEqual(restored.spatial_scheme, "2.5d")
+        self.assertEqual(restored.long_range.field_operator.z_mixing, "global")
+        for key, expected in checkpoint["residual_state_dict"].items():
+            torch.testing.assert_close(residual_state_dict(restored)[key], expected)
+
+    def test_checkpoint_parameters_recover_3d_layout(self) -> None:
+        checkpoint = {
+            "residual_state_dict": {},
+            "grid_shape": (12, 14),
+            "n_modes": (3, 4, 5),
+            "spatial_scheme": "3d",
+            "cell_mode": "isotropic",
+            "z_grid_size": 10,
+            "volume_interlacing": 1,
+            "spectral_symmetry": "eqgino",
+            "spectral_groups": 4,
+            "channels": 2,
+            "source_hidden_channels": 8,
+            "fno_hidden_channels": 6,
+            "fno_layers": 2,
+            "architecture": "nonlinear",
+            "reference_cell": torch.eye(3, dtype=DTYPE),
+        }
+        parameters = checkpoint_model_parameters(checkpoint)
+        self.assertEqual(parameters["n_modes"], (4, 5))
+        self.assertEqual(parameters["fno_z_modes"], 3)
+        self.assertEqual(parameters["fno_spectral_symmetry"], "eqgino")
+        self.assertEqual(parameters["fno_spectral_groups"], 4)
 
 
 if __name__ == "__main__":

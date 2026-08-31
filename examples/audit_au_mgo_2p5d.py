@@ -17,7 +17,13 @@ import numpy as np
 import torch
 
 from mace_fno import MACEFNOResidual
-from mace_fno.training import batch_graphs, clone_graph, load_residual_state_dict
+from mace_fno.training import (
+    batch_graphs,
+    choose_device,
+    clone_graph,
+    infer_checkpoint_z_mixing,
+    load_mace_fno_model,
+)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -37,70 +43,6 @@ def parse_arguments() -> argparse.Namespace:
         help="Fail on violated exact invariants or inconsistent force derivatives",
     )
     return parser.parse_args()
-
-
-def choose_device(name: str) -> torch.device:
-    if name == "auto":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if name == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is unavailable")
-    return torch.device(name)
-
-
-def infer_z_mixing(checkpoint: dict[str, Any]) -> str:
-    configured = checkpoint.get("z_mixing")
-    if configured in {"local", "global"}:
-        return configured
-    if configured == "spectral" or checkpoint["architecture"] == "linear":
-        return "local"
-    state = checkpoint["residual_state_dict"]
-    key = "long_range.field_operator.fno.blocks.0.z_mixing.weight"
-    weight = state.get(key)
-    if weight is None:
-        raise KeyError("cannot infer the missing z_mixing checkpoint metadata")
-    if weight.ndim == 5:
-        return "local"
-    if weight.ndim == 3:
-        return "global"
-    raise ValueError(f"unrecognized z-mixing weight shape {tuple(weight.shape)}")
-
-
-def build_model(checkpoint: dict[str, Any], device: torch.device) -> MACEFNOResidual:
-    if checkpoint.get("spatial_scheme") != "2.5d":
-        raise ValueError("this audit requires a 2.5D residual checkpoint")
-    from mace.calculators import MACECalculator
-
-    calculator_kwargs: dict[str, Any] = {
-        "model_paths": checkpoint["mace_model"],
-        "device": str(device),
-        "default_dtype": "float64",
-    }
-    if checkpoint.get("mace_head") is not None:
-        calculator_kwargs["head"] = checkpoint["mace_head"]
-    calculator = MACECalculator(**calculator_kwargs)
-    dtype = torch.float64 if checkpoint["dtype"] == "float64" else torch.float32
-    model = MACEFNOResidual(
-        calculator.models[0],
-        tuple(checkpoint["grid_shape"]),
-        checkpoint["channels"],
-        tuple(checkpoint["n_modes"]),
-        source_hidden_channels=checkpoint["source_hidden_channels"],
-        fno_hidden_channels=checkpoint["fno_hidden_channels"],
-        fno_layers=checkpoint["fno_layers"],
-        fno_architecture=checkpoint["architecture"],
-        spatial_scheme="2.5d",
-        z_grid_size=checkpoint["z_grid_size"],
-        z_extent=checkpoint["z_extent"],
-        z_center=checkpoint["z_center"],
-        fno_lateral_interlacing=checkpoint.get("lateral_interlacing", 1),
-        fno_z_kernel_size=checkpoint["z_kernel_size"],
-        fno_z_mixing=infer_z_mixing(checkpoint),
-        fno_planar_symmetry=checkpoint.get("planar_symmetry", "none"),
-        reference_cell=checkpoint["reference_cell"],
-    ).to(device=device, dtype=dtype)
-    load_residual_state_dict(model, checkpoint["residual_state_dict"])
-    model.eval()
-    return model
 
 
 def rms(values: list[float]) -> float:
@@ -157,8 +99,9 @@ def main() -> None:
         raise ValueError("translation and finite-difference steps must be positive")
 
     device = choose_device(args.device)
-    checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
-    model = build_model(checkpoint, device)
+    model, checkpoint = load_mace_fno_model(args.checkpoint, device=device)
+    if model.spatial_scheme != "2.5d":
+        raise ValueError("this audit requires a 2.5D residual checkpoint")
     dtype = next(model.parameters()).dtype
     cache_path = args.sample_cache or Path(checkpoint["test_cache"])
     cache = torch.load(cache_path, map_location="cpu", weights_only=False)
@@ -369,7 +312,7 @@ def main() -> None:
         "samples": len(samples),
         "sample_indices": sample_indices,
         "z_center": checkpoint["z_center"],
-        "z_mixing": infer_z_mixing(checkpoint),
+        "z_mixing": infer_checkpoint_z_mixing(checkpoint),
         "lateral_interlacing": checkpoint.get("lateral_interlacing", 1),
         "planar_symmetry": checkpoint.get("planar_symmetry", "none"),
         "subset_energy_rmse_mev_per_atom": 1000.0 * rms(energy_errors),

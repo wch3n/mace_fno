@@ -19,7 +19,12 @@ import numpy as np
 import torch
 
 from mace_fno import MACEFNOResidual
-from mace_fno.training import batch_graphs, clone_graph, load_residual_state_dict
+from mace_fno.training import (
+    batch_graphs,
+    choose_device,
+    clone_graph,
+    load_mace_fno_model,
+)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -43,57 +48,6 @@ def parse_arguments() -> argparse.Namespace:
         ),
     )
     return parser.parse_args()
-
-
-def choose_device(name: str) -> torch.device:
-    if name == "auto":
-        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    if name == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError("CUDA was requested but is unavailable")
-    return torch.device(name)
-
-
-def build_model(checkpoint: dict[str, Any], device: torch.device) -> MACEFNOResidual:
-    if checkpoint.get("spatial_scheme") != "3d":
-        raise ValueError("this audit requires a fully periodic 3D checkpoint")
-    modes = tuple(int(value) for value in checkpoint["n_modes"])
-    if len(modes) != 3:
-        raise ValueError("a 3D checkpoint must store three Fourier-mode counts")
-    if checkpoint.get("z_grid_size") is None:
-        raise ValueError("a 3D checkpoint must store z_grid_size")
-
-    from mace.calculators import MACECalculator
-
-    calculator_kwargs: dict[str, Any] = {
-        "model_paths": checkpoint["mace_model"],
-        "device": str(device),
-        "default_dtype": "float64",
-    }
-    if checkpoint.get("mace_head") is not None:
-        calculator_kwargs["head"] = checkpoint["mace_head"]
-    calculator = MACECalculator(**calculator_kwargs)
-    dtype = torch.float64 if checkpoint["dtype"] == "float64" else torch.float32
-    model = MACEFNOResidual(
-        calculator.models[0],
-        tuple(checkpoint["grid_shape"]),
-        checkpoint["channels"],
-        modes[1:],
-        source_hidden_channels=checkpoint["source_hidden_channels"],
-        fno_hidden_channels=checkpoint["fno_hidden_channels"],
-        fno_layers=checkpoint["fno_layers"],
-        fno_architecture=checkpoint["architecture"],
-        spatial_scheme="3d",
-        z_grid_size=checkpoint["z_grid_size"],
-        fno_z_modes=modes[0],
-        fno_spectral_symmetry=checkpoint.get("spectral_symmetry", "none"),
-        fno_spectral_groups=checkpoint.get("spectral_groups", 1),
-        fno_volume_interlacing=checkpoint.get("volume_interlacing", 1),
-        reference_cell=checkpoint["reference_cell"],
-        cell_mode=checkpoint.get("cell_mode", "fixed"),
-    ).to(device=device, dtype=dtype)
-    load_residual_state_dict(model, checkpoint["residual_state_dict"])
-    model.eval()
-    return model
 
 
 def rms(values: list[float] | np.ndarray) -> float:
@@ -172,8 +126,9 @@ def main() -> None:
         raise ValueError("translation and finite-difference steps must be positive")
 
     device = choose_device(args.device)
-    checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
-    model = build_model(checkpoint, device)
+    model, checkpoint = load_mace_fno_model(args.checkpoint, device=device)
+    if model.spatial_scheme != "3d":
+        raise ValueError("this audit requires a fully periodic 3D checkpoint")
     dtype = next(model.parameters()).dtype
     cache_path = args.sample_cache or Path(checkpoint["test_cache"])
     cache = torch.load(cache_path, map_location="cpu", weights_only=False)

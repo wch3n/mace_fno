@@ -24,8 +24,7 @@ from mace_fno import (
     is_cubic_cell,
     transform_in_cell_axis_basis,
 )
-from audit_les_water_3d import build_model, choose_device
-from mace_fno.training import clone_graph
+from mace_fno.training import choose_device, clone_graph, load_mace_fno_model
 
 
 LABELS = ("raw", "o24", "oh48")
@@ -329,8 +328,9 @@ def main() -> None:
         raise ValueError("--fd-step must be positive")
     start = perf_counter()
     device = choose_device(args.device)
-    checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
-    model = build_model(checkpoint, device)
+    model, checkpoint = load_mace_fno_model(args.checkpoint, device=device)
+    if model.spatial_scheme != "3d":
+        raise ValueError("cubic averaging requires a fully periodic 3D checkpoint")
     dtype = next(model.parameters()).dtype
     cache_path = args.sample_cache or Path(checkpoint["test_cache"])
     cache = torch.load(cache_path, map_location="cpu", weights_only=False)

@@ -1,6 +1,16 @@
 """Reusable building blocks for frozen-MACE residual training."""
 
-from .checkpoint import load_residual_state_dict, residual_state_dict
+from .checkpoint import (
+    CHECKPOINT_FORMAT_VERSION,
+    build_mace_fno_model,
+    checkpoint_dtype,
+    checkpoint_model_parameters,
+    infer_checkpoint_z_mixing,
+    load_checkpoint_payload,
+    load_mace_fno_model,
+    load_residual_state_dict,
+    residual_state_dict,
+)
 from .data import (
     CACHE_FORMAT_VERSION,
     batch_graphs,
@@ -39,8 +49,12 @@ from .spectral_diagnostic import (
 
 __all__ = [
     "CACHE_FORMAT_VERSION",
+    "CHECKPOINT_FORMAT_VERSION",
     "amplitude_convergence_diagnostic",
     "batch_graphs",
+    "build_mace_fno_model",
+    "checkpoint_dtype",
+    "checkpoint_model_parameters",
     "choose_device",
     "clone_graph",
     "collate_samples",
@@ -52,6 +66,9 @@ __all__ = [
     "has_reference_labels",
     "initialize_scaled_residual_output",
     "initialize_zero_residual",
+    "infer_checkpoint_z_mixing",
+    "load_checkpoint_payload",
+    "load_mace_fno_model",
     "load_or_create_samples",
     "load_residual_state_dict",
     "load_samples",

@@ -19,6 +19,7 @@ import torch
 from mace_fno import MACEFNOResidual, energy_force_loss
 from mace_fno.cli.config import parse_arguments
 from mace_fno.training import (
+    CHECKPOINT_FORMAT_VERSION,
     choose_device,
     collate_samples,
     configure_output_projection_warmup,
@@ -801,6 +802,7 @@ def main() -> None:
         args.checkpoint.parent.mkdir(parents=True, exist_ok=True)
         torch.save(
             {
+                "checkpoint_format_version": CHECKPOINT_FORMAT_VERSION,
                 "residual_state_dict": residual_state_dict(model),
                 "mace_model": str(args.mace_model),
                 "mace_head": args.head,
