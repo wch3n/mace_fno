@@ -24,10 +24,9 @@
 \newcommand{\vect}[1]{\boldsymbol{#1}}
 \input{results_values.tex}
 
-\title{\textbf{Learning nonlocal residual interactions with Fourier neural operators}\\
-\large A frozen-MACE implementation and benchmarks for periodic water and supported clusters}
+\title{\textbf{Bridging short-ranged MACE and a full description of interatomic interactions with Fourier neural operators}}
 \author{Wei Chen}
-\date{Technical report --- 31 August 2026}
+\date{1 September 2026}
 
 \begin{document}
 \maketitle
@@ -55,41 +54,41 @@ Au$_2$/MgO, the established 2.5D model reduces the held-out force RMSE from
 wetting preference after remote Al doping. A controlled grid/mode/channel
 sweep and a post-selection endpoint rerun are reported in the final version.
 
-The results establish feasibility, conservative forces, and sensitivity to a
-remote perturbation. They do not yet establish transfer across arbitrary cell
-shapes, a unique electrostatic interpretation, Born effective charges, stress,
-or production molecular-dynamics efficiency.
+We establish feasibility, conservative forces, and sensitivity to a remote
+perturbation. We do not yet establish transfer across arbitrary cell shapes,
+a unique electrostatic interpretation, Born effective charges, stress, or
+production molecular-dynamics efficiency.
 \end{abstract}
 
-\section{Executive summary}
+\section{Motivation}
 
-The central question is not whether an FNO can replace MACE. It is whether a
+We do not ask whether an FNO can replace MACE. Instead, we ask whether a
 global operator can learn the structured error that remains after a strong
-local potential has already described short-range chemistry. The implemented
-decomposition is
+local potential has already described short-range chemistry. We use the
+decomposition
 \begin{equation}
  E(\mathcal R,\mathbf H)=E_{\mathrm{MACE}}(\mathcal R,\mathbf H)
  +\Delta E_{\mathrm{FNO}}(\mathcal R,\mathbf H),
  \label{eq:decomposition}
 \end{equation}
 where \(\mathcal R\) denotes the atomic configuration and \(\mathbf H\) the
-cell. MACE is frozen during residual training. Its descriptor derivatives
-with respect to coordinates are retained, so the FNO correction contributes
-conservative forces through the complete computational graph.
+cell. We keep MACE frozen during residual training while retaining descriptor
+derivatives with respect to coordinates. The FNO correction therefore
+contributes conservative forces through the complete computational graph.
 
-Three findings are presently supported.
+We presently support three findings.
 \begin{enumerate}
- \item A periodic 3D residual improves both energy and force errors for
+ \item We find that a periodic 3D residual improves both energy and force errors for
  water--SCAN, rather than merely fitting a constant energy offset.
- \item A slab-specific 2.5D residual matches the remote-Al sign reversal in
+ \item We show that a slab-specific 2.5D residual matches the remote-Al sign reversal in
  Au$_2$/MgO, a deliberately nonlocal endpoint test that the one-interaction
  local baseline fails.
- \item The 3D learned response is close to \(1/k^2\) over the probed
+ \item We find that the 3D learned response is close to \(1/k^2\) over the probed
  long-wavelength modes. This is a useful physical diagnostic; it is not a
  charge-density measurement and is not used as a training loss.
 \end{enumerate}
 
-The strongest current interpretation is
+We therefore interpret the current model as
 \[
 \boxed{\text{local chemistry from frozen MACE}
 \;+\;\text{learned global residual response from FNO}.}
@@ -121,16 +120,16 @@ identifiable.
 
 \subsection{Residual learning as a controlled intervention}
 
-Freezing the local model serves two purposes. First, it isolates the
+We freeze the local model for two purposes. First, this isolates the
 incremental information available to a global branch. Second, it prevents an
 end-to-end model from silently reallocating short-range chemistry to the FNO,
-which would make the role of the global operator harder to diagnose.
-Residual learning does not guarantee that the learned correction is purely
-long ranged. It only makes that hypothesis testable through controlled
-baselines, reciprocal-space diagnostics, cell-size tests, and physically
-targeted endpoints.
+which would make the role of the global operator harder to diagnose. We do
+not assume that the learned correction is purely long ranged. Residual
+learning instead makes that hypothesis testable through controlled baselines,
+reciprocal-space diagnostics, cell-size tests, and physically targeted
+endpoints.
 
-\section{Fourier neural operators for an MLIP audience}
+\section{Fourier neural operators}
 
 \subsection{From a neural network to a neural operator}
 
@@ -162,25 +161,12 @@ filters and nonlinear, environment-dependent couplings. This flexibility is
 the motivation for using it as a residual model and also the reason that
 interpretability must be demonstrated rather than assumed.
 
-The \code{neuralop.models.TFNO} class is an FNO whose spectral weight tensor
-is Tucker-factorized. Tensorized operators can greatly reduce parameter and
-memory cost when dense Fourier weights dominate \citep{kossaifi2024mgtfno},
-but TFNO is not a different long-range physical prior. It does not by itself
-provide atom--mesh deposition, a conservative scalar energy, slab boundary
-conditions, or point-group equivariance. In the present periodic 3D model,
-EqGINO shell sharing supplies a stronger symmetry-aligned compression; in the
-2.5D model, tensorizing the finite-\(z\) and channel maps remains a reasonable
-future optimization after grid, mode and channel convergence is established.
-An off-the-shelf FNO or TFNO block could therefore replace an internal field
-operator, but not the surrounding atomistic construction.
-
-
 \subsection{What the FNO learns here}
 
-The input to the FNO is not a nuclear charge density and the output is not a
-direct energy prediction. Frozen MACE produces invariant atomic descriptors
-\(\mathbf h_i\). A learned head maps each descriptor to \(C\) scalar source
-amplitudes,
+We do not feed a nuclear charge density to the FNO, and we do not ask it to
+predict the energy directly. We obtain invariant atomic descriptors
+\(\mathbf h_i\) from frozen MACE and map each descriptor to \(C\) scalar
+source amplitudes with a learned head,
 \begin{equation}
  \widetilde{\mathbf s}_i=g_\psi(\mathbf h_i),\qquad
  \mathbf s_i=\widetilde{\mathbf s}_i
@@ -188,14 +174,14 @@ amplitudes,
  \label{eq:neutral-source}
 \end{equation}
 where the mean is removed separately for each structure and latent channel.
-Cubic B-spline deposition gives mesh fields
+We deposit these amplitudes with cubic B splines to obtain mesh fields
 \begin{equation}
  \rho_c(\mathbf r_m)=\sum_i s_{ic}B_3(\mathbf r_m-\mathbf r_i),
  \quad\text{cf. Refs.~\citep{darden1993pme,essmann1995pme}.}
 \end{equation}
-The FNO maps these sources to response fields
-\(\boldsymbol\phi=\mathcal G_\omega[\boldsymbol\rho;\mathbf H]\). The scalar
-correction is a bilinear mesh functional,
+We map these sources to response fields
+\(\boldsymbol\phi=\mathcal G_\omega[\boldsymbol\rho;\mathbf H]\) with the
+FNO and compute the scalar correction as a bilinear mesh functional,
 \begin{equation}
  \Delta E_{\mathrm{FNO}}
  =\frac{1}{2}\sum_c\int_\Omega
@@ -207,9 +193,25 @@ Finally,
  \mathbf F_i=-\frac{\partial}{\partial\mathbf r_i}
  (E_{\mathrm{MACE}}+\Delta E_{\mathrm{FNO}}).
 \end{equation}
-Equation~\eqref{eq:mesh-energy} makes energy conservation explicit. Force
-derivatives pass through deposition, the learned source head, and the frozen
-MACE descriptors. Freezing parameters is therefore not detaching descriptors.
+Equation~\eqref{eq:mesh-energy} makes energy conservation explicit. We pass
+force derivatives through deposition, the learned source head, and the frozen
+MACE descriptors. Freezing parameters therefore does not detach descriptors.
+
+Figure~\ref{fig:fno-workflow} summarizes this information flow. In particular,
+we distinguish the neutral latent fields from physical charge density and the
+fixed MACE weights from the coordinate derivatives that remain active.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\textwidth]{fno_workflow.pdf}
+\caption{Information flow in our frozen-MACE residual architecture. MACE
+provides the local baseline energy and invariant descriptors while its weights
+remain fixed. The learned branch deposits neutral latent sources, propagates
+them with a geometry-aware FNO, and returns a scalar residual energy. Automatic
+differentiation of the summed energy gives conservative forces. The latent
+mesh fields are learned internal variables, not assigned charge densities.}
+\label{fig:fno-workflow}
+\end{figure}
 
 \section{Geometry and symmetry}
 
@@ -217,9 +219,9 @@ MACE descriptors. Freezing parameters is therefore not detaching descriptors.
 
 For a supported cluster, the physical boundary conditions are periodic in the
 surface plane and finite through the vacuum direction. A fully periodic 3D
-FFT would spuriously identify the two slab boundaries. The 2.5D model retains
-a field of shape \((C,n_z,n_x,n_y)\), transforms only \(x,y\), and mixes
-\(z\) explicitly:
+FFT would spuriously identify the two slab boundaries. We therefore retain a
+field of shape \((C,n_z,n_x,n_y)\), transform only \(x,y\), and mix \(z\)
+explicitly:
 \begin{equation}
  v_{\ell+1}=\mathrm{GELU}\left[
  \mathcal F_{xy}^{-1}R_\ell(\mathbf k_\parallel)\mathcal F_{xy}v_\ell+
@@ -227,8 +229,8 @@ a field of shape \((C,n_z,n_x,n_y)\), transforms only \(x,y\), and mixes
 \end{equation}
 Here \(Z_\ell\) is a dense, channel-wise \(n_z\times n_z\) response shared
 over the lateral mesh. It neither wraps nor identifies the top and bottom
-boundaries. Centering the finite window on the instantaneous mean \(z\)
-coordinate makes a rigid normal translation exactly invariant.
+boundaries. We centre the finite window on the instantaneous mean \(z\)
+coordinate, making a rigid normal translation exactly invariant.
 
 The electrostatic reference is different from the 3D-periodic \(1/k^2\)
 kernel. After Fourier transforming only the surface plane, an isolated-slab
@@ -242,42 +244,42 @@ monopole response and the associated finite-\(z\) profile, rather than applying
 the bulk \(1/k^2\) criterion.
 
 
-Four half-grid lateral origins are averaged when
+We average four half-grid lateral origins when
 \code{lateral-interlacing=2}. This reduces, but does not eliminate, the
-continuous particle--mesh egg-box error. D4 averaging enforces the discrete
-rotations and reflections of a square lateral grid in every forward
-evaluation.
+continuous particle--mesh egg-box error. We also use D4 averaging to enforce
+the discrete rotations and reflections of a square lateral grid in every
+forward evaluation.
 
 \subsection{Periodic 3D and the EqGINO-style contraction}
 
 For bulk water, all three directions are periodic. The conventional 3D FNO
-learns independent channel-mixing matrices at retained wavevectors. The
-EqGINO-style variant instead shares a real mixing matrix among integer
-reciprocal vectors with the same squared radius,
+learns independent channel-mixing matrices at retained wavevectors. We
+instead share a real mixing matrix among integer reciprocal vectors with the
+same squared radius in the EqGINO-style variant,
 \begin{equation}
  R(\mathbf n)=R(n_x^2+n_y^2+n_z^2).
 \end{equation}
 For real scalar fields on a cubic grid, this gives exact equivariance under
 signed axis permutations while greatly reducing the number of spectral
-parameters. It is an atomistic real-to-real adaptation of EqGINO
+parameters. We use an atomistic real-to-real adaptation of EqGINO
 \citep{kim2026eqgino}, not a reproduction of the full complex-feature
-architecture. Grouped channel contractions further reduce cost. The water
-model accepts uniformly scaled cubic cells and conditions the nonlinear
+architecture. We further reduce cost with grouped channel contractions. Our
+water model accepts uniformly scaled cubic cells and conditions the nonlinear
 operator on the logarithm of cell length.
 
 \subsection{What is and is not exact}
 
-The implementation tests source neutrality, force additivity, automatic
-differentiation against finite differences, exact one-grid and full-lattice
-translations, and the promised discrete point-group operations. Arbitrary
-continuous translations are not exact because atom-to-mesh deposition depends
-on the grid origin. Interlacing suppresses this error at additional cost.
-The report distinguishes mathematical symmetries enforced by the architecture
-from approximate particle--mesh behaviour measured by audits.
+We test source neutrality, force additivity, automatic differentiation
+against finite differences, exact one-grid and full-lattice translations, and
+the promised discrete point-group operations. Arbitrary continuous
+translations are not exact because atom-to-mesh deposition depends on the
+grid origin. Interlacing suppresses this error at additional cost. We
+distinguish mathematical symmetries enforced by the architecture from
+approximate particle--mesh behaviour measured by audits.
 
 \section{Training and model selection}
 
-Only FNO-branch parameters are optimized. For energy and force scales
+We optimize only FNO-branch parameters. For energy and force scales
 \(\sigma_E,\sigma_F\), model selection uses
 \begin{equation}
  \mathcal L_{\mathrm{val}}=
@@ -290,43 +292,43 @@ In both benchmarks, \(w_E=1\), \(w_F=10\),
 \(\sigma_F=1\)~eV \angstrom\(^{-1}\). Thus the numerical validation
 objective is dimensionless and gives the force RMSE ten times the quadratic
 weight of the energy RMSE after conversion to these common eV-based scales.
-The reported test sets and Au$_2$/MgO wetting endpoints are never used to
-choose a checkpoint or a convergence-sweep configuration.
+We never use the reported test sets or Au$_2$/MgO wetting endpoints to choose
+a checkpoint or a convergence-sweep configuration.
 
-For the Au$_2$/MgO sweep, a selection rule was fixed before inspecting
+For the Au$_2$/MgO sweep, we fixed a selection rule before inspecting
 endpoints: minimize Eq.~\eqref{eq:validation-objective}; regard configurations
 within 1\% of the best value as tied; among tied configurations select the
-lower-cost model. Cost is ordered first by the number of trainable residual
-parameters and then, if still tied, by the number of mesh points. The sweep
-changes one factor at a time around
+lower-cost model. We order cost first by the number of trainable residual
+parameters and then, if still tied, by the number of mesh points. We vary one
+factor at a time around
 \((n_x,n_y,n_z)=(24,24,16)\), four retained in-plane modes, and four latent
-channels. All members use seed 17, 20\,000 optimization steps, float64,
+channels. We hold seed 17, 20\,000 optimization steps, float64,
 global \(z\) mixing, mean-\(z\) centering, two-way lateral interlacing and D4
-averaging. This is a convergence study, not a statistical estimate over
-random seeds.
+averaging fixed. We treat this as a convergence study, not a statistical
+estimate over random seeds.
 
 \section{Benchmark I: periodic water--SCAN}
 \label{sec:water}
 
 \subsection{Protocol}
 
-The benchmark uses the 128-water-molecule SCAN \citep{sun2015scan} configurations employed in the
-qNEP study \citep{fan2026qnep}. Each structure contains 384 atoms in an
+We use the 128-water-molecule SCAN \citep{sun2015scan} configurations employed
+in the qNEP study \citep{fan2026qnep}. Each structure contains 384 atoms in an
 aligned cubic cell. The published split supplies 1\,388 training and 500 test
 structures. We deterministically reserve 139 of the published training
 structures for validation, leaving 1\,249 for fitting; the official
 500-structure test is held out.
 
-The baseline is a one-interaction MACE model with \(r_{\max}=4.5\)~\angstrom.
-The residual uses a \(24^3\) mesh, four modes per direction, four latent
+We freeze a one-interaction MACE baseline with \(r_{\max}=4.5\)~\angstrom.
+Our residual uses a \(24^3\) mesh, four modes per direction, four latent
 source channels, two FNO blocks with 16 hidden channels, EqGINO shell sharing
 with four spectral groups, float64 arithmetic, and no volume interlacing.
-Training runs for 60\,000 steps with validation every 500 steps. The selected
-checkpoint is step 57\,500. The residual branch has 12\,112 trainable
+We train for 60\,000 steps with validation every 500 steps and select the
+checkpoint at step 57\,500. Our residual branch has 12\,112 trainable
 parameters; a matched dense-wavevector 3D FNO has 271\,824, so the
 EqGINO-style contraction reduces this count by a factor of 22.4 for this
 configuration.
-The complete 60\,000-step job took 5\,377~s on one NVIDIA A100 GPU.
+We measured 5\,377~s for the complete 60\,000-step job on one NVIDIA A100 GPU.
 
 
 \subsection{Accuracy}
@@ -354,7 +356,7 @@ qNEP mode 2 (published) & 0.8 & 70 & 204\\
 \end{tabularx}
 \end{table}
 
-The residual lowers the held-out energy RMSE by \WaterEnergyGain\% and the
+Our residual lowers the held-out energy RMSE by \WaterEnergyGain\% and the
 force RMSE by \WaterForceGain\%. A fitted global energy offset changes the
 baseline energy RMSE only from 0.986 to 0.971~\mevpa, so the observed
 reduction to 0.556~\mevpa{} is not explained by a constant bias. The force
@@ -375,8 +377,8 @@ beyond their corresponding local baselines on this data set.
 
 \subsection{Spectral and numerical audit}
 
-The learned energy curvature was probed by adding neutral Fourier
-perturbations to the post-deposition latent field. Over the three lowest
+We probed the learned energy curvature by adding neutral Fourier perturbations
+to the post-deposition latent field. Over the three lowest
 physical \(k\) shells, the dominant positive response follows \(k^{-p}\) with
 \(p=\WaterSpectralExponent\) and free-fit \(R^2=\WaterSpectralFreeRtwo\).
 Holding \(p=2\) gives \(R^2=\WaterSpectralRtwo\). Over all modes through
@@ -412,7 +414,7 @@ Subset force RMSE (\meva) & 53.8488 & 43.7448\\
 \end{tabularx}
 \end{table}
 
-The exact promised checks pass at numerical precision, but an arbitrary
+Our exact promised checks pass at numerical precision, but an arbitrary
 0.1-\angstrom{} rigid translation can change the residual energy by up to
 20.7~meV. This is the clearest current numerical limitation of the
 non-interlaced 3D model. Finite-difference agreement shows that the reported
@@ -420,12 +422,12 @@ forces remain the correct derivatives of this discretized energy; it does
 not remove the grid-origin error.
 
 The qNEP paper reports that NEP and qNEP radial distribution functions are
-essentially indistinguishable for liquid water. Accordingly, no claim is made
-here that an FNO correction should produce a visibly different pair
-distribution. More discriminating dynamical targets would include dipole
-correlations, dielectric response, infrared spectra, finite-size scaling, or
-field response, none of which the present latent fields can yet predict as
-physical observables.
+essentially indistinguishable for liquid water. Accordingly, we do not claim
+that an FNO correction should produce a visibly different pair distribution.
+We instead identify dipole correlations, dielectric response, infrared
+spectra, finite-size scaling, and field response as more discriminating
+dynamical targets, although our present latent fields cannot yet predict
+these as physical observables.
 
 \section{\texorpdfstring{Benchmark II: Au$_2$/MgO with remote Al dopants}{Benchmark II: Au2/MgO with remote Al dopants}}
 \label{sec:aumgo}
@@ -445,15 +447,15 @@ DFT gives a positive value for undoped MgO and a negative value after doping.
 This sign reversal is a more relevant test of nonlocal sensitivity than a
 single aggregate RMSE.
 
-The data contain 4\,500 fit/validation structures and 500 independent test
-structures. A fixed 225-structure validation subset is selected from the
-4\,500 structures. The frozen one-interaction MACE model uses
-\(r_{\max}=5.5\)~\angstrom. The established 2.5D residual uses a
+We use 4\,500 fit/validation structures and 500 independent test structures,
+and we fix a 225-structure validation subset within the former. We freeze a
+one-interaction MACE model with \(r_{\max}=5.5\)~\angstrom. Our established
+2.5D residual uses a
 \(24\times24\times16\) mesh, four in-plane modes, four latent channels,
 two 16-channel FNO blocks, global finite-\(z\) mixing, two-way lateral
-interlacing, D4 averaging and float64 arithmetic. The established residual
-branch has 50\,624 trainable parameters.
-The corresponding 20\,000-step job took 1~h 13~min on one A100 GPU.
+interlacing, D4 averaging and float64 arithmetic, with 50\,624 trainable
+parameters. We measured 1~h 13~min for the corresponding 20\,000-step job on
+one A100 GPU.
 
 
 \subsection{Established test accuracy and endpoint result}
@@ -472,8 +474,8 @@ MACE+2.5D FNO & \AuFnoEnergy & \AuFnoForce\\
 \end{tabular}
 \end{table}
 
-The residual reduces energy RMSE by about 95\% and force RMSE by about 76\%.
-The 32-structure strict audit gives an energy RMSE of 0.108~\mevpa{} and
+Our residual reduces energy RMSE by about 95\% and force RMSE by about 76\%.
+Our 32-structure strict audit gives an energy RMSE of 0.108~\mevpa{} and
 force RMSE of 12.86~\meva. Source neutrality, force finite differences,
 one-grid lateral translations, and D4 transformations pass. The remaining
 0.1-\angstrom{} lateral translation error is 1.36~meV in energy, with a
@@ -503,10 +505,10 @@ MACE+2.5D FNO (selected sweep) & \AuSelectedUndoped & \AuSelectedDoped &
 \end{tabular}
 \end{table}
 
-The established FNO is within 10.4~meV of DFT for the undoped splitting and
-11.5~meV for the doped splitting. Its values are also close to the published
-MACE--LES results. This is strong evidence that the global residual branch is
-sensitive to the remote substitution. It is not yet evidence that FNO
+Our established FNO is within 10.4~meV of DFT for the undoped splitting and
+11.5~meV for the doped splitting, and is also close to the published MACE--LES
+results. We take this as strong evidence that the global residual branch is
+sensitive to the remote substitution. We do not yet claim that FNO
 outperforms LES: the benchmark contains only one dopant pattern and two
 relaxed endpoint differences, and the FNO model is computationally richer.
 
@@ -528,8 +530,8 @@ Configuration & \(n_{xy}\) & modes & \(n_z\) & channels &
 \end{tabular}
 \end{table}
 
-The selected configuration is \AuSelectedConfiguration. Its validation
-objective is \AuSelectedObjective. \AuSelectionNarrative
+We select \AuSelectedConfiguration, with validation objective
+\AuSelectedObjective. \AuSelectionNarrative
 
 \section{Relation to qNEP and LES}
 \label{sec:comparison}
@@ -562,23 +564,23 @@ source/kernel
 factorization supports charge-aware observables and efficient large-scale
 molecular dynamics.
 
-The present FNO instead learns both multi-channel latent sources and the
-post-deposition response operator. Its concise distinction is
+Our FNO instead learns both multi-channel latent sources and the
+post-deposition response operator. We summarize the distinction as
 \[
 \boxed{\text{LES/qNEP learn electrostatic sources with a prescribed kernel,}}
 \]
 \[
 \boxed{\text{\macefno{} learns a global residual response operator.}}
 \]
-This greater flexibility could represent heterogeneous screening or response
-that is poorly compressed into a few atomic multipoles. Conversely, it costs
+This flexibility could represent heterogeneous screening or response that is
+poorly compressed into a few atomic multipoles. Conversely, our model costs
 parameters and mesh operations, sacrifices direct charge interpretability,
-and makes extrapolation less constrained.
+and leaves extrapolation less constrained.
 
 \begin{table}[t]
 \centering
 \caption{Conceptual comparison. Entries describe the cited implementations
-and this report, not every possible extension.}
+and this work, not every possible extension.}
 \label{tab:method-comparison}
 \small
 \begin{tabularx}{\textwidth}{>{\bfseries}lXXX}
@@ -595,7 +597,7 @@ Energy role & Explicit electrostatic term & Explicit latent-Ewald term &
 Residual mesh functional\\
 Electrical observables & Charges, polarization response &
 Polarization and BEC demonstrated & Not identified at present\\
-Geometry in this report & 3D periodic production MD &
+Geometry demonstrated & 3D periodic production MD &
 3D Ewald; slab benchmark published & 2.5D slab and periodic 3D\\
 Principal advantage & High-throughput charge-aware MD &
 Compact, transferable augmentation & Flexible nonlocal response\\
@@ -609,19 +611,19 @@ Latent gauge and extrapolation\\
 
 For water--SCAN, qNEP improves the published NEP force RMSE from 81 to
 70~\meva{} in mode 2; our FNO improves its own MACE baseline from 67.57 to
-52.83~\meva. The absolute values favour the present model, but only a common
+52.83~\meva. The absolute values favour our model, but only a common
 baseline, split, loss and parameter budget would constitute a direct
 architecture comparison. qNEP additionally reports stress and electrical
-response, which the current FNO calculator does not provide.
+response, which our current FNO calculator does not provide.
 
 For Au$_2$/MgO, the comparison is sharper because the same DFT endpoint values
 are used. MACE--LES predicts \(919.3/-56.5\)~meV for undoped/doped slabs; the
 established MACE+FNO predicts \(924.5/-55.4\)~meV, compared with
 \(934.8/-66.9\)~meV from DFT. Both recover the sign reversal to similar
-accuracy. The remaining scientific opportunity is not to reproduce LES with
-more parameters, but to construct a tractable data set in which spatially
-heterogeneous or non-electrostatic response produces a falsifiable advantage
-for a learned operator.
+accuracy. We therefore see the remaining scientific opportunity not as
+reproducing LES with more parameters, but as constructing a tractable data set
+in which spatially heterogeneous or non-electrostatic response produces a
+falsifiable advantage for a learned operator.
 
 \section{Born effective charges: opportunity and present obstacle}
 
@@ -634,7 +636,7 @@ is
 The definition follows the density-functional perturbation-theory convention
 of Ref.~\citep{gonze1997bec}.
 LES and qNEP possess charge-like variables tied to a prescribed electrostatic
-construction, so a polarization can be defined within the model. In the
+construction, so a polarization can be defined within the model. In our
 current FNO, the channels of \(\rho_c\) admit arbitrary learned rotations and
 rescalings paired with compensating changes in the operator. Neither
 \(\rho_c\) nor \(\phi_c\) is calibrated to electronic charge, and the training
@@ -642,13 +644,13 @@ targets contain no polarization gauge information. A BEC obtained by simply
 taking the first moment of one latent channel would therefore be
 representation-dependent.
 
-There are three plausible routes forward:
+We see three plausible routes forward:
 \begin{enumerate}
- \item retain the general residual FNO and add polarization/BEC targets that
+ \item we can retain the general residual FNO and add polarization/BEC targets that
  identify a designated physical response channel;
- \item split the model into an explicit electrostatic channel plus
+ \item we can split the model into an explicit electrostatic channel plus
  unconstrained residual channels;
- \item use BEC only as an auxiliary response diagnostic after defining a
+ \item we can use BEC only as an auxiliary response diagnostic after defining a
  gauge-consistent polarization functional.
 \end{enumerate}
 Attributing the entire FNO residual to electrostatics would simplify the first
@@ -657,6 +659,8 @@ energy--force training. The \(1/k^2\) audit makes that assumption more
 plausible for the water model; it does not prove it.
 
 \section{Limitations and decisive next experiments}
+
+We identify the following limitations and corresponding next tests.
 
 \begin{enumerate}
  \item \textbf{Continuous translation.} The residual is exactly periodic
@@ -684,60 +688,60 @@ plausible for the water model; it does not prove it.
  a distributed FFT strategy, and validated stress.
 \end{enumerate}
 
-The most decisive scientific experiment would hold local environments
+We see the most decisive scientific experiment as holding local environments
 approximately fixed while varying a remote dielectric environment in a way
-that cannot be represented by a small set of local latent multipoles. The
-Au$_2$/MgO sign reversal is a first instance, but more dopant depths,
-concentrations and surface terminations are needed. Such a series would test
-whether the learned response field provides information beyond a prescribed
+that cannot be represented by a small set of local latent multipoles. We
+regard the Au$_2$/MgO sign reversal as a first instance, but need more dopant
+depths, concentrations and surface terminations. Such a series would test
+whether our learned response field provides information beyond a prescribed
 Ewald kernel rather than merely matching it on one endpoint pair.
 
 \section{Reproducibility and software scope}
 
-The repository contains the reusable package, numerical tests, and two
-benchmark workflows only. Training data, frozen MACE models, caches, FNO
-checkpoints, Slurm logs, audits, endpoint trajectories and compiled report
-artifacts are generated outside the Git checkout. Checkpoints store the
-residual state and reconstruction metadata but reference, rather than
+We keep only the reusable package, numerical tests, and two benchmark
+workflows in the repository. We generate training data, frozen MACE models,
+caches, FNO checkpoints, Slurm logs, audits, endpoint trajectories and
+compiled document artifacts outside the Git checkout. Our checkpoints store
+the residual state and reconstruction metadata but reference, rather than
 duplicate, the frozen MACE model.
 
-The test suite covers deposition, spectral energy, 2D/2.5D/3D operators,
+Our test suite covers deposition, spectral energy, 2D/2.5D/3D operators,
 cubic and planar symmetries, frozen-MACE coupling, checkpoint compatibility,
 ASE evaluation, spectral diagnostics, label handling and the
-adsorption-switch evaluator. Exact commands and paths are documented in the
-benchmark READMEs. Because external model/data repositories can change, a
-publication archive should additionally record upstream commit hashes,
-checksums, Python package versions, Slurm scripts, random seeds and all
-validation indices.
+adsorption-switch evaluator. We document exact commands and paths in the
+benchmark READMEs. Because external model/data repositories can change, we
+will additionally record upstream commit hashes, checksums, Python package
+versions, Slurm scripts, random seeds and all validation indices in a
+publication archive.
 
 \section{Conclusions}
 
-A frozen local MACE potential can be augmented by a conservative FNO residual
-without modifying its weights. The implementation converts invariant local
+We augment a frozen local MACE potential with a conservative FNO residual
+without modifying its weights. Our implementation converts invariant local
 descriptors to neutral latent mesh sources, learns a geometry-aware global
-response, and differentiates a scalar mesh energy. The water--SCAN result
-shows a substantive reduction in held-out energy and force errors, while the
-Au$_2$/MgO result shows sensitivity to a remote dopant that reverses a wetting
-preference. A long-wavelength audit finds an approximately \(1/k^2\)
-response in the cubic water model.
+response, and differentiates a scalar mesh energy. We find a substantive
+reduction in held-out water--SCAN energy and force errors, and sensitivity to
+a remote dopant that reverses the Au$_2$/MgO wetting preference. Our
+long-wavelength audit finds an approximately \(1/k^2\) response in the cubic
+water model.
 
-These results justify continued development, but the present evidence supports
-a feasibility report rather than a complete physical theory of the latent
-fields. LES and qNEP remain more compact and interpretable when the missing
-physics is conventional electrostatics. The scientific case for FNO will be
-strongest where a learned spatial response operator demonstrably captures
-heterogeneous screening or other nonlocal residuals that a fixed
-charge--kernel factorization misses.
+Our results justify continued development, but do not yet constitute a
+complete physical theory of the latent fields. LES and qNEP remain more
+compact and interpretable when the missing physics is conventional
+electrostatics. We expect the scientific case for FNO to be strongest where a
+learned spatial response operator demonstrably captures heterogeneous
+screening or other nonlocal residuals that a fixed charge--kernel
+factorization misses.
 
 \section*{Data and code availability}
 
-The source code and reproducible benchmark launchers are maintained at
-\url{https://github.com/wch3n/mace_fno}. The report records results available
-on 31 August 2026. Large third-party data, pretrained MACE models, generated
-caches and learned checkpoints are not stored in the source repository;
-their provenance and preparation commands are documented in the benchmark
-directories. A versioned public archive with immutable checksums should
-accompany a manuscript submission.
+We maintain the source code and reproducible benchmark launchers at
+\url{https://github.com/wch3n/mace_fno}. We record results available on
+1 September 2026. We do not store large third-party data, pretrained MACE
+models, generated caches or learned checkpoints in the source repository; we
+document their provenance and preparation commands in the benchmark
+directories. We will accompany a manuscript submission with a versioned
+public archive containing immutable checksums.
 
 \bibliographystyle{unsrtnat}
 \bibliography{references}

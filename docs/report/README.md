@@ -1,19 +1,25 @@
-# Technical report
+# MACE--FNO report
 
-The repository tracks only the report source, bibliography, and compact
-result macros. Compile it out of tree so TeX auxiliaries and the PDF do not
+The repository tracks the report source, bibliography, compact result macros,
+and the Python source for the architecture diagram. Generate figures and
+compile the document out of tree so rendered assets and TeX auxiliaries do not
 accumulate in the source checkout.
 
-For the Lucia TeX Live installation used for the benchmark report:
+For the Lucia TeX Live installation:
 
 ```bash
 report_build=/path/to/external/mace_fno_report_build
+figure_dir=/path/to/external/mace_fno_report_figures
 tex_bin=~/texlive/2026/bin/x86_64-linux
 
+python3 docs/report/figures/plot_fno_workflow.py \
+  --output-dir "$figure_dir"
+
 mkdir -p "$report_build"
-cp docs/technical_report/main.tex \
-  docs/technical_report/references.bib \
-  docs/technical_report/results_values.tex \
+cp docs/report/main.tex \
+  docs/report/references.bib \
+  docs/report/results_values.tex \
+  "$figure_dir/fno_workflow.pdf" \
   "$report_build/"
 
 cd "$report_build"
