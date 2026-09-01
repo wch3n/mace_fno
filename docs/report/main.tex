@@ -153,9 +153,26 @@ reciprocal space \citep{li2021fno}. A typical layer is
  \label{eq:fno-layer}
 \end{equation}
 where \(W_\ell\) is a pointwise channel mixer and \(R_\ell\) is learned on a
-truncated set of modes. One spectral layer has a global receptive field on
-the periodic mesh. The mode cutoff controls spectral resolution, while the
-real-space grid controls particle--mesh assignment and spatial variation.
+truncated set of modes. A Fourier mode is a basis function
+\(\exp(i\mathbf k\cdot\mathbf r)\) identified by a discrete reciprocal vector
+\(\mathbf k\). The configured mode cutoff selects the lowest Fourier indices
+on which \(R_\ell\) acts. These low-\(k\) components describe slowly varying
+fields, while a larger cutoff adds shorter-wavelength structure and increases
+cost. Every retained Fourier basis function is global. Increasing the mode
+count therefore improves spectral resolution rather than extending the
+receptive field. The pointwise path \(W_\ell v_\ell\) still carries local mesh
+information outside the truncated spectral branch.
+
+Channels instead label the components of the learned feature vector
+\(v_\ell(\mathbf r)\) at each mesh point. In Eq.~\eqref{eq:fno-layer},
+\(W_\ell\) mixes channels pointwise and \(R_\ell(\mathbf k)\) mixes them at
+retained wavevectors. We distinguish the \(C\) latent source channels
+\(\rho_c\) from the hidden channels used inside each FNO block. Source
+channels provide capacity for several learned source--response components,
+whereas hidden channels set the internal network width. Neither type denotes
+a chemical species, atomic orbital or assigned electrostatic multipole. The
+learned source-channel basis remains non-unique under equivalent latent
+representations.
 
 The use of Fourier space does not itself make a model electrostatic.
 Electrostatics is one possible global operator, whose periodic 3D Green's
@@ -319,8 +336,8 @@ within 1\% of the best value as tied; among tied configurations select the
 lower-cost model. We order cost first by the number of trainable residual
 parameters and then, if still tied, by the number of mesh points. We vary one
 factor at a time around
-\((n_x,n_y,n_z)=(24,24,16)\), four retained in-plane modes, and four latent
-channels. We hold seed 17, 20\,000 optimization steps, float64,
+\((n_x,n_y,n_z)=(24,24,16)\), an in-plane mode cutoff of four, and four latent
+source channels. We hold seed 17, 20\,000 optimization steps, float64,
 global \(z\) mixing, mean-\(z\) centering, two-way lateral interlacing and D4
 averaging fixed. We treat this as a convergence study, not a statistical
 estimate over random seeds.
@@ -338,9 +355,10 @@ structures for validation, leaving 1\,249 for fitting; the official
 500-structure test is held out.
 
 We freeze a one-interaction MACE baseline with \(r_{\max}=4.5\)~\angstrom.
-Our residual uses a \(24^3\) mesh, four modes per direction, four latent
-source channels, two FNO blocks with 16 hidden channels, EqGINO shell sharing
-with four spectral groups, float64 arithmetic, and no volume interlacing.
+Our residual uses a \(24^3\) mesh, a mode cutoff of four per direction, four
+latent source channels, and two FNO blocks with 16 hidden channels. We use
+EqGINO shell sharing with four spectral groups, float64 arithmetic, and no
+volume interlacing.
 We train for 60\,000 steps with validation every 500 steps and select the
 checkpoint at step 57\,500. Our residual branch has 12\,112 trainable
 parameters; a matched dense-wavevector 3D FNO has 271\,824, so the
@@ -469,9 +487,10 @@ We use 4\,500 fit/validation structures and 500 independent test structures,
 and we fix a 225-structure validation subset within the former. We freeze a
 one-interaction MACE model with \(r_{\max}=5.5\)~\angstrom. Our established
 2D FNO residual uses a
-\(24\times24\times16\) mesh, four in-plane modes, four latent channels,
-two 16-channel FNO blocks, global finite-\(z\) mixing, two-way lateral
-interlacing, D4 averaging and float64 arithmetic, with 50\,624 trainable
+\(24\times24\times16\) mesh, an in-plane mode cutoff of four, and four latent
+source channels. It contains two FNO blocks with 16 hidden channels, global
+finite-\(z\) mixing, two-way lateral interlacing, D4 averaging and float64
+arithmetic, with 50\,624 trainable
 parameters. We measured 1~h 13~min for the corresponding 20\,000-step job on
 one A100 GPU.
 
@@ -530,17 +549,21 @@ sensitive to the remote substitution. We do not yet claim that FNO
 outperforms LES: the benchmark contains only one dopant pattern and two
 relaxed endpoint differences, and the FNO model is computationally richer.
 
-\subsection{Grid, mode and channel convergence}
+\subsection{Grid, Fourier-mode and source-channel convergence}
+
+Here \(n_{\mathrm{mode}}\) is the in-plane Fourier cutoff and \(C\) is the
+number of latent source fields. The hidden width remains fixed at 16 channels.
 
 \begin{table}[t]
 \centering
-\caption{Validation-selected 2D FNO convergence sweep. All members differ by
-one factor from the established configuration. Test metrics are revealed only
-after applying the pre-registered validation rule.}
+\caption{Validation-selected convergence of the 2D FNO grid, Fourier-mode
+cutoff and latent source-channel count. All members differ by one factor from
+the established configuration. Test metrics are revealed only after applying
+the pre-registered validation rule.}
 \label{tab:aumgo-convergence}
 \begin{tabular}{lrrrrrr}
 \toprule
-Configuration & \(n_{xy}\) & modes & \(n_z\) & channels &
+Configuration & \(n_{xy}\) & \(n_{\mathrm{mode}}\) & \(n_z\) & \(C\) &
 \(\mathcal L_{\mathrm{val}}\) & Test F RMSE\\
 \midrule
 \AuSweepRows
