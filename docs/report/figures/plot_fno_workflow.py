@@ -179,7 +179,7 @@ def build_figure() -> plt.Figure:
     rectangle_box(
         ax,
         (0.075, 0.735),
-        (0.130, 0.200),
+        (0.130, 0.300),
         "Atomic\nstructure",
         r"$\{\mathbf{R},\mathbf{H}\}$",
         facecolor=COLORS["neutral_fill"],
@@ -188,7 +188,7 @@ def build_figure() -> plt.Figure:
     rectangle_box(
         ax,
         (0.245, 0.735),
-        (0.170, 0.280),
+        (0.170, 0.300),
         "Frozen MACE",
         "weights fixed\ncoordinate gradients\nretained",
         facecolor=COLORS["mace_fill"],
@@ -198,7 +198,7 @@ def build_figure() -> plt.Figure:
     rectangle_box(
         ax,
         (0.450, 0.735),
-        (0.170, 0.180),
+        (0.170, 0.300),
         "Local energy",
         r"$E_{\mathrm{MACE}}$"
         "\nshort-range baseline",
@@ -209,7 +209,7 @@ def build_figure() -> plt.Figure:
     rectangle_box(
         ax,
         (0.340, 0.270),
-        (0.130, 0.230),
+        (0.130, 0.300),
         "Descriptors\n" r"$\mathbf{h}_i$",
         "local chemistry",
         facecolor=COLORS["neutral_fill"],
@@ -230,7 +230,7 @@ def build_figure() -> plt.Figure:
     rectangle_box(
         ax,
         (0.685, 0.270),
-        (0.145, 0.280),
+        (0.145, 0.300),
         "Geometry-\naware FNO",
         "2.5D slab / 3D bulk\n"
         r"$\rho_c(\mathbf{r})\rightarrow\phi_c(\mathbf{r})$",
@@ -241,7 +241,7 @@ def build_figure() -> plt.Figure:
     rectangle_box(
         ax,
         (0.840, 0.270),
-        (0.140, 0.240),
+        (0.140, 0.300),
         "Residual\nenergy",
         r"$\Delta E_{\mathrm{FNO}}$"
         "\n" r"$0.5\int\boldsymbol{\rho}\cdot\boldsymbol{\phi}\,\mathrm{d}\mathbf{r}$",
@@ -253,7 +253,7 @@ def build_figure() -> plt.Figure:
     rectangle_box(
         ax,
         (0.860, 0.735),
-        (0.240, 0.320),
+        (0.240, 0.300),
         "Total energy and\nconservative forces",
         r"$E=E_{\mathrm{MACE}}+\Delta E_{\mathrm{FNO}}$"
         "\n"
@@ -268,7 +268,7 @@ def build_figure() -> plt.Figure:
     arrow(ax, (0.535, 0.735), (0.740, 0.735), color=COLORS["mace"])
     elbow_arrow(
         ax,
-        (0.245, 0.595),
+        (0.245, 0.585),
         (0.245, 0.270),
         (0.275, 0.270),
         color=COLORS["line"],
@@ -276,7 +276,7 @@ def build_figure() -> plt.Figure:
     arrow(ax, (0.405, 0.270), (0.415, 0.270), color=COLORS["fno"])
     arrow(ax, (0.595, 0.270), (0.6125, 0.270), color=COLORS["fno"])
     arrow(ax, (0.7575, 0.270), (0.770, 0.270), color=COLORS["fno"])
-    arrow(ax, (0.840, 0.390), (0.840, 0.575), color=COLORS["fno"])
+    arrow(ax, (0.840, 0.420), (0.840, 0.585), color=COLORS["fno"])
 
     return fig
 
