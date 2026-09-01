@@ -14,7 +14,7 @@ from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, FancyArrowPatch, FancyBboxPatch
+from matplotlib.patches import FancyArrowPatch, Rectangle
 
 
 MM_TO_INCH = 1.0 / 25.4
@@ -49,7 +49,7 @@ def configure_style() -> None:
     )
 
 
-def rounded_box(
+def rectangle_box(
     ax: plt.Axes,
     center: tuple[float, float],
     size: tuple[float, float],
@@ -60,27 +60,37 @@ def rounded_box(
     edgecolor: str,
     title_color: str | None = None,
     linewidth: float = 1.15,
-) -> FancyBboxPatch:
+) -> Rectangle:
     cx, cy = center
     width, height = size
-    patch = FancyBboxPatch(
+    patch = Rectangle(
         (cx - width / 2.0, cy - height / 2.0),
         width,
         height,
-        boxstyle="round,pad=0.008,rounding_size=0.018",
         linewidth=linewidth,
         edgecolor=edgecolor,
         facecolor=facecolor,
         zorder=3,
     )
     ax.add_patch(patch)
+    multiline_title = "\n" in title
+    multiline_subtitle = "\n" in subtitle
+    if multiline_title:
+        title_y = cy + 0.052
+        subtitle_y = cy - 0.052
+    elif multiline_subtitle:
+        title_y = cy + 0.050
+        subtitle_y = cy - 0.040
+    else:
+        title_y = cy + 0.028
+        subtitle_y = cy - 0.035
     ax.text(
         cx,
-        cy + (0.020 if subtitle else 0.0),
+        title_y if subtitle else cy,
         title,
         ha="center",
         va="center",
-        fontsize=8.6,
+        fontsize=8.2,
         fontweight="bold",
         color=title_color or COLORS["ink"],
         zorder=4,
@@ -88,13 +98,13 @@ def rounded_box(
     if subtitle:
         ax.text(
             cx,
-            cy - 0.031,
+            subtitle_y,
             subtitle,
             ha="center",
             va="center",
-            fontsize=8.2,
+            fontsize=7.4,
             color=COLORS["muted"],
-            linespacing=1.15,
+            linespacing=1.10,
             zorder=4,
         )
     return patch
@@ -106,7 +116,6 @@ def arrow(
     end: tuple[float, float],
     *,
     color: str = COLORS["line"],
-    connectionstyle: str = "arc3,rad=0.0",
     linewidth: float = 1.25,
 ) -> None:
     ax.add_patch(
@@ -117,7 +126,6 @@ def arrow(
             mutation_scale=10.0,
             linewidth=linewidth,
             color=color,
-            connectionstyle=connectionstyle,
             shrinkA=1.5,
             shrinkB=1.5,
             zorder=2,
@@ -125,34 +133,42 @@ def arrow(
     )
 
 
+def elbow_arrow(
+    ax: plt.Axes,
+    start: tuple[float, float],
+    corner: tuple[float, float],
+    end: tuple[float, float],
+    *,
+    color: str = COLORS["line"],
+    linewidth: float = 1.25,
+) -> None:
+    """Draw a two-segment orthogonal connector with one terminal arrowhead."""
+    ax.plot(
+        [start[0], corner[0]],
+        [start[1], corner[1]],
+        color=color,
+        linewidth=linewidth,
+        solid_capstyle="butt",
+        zorder=2,
+    )
+    arrow(ax, corner, end, color=color, linewidth=linewidth)
+
+
 def build_figure() -> plt.Figure:
     configure_style()
     width_mm = 183
-    height_mm = 105
+    height_mm = 78
     fig, ax = plt.subplots(figsize=(width_mm * MM_TO_INCH, height_mm * MM_TO_INCH))
     fig.subplots_adjust(left=0.018, right=0.982, bottom=0.035, top=0.985)
     ax.set_xlim(0.0, 1.0)
     ax.set_ylim(0.0, 1.0)
     ax.axis("off")
 
-    # A light enclosure identifies the parameters optimized during residual training.
-    learned_region = FancyBboxPatch(
-        (0.285, 0.205),
-        0.695,
-        0.425,
-        boxstyle="round,pad=0.010,rounding_size=0.025",
-        linewidth=0.9,
-        linestyle=(0, (3, 2)),
-        edgecolor="#D8A0A3",
-        facecolor="#FFF9F9",
-        zorder=0,
-    )
-    ax.add_patch(learned_region)
     ax.text(
-        0.695,
-        0.605,
+        0.535,
+        0.475,
         "learned residual branch",
-        ha="left",
+        ha="center",
         va="center",
         fontsize=8.2,
         fontweight="bold",
@@ -160,132 +176,107 @@ def build_figure() -> plt.Figure:
         zorder=1,
     )
 
-    rounded_box(
+    rectangle_box(
         ax,
-        (0.50, 0.915),
-        (0.245, 0.085),
-        r"Atomic structure  $\{\mathbf{R},\mathbf{H}\}$",
+        (0.075, 0.735),
+        (0.130, 0.200),
+        "Atomic\nstructure",
+        r"$\{\mathbf{R},\mathbf{H}\}$",
         facecolor=COLORS["neutral_fill"],
         edgecolor=COLORS["line"],
     )
-    rounded_box(
+    rectangle_box(
         ax,
-        (0.50, 0.755),
-        (0.335, 0.170),
-        "Frozen MACE (weights fixed)",
-        "coordinate gradients retained",
+        (0.245, 0.735),
+        (0.170, 0.280),
+        "Frozen MACE",
+        "weights fixed\ncoordinate gradients\nretained",
         facecolor=COLORS["mace_fill"],
         edgecolor=COLORS["mace"],
         title_color=COLORS["mace"],
     )
-    rounded_box(
+    rectangle_box(
         ax,
-        (0.145, 0.445),
-        (0.225, 0.105),
-        r"Local energy  $E_{\mathrm{MACE}}$",
-        "short-range baseline",
+        (0.450, 0.735),
+        (0.170, 0.180),
+        "Local energy",
+        r"$E_{\mathrm{MACE}}$"
+        "\nshort-range baseline",
         facecolor=COLORS["mace_fill"],
         edgecolor=COLORS["mace"],
         title_color=COLORS["mace"],
     )
-    rounded_box(
+    rectangle_box(
         ax,
-        (0.365, 0.455),
-        (0.155, 0.105),
-        r"Descriptors  $\mathbf{h}_i$",
+        (0.340, 0.270),
+        (0.130, 0.230),
+        "Descriptors\n" r"$\mathbf{h}_i$",
         "local chemistry",
         facecolor=COLORS["neutral_fill"],
         edgecolor=COLORS["line"],
     )
-    rounded_box(
+    rectangle_box(
         ax,
-        (0.585, 0.455),
-        (0.245, 0.145),
-        "Source head + deposition",
-        r"$g_\psi(\mathbf{h}_i)\rightarrow$ neutral $s_{ic}$"
-        "\n"
-        r"B spline $\rightarrow$ latent $\rho_c(\mathbf{r})$",
+        (0.505, 0.270),
+        (0.180, 0.300),
+        "Source head\n+ deposition",
+        r"$g_\psi(\mathbf{h}_i)\rightarrow s_{ic}$"
+        "\nneutral latent channels\n"
+        r"B spline $\rightarrow \rho_c(\mathbf{r})$",
         facecolor=COLORS["fno_fill"],
         edgecolor=COLORS["fno"],
         title_color=COLORS["fno"],
     )
-    rounded_box(
+    rectangle_box(
         ax,
-        (0.855, 0.455),
-        (0.205, 0.145),
-        "Geometry-aware FNO",
+        (0.685, 0.270),
+        (0.145, 0.280),
+        "Geometry-\naware FNO",
         "2.5D slab / 3D bulk\n"
         r"$\rho_c(\mathbf{r})\rightarrow\phi_c(\mathbf{r})$",
         facecolor=COLORS["fno_fill"],
         edgecolor=COLORS["fno"],
         title_color=COLORS["fno"],
     )
-    rounded_box(
+    rectangle_box(
         ax,
-        (0.815, 0.275),
-        (0.285, 0.100),
-        r"Residual energy  $\Delta E_{\mathrm{FNO}}$",
-        r"$0.5\int\boldsymbol{\rho}\cdot\boldsymbol{\phi}\,\mathrm{d}\mathbf{r}$",
+        (0.840, 0.270),
+        (0.140, 0.240),
+        "Residual\nenergy",
+        r"$\Delta E_{\mathrm{FNO}}$"
+        "\n" r"$0.5\int\boldsymbol{\rho}\cdot\boldsymbol{\phi}\,\mathrm{d}\mathbf{r}$",
         facecolor=COLORS["fno_fill"],
         edgecolor=COLORS["fno"],
         title_color=COLORS["fno"],
     )
 
-    merge_center = (0.50, 0.220)
-    merge = Circle(
-        merge_center,
-        radius=0.025,
-        facecolor=COLORS["total"],
-        edgecolor=COLORS["total"],
-        linewidth=1.0,
-        zorder=3,
-    )
-    ax.add_patch(merge)
-    rounded_box(
+    rectangle_box(
         ax,
-        (0.50, 0.085),
-        (0.365, 0.115),
-        r"Total energy and conservative forces",
-        r"$E=E_{\mathrm{MACE}}+\Delta E_{\mathrm{FNO}},\quad"
-        r"\mathbf{F}_i=-\partial E/\partial\mathbf{r}_i$",
+        (0.860, 0.735),
+        (0.240, 0.320),
+        "Total energy and\nconservative forces",
+        r"$E=E_{\mathrm{MACE}}+\Delta E_{\mathrm{FNO}}$"
+        "\n"
+        r"$\mathbf{F}_i=-\partial E/\partial\mathbf{r}_i$",
         facecolor=COLORS["total_fill"],
         edgecolor=COLORS["total"],
         title_color=COLORS["total"],
     )
 
-    arrow(ax, (0.50, 0.870), (0.50, 0.835))
-    arrow(
+    arrow(ax, (0.140, 0.735), (0.160, 0.735))
+    arrow(ax, (0.330, 0.735), (0.365, 0.735), color=COLORS["mace"])
+    arrow(ax, (0.535, 0.735), (0.740, 0.735), color=COLORS["mace"])
+    elbow_arrow(
         ax,
-        (0.39, 0.665),
-        (0.17, 0.505),
-        color=COLORS["mace"],
-        connectionstyle="arc3,rad=0.16",
+        (0.245, 0.595),
+        (0.245, 0.270),
+        (0.275, 0.270),
+        color=COLORS["line"],
     )
-    arrow(ax, (0.50, 0.665), (0.39, 0.515), color=COLORS["line"])
-    arrow(ax, (0.443, 0.455), (0.460, 0.455), color=COLORS["fno"])
-    arrow(ax, (0.708, 0.455), (0.752, 0.455), color=COLORS["fno"])
-    arrow(
-        ax,
-        (0.855, 0.382),
-        (0.825, 0.327),
-        color=COLORS["fno"],
-        connectionstyle="arc3,rad=0.10",
-    )
-    arrow(
-        ax,
-        (0.145, 0.391),
-        (0.452, 0.220),
-        color=COLORS["mace"],
-        connectionstyle="arc3,rad=-0.10",
-    )
-    arrow(
-        ax,
-        (0.672, 0.275),
-        (0.548, 0.220),
-        color=COLORS["fno"],
-        connectionstyle="arc3,rad=0.08",
-    )
-    arrow(ax, (0.50, 0.195), (0.50, 0.143), color=COLORS["total"])
+    arrow(ax, (0.405, 0.270), (0.415, 0.270), color=COLORS["fno"])
+    arrow(ax, (0.595, 0.270), (0.6125, 0.270), color=COLORS["fno"])
+    arrow(ax, (0.7575, 0.270), (0.770, 0.270), color=COLORS["fno"])
+    arrow(ax, (0.840, 0.390), (0.840, 0.575), color=COLORS["fno"])
 
     return fig
 
