@@ -177,14 +177,25 @@ source amplitudes with a learned head,
  \label{eq:neutral-source}
 \end{equation}
 where the mean is removed separately for each structure and latent channel.
-We deposit these amplitudes with cubic B splines to obtain mesh fields
+We deposit these amplitudes with cubic B splines to obtain real-space latent
+source fields
 \begin{equation}
  \rho_c(\mathbf r_m)=\sum_i s_{ic}B_3(\mathbf r_m-\mathbf r_i),
  \quad\text{cf. Refs.~\citep{darden1993pme,essmann1995pme}.}
+ \label{eq:latent-source-field}
 \end{equation}
-We map these sources to response fields
-\(\boldsymbol\phi=\mathcal G_\omega[\boldsymbol\rho;\mathbf H]\) with the
-FNO and compute the scalar correction as a bilinear mesh functional,
+The symbol \(\rho_c\) denotes a deposited field and does not imply an
+electronic or induced charge density. Equation~\eqref{eq:latent-source-field}
+constructs this field before FNO evaluation. The mean subtraction in
+Eq.~\eqref{eq:neutral-source} enforces zero net source amplitude per channel,
+but the channels retain arbitrary normalization and can mix under equivalent
+latent representations. Energy--force training therefore does not
+assign physical charge units, and moments of \(\rho_c\) cannot presently be
+interpreted as polarization or Born effective charges.
+
+The FNO maps these sources to response fields
+\(\boldsymbol\phi=\mathcal G_\omega[\boldsymbol\rho;\mathbf H]\), and we
+compute the scalar correction as a bilinear mesh functional,
 \begin{equation}
  \Delta E_{\mathrm{FNO}}
  =\frac{1}{2}\sum_c\int_\Omega
