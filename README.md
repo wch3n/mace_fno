@@ -13,12 +13,14 @@ Implemented geometries are:
   z axis (configuration value `2.5d`);
 - fully periodic 3D, including an EqGINO-style cubic spectral contraction.
 
-The benchmark surface is intentionally narrow. Only the two systems assessed
-so far are retained:
+The benchmark surface is intentionally narrow. Only the systems assessed with
+complete reproducible workflows are retained:
 
 1. [Au2-MgO](benchmarks/au_mgo/README.md), comparing planar projection and the
    slab-resolved 2D FNO correction;
-2. [Water-SCAN](benchmarks/water_scan_qnep/README.md), testing periodic 3D FNO.
+2. [Water-SCAN](benchmarks/water_scan_qnep/README.md), testing periodic 3D FNO;
+3. [Ti2CO2 adsorbates](benchmarks/ti2co2_adsorbates/README.md), comparing
+   one- and two-interaction 4.5 A MACE controls with a 2D FNO correction.
 
 Generated data, MACE models, graph caches, FNO checkpoints, and audit reports
 are not versioned. Benchmark workflows write them beneath
@@ -55,6 +57,7 @@ so they also work from an editable checkout.
 - `src/mace_fno/`: model, particle-mesh, checkpoint, ASE, and training code;
 - `benchmarks/au_mgo/`: complete Au2-MgO preparation, training, and audit workflow;
 - `benchmarks/water_scan_qnep/`: complete Water-SCAN preparation, training, and audit workflow;
+- `benchmarks/ti2co2_adsorbates/`: leakage-free local-depth and 2D FNO comparison;
 - `tests/`: numerical, symmetry, checkpoint, diagnostic, and ASE tests.
 
 There are deliberately no separate top-level `jobs/` or `examples/`
