@@ -105,8 +105,8 @@ central to the comparison with LES and qNEP in Sec.~\ref{sec:comparison}.
 \subsection{Finite receptive fields}
 
 MACE builds equivariant atom-centered representations by message passing within
-a radial cutoff and maps them to an extensive energy
-\citep{batatia2022mace}. Higher body order makes the local representation
+a radial cutoff and maps them to an extensive energy~\citep{batatia2022mace}.
+Higher body order makes the local representation
 expressive with few interaction layers, but does not remove the finite
 receptive field. Two structures can therefore present nearly identical local
 neighborhoods to the model while differing through remote dopants, boundary
@@ -115,8 +115,7 @@ conditions, polarization, or collective charge redistribution.
 This limitation is not specific to MACE. Long-range-aware atomistic models
 have used explicit charges, charge equilibration, Wannier centers, analytical
 electrostatics, long-distance descriptors, reciprocal-space messages,
-attention, or combinations of these ideas
-\citep{grisafi2019longrange,ko2021fourth,zeng2022dplr,
+attention, or combinations of these ideas~\citep{grisafi2019longrange,ko2021fourth,zeng2022dplr,
 unke2021spookynet,kosmala2023ewaldmp,faller2024density}. These approaches differ mainly in
 where they place physical prior information and which latent quantities are
 identifiable.
@@ -142,9 +141,9 @@ operator maps one function to another,
  \mathcal G_\omega:a(\mathbf r)\longmapsto u(\mathbf r),
 \]
 with shared parameters across spatial locations and, in its ideal continuum
-formulation, across discretizations \citep{kovachki2023neuraloperator}. The
+formulation, across discretizations~\citep{kovachki2023neuraloperator}. The
 Fourier neural operator parameterizes the nonlocal integral kernel in
-reciprocal space \citep{li2021fno}. A typical layer is
+reciprocal space~\citep{li2021fno}. A typical layer is
 \begin{equation}
  v_{\ell+1}(\mathbf r)=\sigma\!\left[
  W_\ell v_\ell(\mathbf r)+
@@ -296,8 +295,8 @@ same squared radius in the EqGINO-style variant,
 \end{equation}
 For real scalar fields on a cubic grid, this gives exact equivariance under
 signed axis permutations while greatly reducing the number of spectral
-parameters. We use an atomistic real-to-real adaptation of EqGINO
-\citep{kim2026eqgino}, not a reproduction of the full complex-feature
+parameters. We use an atomistic real-to-real adaptation of
+EqGINO~\citep{kim2026eqgino}, not a reproduction of the full complex-feature
 architecture. We further reduce cost with grouped channel contractions. Our
 water model accepts uniformly scaled cubic cells and conditions the nonlinear
 operator on the logarithm of cell length.
@@ -347,8 +346,8 @@ estimate over random seeds.
 
 \subsection{Protocol}
 
-We use the 128-water-molecule SCAN \citep{sun2015scan} configurations employed
-in the qNEP study \citep{fan2026qnep}. Each structure contains 384 atoms in an
+We use the 128-water-molecule SCAN~\citep{sun2015scan} configurations employed
+in the qNEP study~\citep{fan2026qnep}. Each structure contains 384 atoms in an
 aligned cubic cell. The published split supplies 1\,388 training and 500 test
 structures. We deterministically reserve 139 of the published training
 structures for validation, leaving 1\,249 for fitting; the official
@@ -472,7 +471,7 @@ these as physical observables.
 
 The Au$_2$/MgO benchmark contains undoped slabs and slabs in which three Al
 substitutions lie in the fifth subsurface layer, more than 10~\angstrom{} from
-the adsorbed Au dimer \citep{king2025charges,kim2025universal}. Local Au environments can
+the adsorbed Au dimer~\citep{king2025charges,kim2025universal}. Local Au environments can
 remain nearly unchanged while the remote dopants reverse the relative
 stability of non-wetting and wetting endpoints. With
 \begin{equation}
@@ -580,8 +579,8 @@ We select \AuSelectedConfiguration, with validation objective
 \subsection{Different priors, not merely different software}
 
 LES starts from a strong prior: a low-dimensional latent source learned from
-local features interacts through a prescribed Ewald kernel
-\citep{cheng2025les}. In a simplified periodic form,
+local features interacts through a prescribed Ewald
+kernel~\citep{cheng2025les}. In a simplified periodic form,
 \begin{equation}
  q_i=Q_\phi(\mathbf h_i),\quad
  S(\mathbf k)=\sum_iq_i e^{i\mathbf k\cdot\mathbf r_i},\quad
@@ -589,12 +588,12 @@ local features interacts through a prescribed Ewald kernel
  \sum_{\mathbf k\ne0}\frac{e^{-\sigma^2k^2/2}}{k^2}|S(\mathbf k)|^2.
 \end{equation}
 The universal LES implementation augments several local MLIPs and can infer
-polarization and Born effective charges from energy--force training
-\citep{king2025charges,kim2025universal,zhong2025electrical}.
+polarization and Born effective charges from energy--force
+training~\citep{king2025charges,kim2025universal,zhong2025electrical}.
 
 qNEP also predicts environment-dependent charges but couples them to explicit
 electrostatics implemented with Ewald summation or particle--particle
-particle--mesh methods \citep{fan2026qnep}. Mode~1 includes the real-space,
+particle--mesh methods~\citep{fan2026qnep}. Mode~1 includes the real-space,
 reciprocal-space and self-energy Ewald terms, whereas mode~2 retains only the
 reciprocal-space term on the premise that the local potential already captures
 short-range electrostatics. Their similar errors support the residual-design
