@@ -100,7 +100,7 @@ is broader, but less identifiable, than approaches that predict
 latent charges and apply a prescribed Ewald kernel. That distinction is
 central to the comparison with LES and qNEP in Sec.~\ref{sec:comparison}.
 
-\section{Why a local MLIP can need a nonlocal correction}
+\section{The nonlocal gap in local MLIPs}
 
 \subsection{Finite receptive fields}
 
@@ -164,7 +164,7 @@ filters and nonlinear, environment-dependent couplings. This flexibility is
 the motivation for using it as a residual model and also the reason that
 interpretability must be demonstrated rather than assumed.
 
-\subsection{What the FNO learns here}
+\subsection{Learned residual sources and response fields}
 
 We do not feed a nuclear charge density to the FNO, and we do not ask it to
 predict the energy directly. We obtain invariant atomic descriptors
@@ -274,7 +274,7 @@ architecture. We further reduce cost with grouped channel contractions. Our
 water model accepts uniformly scaled cubic cells and conditions the nonlinear
 operator on the logarithm of cell length.
 
-\subsection{What is and is not exact}
+\subsection{Exact symmetries and numerical approximations}
 
 We test source neutrality, force additivity, automatic differentiation
 against finite differences, exact one-grid and full-lattice translations, and
@@ -439,7 +439,7 @@ these as physical observables.
 \section{\texorpdfstring{Benchmark II: Au$_2$/MgO with remote Al dopants}{Benchmark II: Au2/MgO with remote Al dopants}}
 \label{sec:aumgo}
 
-\subsection{Why this is a sharper nonlocal test}
+\subsection{A discriminating test of nonlocal response}
 
 The Au$_2$/MgO benchmark contains undoped slabs and slabs in which three Al
 substitutions lie in the fifth subsurface layer, more than 10~\angstrom{} from
