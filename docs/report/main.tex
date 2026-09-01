@@ -24,7 +24,7 @@
 \newcommand{\vect}[1]{\boldsymbol{#1}}
 \input{results_values.tex}
 
-\title{\textbf{Learning residual interactions with Fourier neural operators: Modelling long-range and nonlocal interactions}}
+\title{\textbf{Learning residual interactions with Fourier neural operators: Modeling long-range and nonlocal interactions}}
 \author{Wei Chen}
 \date{1 September 2026}
 
@@ -104,16 +104,16 @@ central to the comparison with LES and qNEP in Sec.~\ref{sec:comparison}.
 
 \subsection{Finite receptive fields}
 
-MACE builds equivariant atom-centred representations by message passing within
+MACE builds equivariant atom-centered representations by message passing within
 a radial cutoff and maps them to an extensive energy
 \citep{batatia2022mace}. Higher body order makes the local representation
 expressive with few interaction layers, but does not remove the finite
 receptive field. Two structures can therefore present nearly identical local
-neighbourhoods to the model while differing through remote dopants, boundary
+neighborhoods to the model while differing through remote dopants, boundary
 conditions, polarization, or collective charge redistribution.
 
 This limitation is not specific to MACE. Long-range-aware atomistic models
-have used explicit charges, charge equilibration, Wannier centres, analytical
+have used explicit charges, charge equilibration, Wannier centers, analytical
 electrostatics, long-distance descriptors, reciprocal-space messages,
 attention, or combinations of these ideas
 \citep{grisafi2019longrange,ko2021fourth,zeng2022dplr,
@@ -260,7 +260,7 @@ explicitly:
 \end{equation}
 Here \(Z_\ell\) is a dense, channel-wise \(n_z\times n_z\) response shared
 over the lateral mesh. It neither wraps nor identifies the top and bottom
-boundaries. We centre the finite window on the instantaneous mean \(z\)
+boundaries. We center the finite window on the instantaneous mean \(z\)
 coordinate, making a rigid normal translation exactly invariant.
 
 We label this architecture the 2D FNO because spectral propagation spans the
@@ -310,7 +310,7 @@ the promised discrete point-group operations. Arbitrary continuous
 translations are not exact because atom-to-mesh deposition depends on the
 grid origin. Interlacing suppresses this error at additional cost. We
 distinguish mathematical symmetries enforced by the architecture from
-approximate particle--mesh behaviour measured by audits.
+approximate particle--mesh behavior measured by audits.
 
 \section{Training and model selection}
 
@@ -516,7 +516,7 @@ Our 32-structure strict audit gives an energy RMSE of 0.108~\mevpa{} and
 force RMSE of 12.86~\meva. Source neutrality, force finite differences,
 one-grid lateral translations, and D4 transformations pass. The remaining
 0.1-\angstrom{} lateral translation error is 1.36~meV in energy, with a
-3.02~\meva{} RMS net residual-force component along the less favourable
+3.02~\meva{} RMS net residual-force component along the less favorable
 lateral direction. Interlacing substantially reduces this egg-box effect
 relative to an unaveraged mesh but does not make continuous translations
 exact.
@@ -648,7 +648,7 @@ Latent gauge and extrapolation\\
 
 For water--SCAN, qNEP improves the published NEP force RMSE from 81 to
 70~\meva{} in mode 2; our FNO improves its own MACE baseline from 67.57 to
-52.83~\meva. The absolute values favour our model, but only a common
+52.83~\meva. The absolute values favor our model, but only a common
 baseline, split, loss and parameter budget would constitute a direct
 architecture comparison. qNEP additionally reports stress and electrical
 response, which our current FNO calculator does not provide.
@@ -691,7 +691,7 @@ We see three plausible routes forward:
  gauge-consistent polarization functional.
 \end{enumerate}
 Attributing the entire FNO residual to electrostatics would simplify the first
-route, but it is a modelling assumption rather than a consequence of
+route, but it is a modeling assumption rather than a consequence of
 energy--force training. The \(1/k^2\) audit makes that assumption more
 plausible for the water model; it does not prove it.
 
