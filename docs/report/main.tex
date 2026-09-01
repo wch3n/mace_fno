@@ -24,7 +24,7 @@
 \newcommand{\vect}[1]{\boldsymbol{#1}}
 \input{results_values.tex}
 
-\title{\textbf{Bridging short-ranged MACE and a full description of interatomic interactions with Fourier neural operators}}
+\title{\textbf{Learning residual interactions with Fourier neural operators: Modelling long-range and nonlocal interactions}}
 \author{Wei Chen}
 \date{1 September 2026}
 
@@ -62,10 +62,16 @@ production molecular-dynamics efficiency.
 
 \section{Motivation}
 
-We do not ask whether an FNO can replace MACE. Instead, we ask whether a
-global operator can learn the structured error that remains after a strong
-local potential has already described short-range chemistry. We use the
-decomposition
+Message-passing machine-learning interatomic potentials (MLIPs) generally
+remain limited in their description of long-range electrostatics, even when
+equipped with several interaction layers. Latent Ewald summation
+(LES)~\citep{cheng2025les} augments a local equivariant MLIP with learned
+latent charge-like variables whose long-range interactions are evaluated
+through an explicit Coulomb kernel. qNEP~\citep{fan2026qnep} similarly uses
+environment-dependent latent charges to describe long-range electrostatics
+and polarization. Here, we ask whether a global operator can learn the
+structured error that remains after a strong local potential has already
+described short-range chemistry. We use the decomposition
 \begin{equation}
  E(\mathcal R,\mathbf H)=E_{\mathrm{MACE}}(\mathcal R,\mathbf H)
  +\Delta E_{\mathrm{FNO}}(\mathcal R,\mathbf H),
@@ -88,12 +94,9 @@ We presently support three findings.
  charge-density measurement and is not used as a training loss.
 \end{enumerate}
 
-We therefore interpret the current model as
-\[
-\boxed{\text{local chemistry from frozen MACE}
-\;+\;\text{learned global residual response from FNO}.}
-\]
-The method is broader, but less identifiable, than approaches that predict
+We therefore interpret the current model as combining local chemistry from
+frozen MACE with a learned global residual response from the FNO. The method
+is broader, but less identifiable, than approaches that predict
 latent charges and apply a prescribed Ewald kernel. That distinction is
 central to the comparison with LES and qNEP in Sec.~\ref{sec:comparison}.
 
@@ -565,14 +568,10 @@ factorization supports charge-aware observables and efficient large-scale
 molecular dynamics.
 
 Our FNO instead learns both multi-channel latent sources and the
-post-deposition response operator. We summarize the distinction as
-\[
-\boxed{\text{LES/qNEP learn electrostatic sources with a prescribed kernel,}}
-\]
-\[
-\boxed{\text{\macefno{} learns a global residual response operator.}}
-\]
-This flexibility could represent heterogeneous screening or response that is
+post-deposition response operator. LES and qNEP therefore learn electrostatic
+sources with a prescribed kernel. In contrast, \macefno{} learns a global
+residual response operator. This flexibility could represent heterogeneous
+screening or response that is
 poorly compressed into a few atomic multipoles. Conversely, our model costs
 parameters and mesh operations, sacrifices direct charge interpretability,
 and leaves extrapolation less constrained.
