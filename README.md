@@ -8,14 +8,16 @@ The resulting scalar residual energy is differentiated to obtain forces.
 
 Implemented geometries are:
 
-- planar 2D, periodic along the first two cell vectors;
-- hybrid 2.5D, Fourier transformed in-plane with an explicit nonperiodic z axis;
+- planar projection, periodic along the first two cell vectors;
+- 2D FNO for slabs, Fourier transformed in-plane with an explicit nonperiodic
+  z axis (configuration value `2.5d`);
 - fully periodic 3D, including an EqGINO-style cubic spectral contraction.
 
 The benchmark surface is intentionally narrow. Only the two systems assessed
 so far are retained:
 
-1. [Au2-MgO](benchmarks/au_mgo/README.md), comparing 2D and 2.5D corrections;
+1. [Au2-MgO](benchmarks/au_mgo/README.md), comparing planar projection and the
+   slab-resolved 2D FNO correction;
 2. [Water-SCAN](benchmarks/water_scan_qnep/README.md), testing periodic 3D FNO.
 
 Generated data, MACE models, graph caches, FNO checkpoints, and audit reports
@@ -81,10 +83,11 @@ mace-fno-train \
 ```
 
 The saved checkpoint contains the learned residual state and reconstruction
-metadata, but does not duplicate the frozen MACE weights. Old 2D, 2.5D, and 3D
-checkpoint formats are reconstructed through one compatibility loader.
+metadata, but does not duplicate the frozen MACE weights. Old planar, slab
+(`2.5d`), and 3D checkpoint formats are reconstructed through one compatibility
+loader.
 
-### Hybrid 2.5D slabs
+### 2D FNO for slabs
 
 Select the slab representation with, for example:
 
@@ -143,13 +146,14 @@ PYTHONPATH=src python3 -m mace_fno.cli.audit_spectral \
 The diagnostic compares the learned low-k curvature with the geometry-specific
 Coulomb form:
 
-- 2D: the thin-sheet `1/k_parallel` response;
-- 2.5D: `2*pi*exp(-k_parallel*|z-z'|)/k_parallel` on finite z profiles;
+- planar projection: the thin-sheet `1/k_parallel` response;
+- 2D FNO slab (`2.5d`):
+  `2*pi*exp(-k_parallel*|z-z'|)/k_parallel` on finite z profiles;
 - 3D: scalar `1/k^2` and anisotropic `1/(k^T B k)` fits.
 
 During training, `--spectral-diagnostic-samples N` enables a cheap fixed
-validation probe. Routine 2.5D validation uses only the monopole z profile; the
-selected checkpoint uses `--spectral-diagnostic-z-profiles`. Add
+validation probe. Routine 2D FNO slab validation uses only the monopole z
+profile; the selected checkpoint uses `--spectral-diagnostic-z-profiles`. Add
 `--spectral-diagnostic-depth deep` for a one-time final amplitude-convergence
 sweep. Diagnostics never affect the loss or checkpoint selection.
 

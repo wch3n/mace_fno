@@ -27,7 +27,8 @@ published one-interaction MACE model to
 
 ## Run
 
-The ordinary local-MACE baseline and the 2D/2.5D residual variants are:
+The ordinary local-MACE baseline, planar projection, and slab-resolved 2D FNO
+variants are:
 
 ```bash
 sbatch benchmarks/au_mgo/evaluate_mace.slurm
@@ -35,13 +36,14 @@ sbatch benchmarks/au_mgo/train_fno_2d.slurm
 sbatch benchmarks/au_mgo/train_fno_2p5d.slurm
 ```
 
-For convergence studies, the 2.5D launcher exposes `GRID`, `MODES`,
-`Z_GRID`, `CHANNELS`, `SOURCE_HIDDEN_CHANNELS`,
-`FNO_HIDDEN_CHANNELS`, and `FNO_LAYERS` as environment variables. Set an
+For convergence studies, the 2D FNO slab launcher
+(`train_fno_2p5d.slurm`) exposes `GRID`, `MODES`, `Z_GRID`, `CHANNELS`,
+`SOURCE_HIDDEN_CHANNELS`, `FNO_HIDDEN_CHANNELS`, and `FNO_LAYERS` as
+environment variables. Set an
 explicit external `CHECKPOINT` and pass an external Slurm `--output` path
 so generated runs remain outside the checkout.
 
-Audit the selected 2.5D checkpoint with:
+Audit the selected 2D FNO slab checkpoint with:
 
 ```bash
 source benchmarks/runtime_paths.sh

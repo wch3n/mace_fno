@@ -232,7 +232,7 @@ def build_figure() -> plt.Figure:
         (0.685, 0.270),
         (0.145, 0.300),
         "Geometry-\naware FNO",
-        "2.5D slab / 3D bulk\n"
+        "2D FNO / 3D FNO\n"
         r"$\rho_c(\mathbf{r})\rightarrow\phi_c(\mathbf{r})$",
         facecolor=COLORS["fno_fill"],
         edgecolor=COLORS["fno"],

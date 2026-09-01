@@ -98,8 +98,8 @@ For non-cubic bulk data the same implementation additionally fits individual
 physical reciprocal vectors to
 \(R(\mathbf k)=1/(\mathbf k^{\mathsf T}B\mathbf k)\), providing a
 trace-normalized dielectric-like tensor and tensor-fit quality. A separate
-2.5D path resolves monopole, dipole, and quadrupole z profiles and compares its
-full response with
+2D FNO slab path resolves monopole, dipole, and quadrupole z profiles and
+compares its full response with
 \(2\pi e^{-k_\parallel |z-z'|}/k_\parallel\); it therefore does not misuse the
 3D scalar \(1/k^2\) test for a slab.
 

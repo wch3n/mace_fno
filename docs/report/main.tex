@@ -49,7 +49,7 @@ model reduces the MACE energy RMSE from \WaterMaceEnergy{} to
 exponent of \WaterSpectralExponent{} and \(R^2=\WaterSpectralRtwo{}\) for a
 fixed \(1/k^2\) response, consistent with an electrostatic-like component but
 not sufficient to identify the latent fields as charge density. On
-Au$_2$/MgO, the established 2.5D model reduces the held-out force RMSE from
+Au$_2$/MgO, the established 2D FNO reduces the held-out force RMSE from
 \AuMaceForce{} to \AuFnoForce{}~\meva{} and reproduces the DFT reversal of the
 wetting preference after remote Al doping. A controlled grid/mode/channel
 sweep and a post-selection endpoint rerun are reported in the final version.
@@ -86,7 +86,7 @@ We presently support three findings.
 \begin{enumerate}
  \item We find that a periodic 3D residual improves both energy and force errors for
  water--SCAN, rather than merely fitting a constant energy offset.
- \item We show that a slab-specific 2.5D residual matches the remote-Al sign reversal in
+ \item We show that a slab-specific 2D FNO residual matches the remote-Al sign reversal in
  Au$_2$/MgO, a deliberately nonlocal endpoint test that the one-interaction
  local baseline fails.
  \item We find that the 3D learned response is close to \(1/k^2\) over the probed
@@ -218,7 +218,7 @@ mesh fields are learned internal variables, not assigned charge densities.}
 
 \section{Geometry and symmetry}
 
-\subsection{Hybrid 2.5D slabs}
+\subsection{2D FNO for slabs}
 
 For a supported cluster, the physical boundary conditions are periodic in the
 surface plane and finite through the vacuum direction. A fully periodic 3D
@@ -235,6 +235,10 @@ over the lateral mesh. It neither wraps nor identifies the top and bottom
 boundaries. We centre the finite window on the instantaneous mean \(z\)
 coordinate, making a rigid normal translation exactly invariant.
 
+We label this architecture the 2D FNO because spectral propagation spans the
+two periodic in-plane directions. The surface-normal coordinate remains
+explicitly resolved on a finite, nonperiodic grid.
+
 The electrostatic reference is different from the 3D-periodic \(1/k^2\)
 kernel. After Fourier transforming only the surface plane, an isolated-slab
 Coulomb Green's function has the form
@@ -242,7 +246,7 @@ Coulomb Green's function has the form
  G_{2\mathrm D}(k_\parallel;z,z')\propto
  \frac{\exp[-k_\parallel|z-z'|]}{k_\parallel},\qquad k_\parallel>0.
 \end{equation}
-The 2.5D spectral diagnostic therefore tests a \(1/k_\parallel\) planar
+The 2D FNO spectral diagnostic therefore tests a \(1/k_\parallel\) planar
 monopole response and the associated finite-\(z\) profile, rather than applying
 the bulk \(1/k^2\) criterion.
 
@@ -453,7 +457,7 @@ single aggregate RMSE.
 We use 4\,500 fit/validation structures and 500 independent test structures,
 and we fix a 225-structure validation subset within the former. We freeze a
 one-interaction MACE model with \(r_{\max}=5.5\)~\angstrom. Our established
-2.5D residual uses a
+2D FNO residual uses a
 \(24\times24\times16\) mesh, four in-plane modes, four latent channels,
 two 16-channel FNO blocks, global finite-\(z\) mixing, two-way lateral
 interlacing, D4 averaging and float64 arithmetic, with 50\,624 trainable
@@ -472,7 +476,7 @@ one A100 GPU.
 Model & Energy RMSE (\mevpa) & Force RMSE (\meva)\\
 \midrule
 Frozen one-interaction MACE & \AuMaceEnergy & \AuMaceForce\\
-MACE+2.5D FNO & \AuFnoEnergy & \AuFnoForce\\
+MACE+2D FNO & \AuFnoEnergy & \AuFnoForce\\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -501,8 +505,8 @@ Model & Undoped & Al-doped & DFT sign reversal\\
 DFT & 934.8 & -66.9 & reference\\
 One-interaction MACE & 419.0 & 419.0 & no\\
 MACE--LES & 919.3 & -56.5 & yes\\
-MACE+2.5D FNO (established) & 924.5 & -55.4 & yes\\
-MACE+2.5D FNO (selected sweep) & \AuSelectedUndoped & \AuSelectedDoped &
+MACE+2D FNO (established) & 924.5 & -55.4 & yes\\
+MACE+2D FNO (selected sweep) & \AuSelectedUndoped & \AuSelectedDoped &
 \AuSelectedSign\\
 \bottomrule
 \end{tabular}
@@ -519,7 +523,7 @@ relaxed endpoint differences, and the FNO model is computationally richer.
 
 \begin{table}[t]
 \centering
-\caption{Validation-selected 2.5D convergence sweep. All members differ by
+\caption{Validation-selected 2D FNO convergence sweep. All members differ by
 one factor from the established configuration. Test metrics are revealed only
 after applying the pre-registered validation rule.}
 \label{tab:aumgo-convergence}
@@ -597,7 +601,7 @@ Residual mesh functional\\
 Electrical observables & Charges, polarization response &
 Polarization and BEC demonstrated & Not identified at present\\
 Geometry demonstrated & 3D periodic production MD &
-3D Ewald; slab benchmark published & 2.5D slab and periodic 3D\\
+3D Ewald; slab benchmark published & 2D FNO for slabs and periodic 3D FNO\\
 Principal advantage & High-throughput charge-aware MD &
 Compact, transferable augmentation & Flexible nonlocal response\\
 Principal risk & Charge model/kernel bias & Fixed electrostatic kernel bias &
@@ -704,7 +708,8 @@ compiled document artifacts outside the Git checkout. Our checkpoints store
 the residual state and reconstruction metadata but reference, rather than
 duplicate, the frozen MACE model.
 
-Our test suite covers deposition, spectral energy, 2D/2.5D/3D operators,
+Our test suite covers deposition, spectral energy, planar projection, the 2D
+FNO slab operator, and the 3D FNO bulk operator,
 cubic and planar symmetries, frozen-MACE coupling, checkpoint compatibility,
 ASE evaluation, spectral diagnostics, label handling and the
 adsorption-switch evaluator. We document exact commands and paths in the
