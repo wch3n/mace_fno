@@ -24,7 +24,7 @@
 \newcommand{\vect}[1]{\boldsymbol{#1}}
 \input{results_values.tex}
 
-\title{\textbf{Learning residual interactions with Fourier neural operators: Modeling long-range and nonlocal interactions}}
+\title{\textbf{Learning nonlocal residuals in interatomic potentials with Fourier neural operators}}
 \author{Wei Chen}
 \date{1 September 2026}
 
@@ -133,27 +133,167 @@ endpoints.
 
 \section{Fourier neural operator construction}
 
-\subsection{Continuous operator and discrete Fourier layer}
+\subsection{From a dense nonlocal kernel to a Fourier multiplier}
 
 A conventional neural network maps one finite-dimensional vector to another.
-A neural operator instead maps an input function to an output function,
+A neural operator instead maps an input field to an output field,
 \(
  \mathcal G_\omega:a(\mathbf r)\mapsto u(\mathbf r)
 \), with parameters shared over the spatial domain and, in the continuum
-idealization, across discretizations~\citep{kovachki2023neuraloperator}. A
-generic operator layer can be written as
+idealization, across discretizations~\citep{kovachki2023neuraloperator}. We
+begin with a general linear nonlocal operator,
 \begin{equation}
- (\mathcal K_\ell v_\ell)(\mathbf r)
+ (\mathcal K v)(\mathbf r)
  =\int_\Omega
- \kappa_\ell(\mathbf r,\mathbf r')v_\ell(\mathbf r')\,\mathrm d\mathbf r'.
+ \kappa(\mathbf r,\mathbf r')v(\mathbf r')\,\mathrm d\mathbf r'.
  \label{eq:integral-operator}
 \end{equation}
-When the domain is periodic and the kernel is translation invariant,
-\(\kappa_\ell(\mathbf r,\mathbf r')=\kappa_\ell(\mathbf r-\mathbf r')\), the
-convolution theorem converts Eq.~\eqref{eq:integral-operator} into a
-multiplication in reciprocal space. The Fourier neural operator (FNO)
-parameterizes that multiplier rather than storing a dense real-space kernel
-between every pair of mesh points~\citep{li2021fno}.
+The value at \(\mathbf r\) collects information from every source position
+\(\mathbf r'\). After discretization on \(N\) mesh points, the most general
+kernel is therefore an \(N\times N\) interaction matrix. Applying it directly
+requires \(\mathcal O(N^2)\) work and storing up to \(\mathcal O(N^2)\)
+couplings.
+
+\subsubsection{Translation invariance produces a convolution}
+
+The structure of Eq.~\eqref{eq:integral-operator} simplifies when translating
+the source and observation point by the same vector leaves their coupling
+unchanged. The kernel then depends on their separation rather than their
+absolute positions,
+\(
+ \kappa(\mathbf r,\mathbf r')=\kappa(\mathbf r-\mathbf r')
+\), and
+\begin{equation}
+ (\mathcal K v)(\mathbf r)
+ =\int_\Omega \kappa(\mathbf r-\mathbf r')v(\mathbf r')\,\mathrm d\mathbf r'
+ \equiv (\kappa*v)(\mathbf r).
+ \label{eq:translation-convolution}
+\end{equation}
+Thus, a translation-invariant nonlocal operator is a convolution. Coulomb
+interaction in homogeneous space is a familiar example because its kernel
+depends on \(|\mathbf r-\mathbf r'|\), although the FNO construction is not
+restricted to Coulomb physics.
+
+\subsubsection{Fourier modes diagonalize the convolution}
+
+The computational advantage follows from the action of
+Eq.~\eqref{eq:translation-convolution} on a single Fourier wave,
+\(v(\mathbf r)=\exp(i\mathbf k\cdot\mathbf r)\). Substituting
+\(\mathbf s=\mathbf r-\mathbf r'\) gives
+\begin{align}
+ (\mathcal K v)(\mathbf r)
+ &=\int_\Omega \kappa(\mathbf s)
+   \exp[i\mathbf k\cdot(\mathbf r-\mathbf s)]\,\mathrm d\mathbf s \notag\\
+ &=\exp(i\mathbf k\cdot\mathbf r)
+   \int_\Omega \kappa(\mathbf s)
+   \exp(-i\mathbf k\cdot\mathbf s)\,\mathrm d\mathbf s \notag\\
+ &=\widehat\kappa(\mathbf k)\exp(i\mathbf k\cdot\mathbf r).
+ \label{eq:fourier-eigenfunction}
+\end{align}
+The output is the same wave multiplied by the scalar
+\(\widehat\kappa(\mathbf k)\). Fourier modes are therefore eigenfunctions of a
+translation-invariant convolution operator.
+
+A general periodic field is a superposition of these waves,
+\begin{equation}
+ v(\mathbf r)=\sum_{\mathbf k}\widehat v(\mathbf k)
+ \exp(i\mathbf k\cdot\mathbf r).
+ \label{eq:fourier-expansion}
+\end{equation}
+Linearity and Eq.~\eqref{eq:fourier-eigenfunction} then give the convolution
+theorem in the form used by the FNO,
+\begin{equation}
+ \widehat{\mathcal K v}(\mathbf k)
+ =\widehat\kappa(\mathbf k)\widehat v(\mathbf k)
+ \equiv R(\mathbf k)\widehat v(\mathbf k).
+ \label{eq:fourier-multiplier}
+\end{equation}
+Instead of coupling every pair of real-space points, the operator acts
+independently on each reciprocal-space mode. Its application consists of a
+fast Fourier transform (FFT), multiplication by \(R(\mathbf k)\), and an
+inverse FFT.
+
+The same result has a useful matrix interpretation. On a one-dimensional
+periodic grid, a separation-dependent kernel produces a circulant matrix such
+as
+\begin{equation}
+ K=
+ \begin{pmatrix}
+  a&b&c&d\\
+  d&a&b&c\\
+  c&d&a&b\\
+  b&c&d&a
+ \end{pmatrix}.
+ \label{eq:circulant-matrix}
+\end{equation}
+Its eigenvectors are the discrete Fourier modes, so the discrete Fourier
+matrix \(F\) diagonalizes it:
+\begin{equation}
+ K=F^{-1}\operatorname{diag}\!\left[R(k_0),\ldots,R(k_{N-1})\right]F.
+ \label{eq:circulant-diagonalization}
+\end{equation}
+Higher-dimensional periodic convolutions have the corresponding
+block-circulant structure. With multiple fields, each diagonal scalar becomes
+a small matrix that mixes channels at a fixed \(\mathbf k\), while different
+spatial modes remain uncoupled within the linear spectral operation.
+
+This transformation is especially useful for slowly decaying kernels. For
+example, the three-dimensional Coulomb Green's function satisfies,
+schematically,
+\begin{equation}
+ \frac{1}{r}\xrightarrow{\mathcal F}\frac{4\pi}{k^2},\qquad k\ne0,
+ \label{eq:coulomb-fourier}
+\end{equation}
+with the zero mode and boundary conditions handled separately. A dense
+all-to-all real-space interaction can consequently be applied through FFTs
+with \(\mathcal O(N\log N)\) scaling. This is the mathematical connection
+between spectral operators and reciprocal-space electrostatic methods. It
+also motivates our low-wavevector \(1/k^2\) diagnostic, but it does not imply
+that the learned FNO response must be electrostatic.
+
+\subsubsection{The learned spectral response}
+
+For a known Green's function, the multiplier in
+Eq.~\eqref{eq:fourier-multiplier} can be prescribed analytically. An FNO
+instead learns it from data~\citep{li2021fno}. With several feature channels,
+the scalar multiplier is replaced by a trainable complex matrix for every
+retained mode,
+\begin{equation}
+ \widehat u_b(\mathbf k)
+ =\sum_a R_{ba}(\mathbf k)\widehat v_a(\mathbf k),
+ \label{eq:multichannel-response}
+\end{equation}
+where \(a\) and \(b\) label input and output channels. The matrix can encode
+different responses and couplings among latent fields without assigning them
+a predetermined physical identity. Stacking spectral operations with
+pointwise channel mixing and nonlinear activations extends this linear
+translation-invariant starting point to a nonlinear operator.
+
+\subsubsection{Global communication in MACE--FNO}
+
+The connection to our residual model follows directly. Frozen MACE first maps
+each local environment to an invariant descriptor \(\mathbf h_i\). A learned
+source head converts these descriptors into scalar amplitudes
+\(s_{ic}\), which particle--mesh assignment deposits as latent fields
+\(\rho_c(\mathbf r)\). Every Fourier coefficient
+\(\widehat\rho_c(\mathbf k)\) is computed from the entire mesh. It can
+therefore contain contributions from two sources separated by more than the
+MACE receptive field. Equation~\eqref{eq:multichannel-response} processes
+their combined coefficient, and the inverse transform carries the resulting
+response back to both locations. A retained Fourier basis function has global
+support, so one spectral block communicates across the complete periodic
+domain; retaining more modes improves spatial resolution rather than extending
+the communication distance.
+
+Full diagonalization in \(\mathbf k\) relies on translation invariance along
+every transformed direction. A heterogeneous slab is approximately
+translation invariant in its periodic plane but not normal to the interface.
+Our 2D FNO therefore transforms the two in-plane coordinates and retains the
+normal coordinate explicitly, where a learned finite-layer map mixes
+information between heights. Section~\ref{sec:geometries} describes this
+geometry-specific construction.
+
+\subsection{Discrete FNO blocks, modes and channels}
 
 On a mesh with multi-index \(\mathbf m=(m_1,\ldots,m_d)\) and dimensions
 \(N_1\times\cdots\times N_d\), we use the discrete transform
@@ -174,12 +314,9 @@ reciprocal-grid mode. One nonlinear FNO block is
  \label{eq:fno-layer}
 \end{equation}
 The matrix \(W_\ell\) mixes channels independently at every mesh point. The
-spectral matrix \(R_\ell(\mathbf n)\) mixes input and output channels at each
-retained mode, and all unretained spectral coefficients are set to zero. A
-single retained basis function spans the entire periodic domain. The FNO
-therefore obtains a global receptive field in one block; increasing the mode
-cutoff adds shorter-wavelength resolution rather than increasing the maximum
-communication distance.
+spectral matrix \(R_\ell(\mathbf n)\) implements
+Eq.~\eqref{eq:multichannel-response} at each retained mode, and all unretained
+spectral coefficients are set to zero.
 
 Our nonlinear operators first lift the \(C\) deposited source channels to
 \(H_f\) hidden channels, apply \(L_f\) blocks of the form in
@@ -377,6 +514,7 @@ mesh fields are learned internal variables, not assigned charge densities.}
 \end{figure}
 
 \section{Implemented geometries, symmetries and cost}
+\label{sec:geometries}
 
 \subsection{Slab-resolved 2D FNO}
 
