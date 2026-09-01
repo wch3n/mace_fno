@@ -8,6 +8,9 @@ htmlcov/
 build/
 dist/
 
+# Manuscript sources and report builds are maintained outside the code history.
+docs/
+
 # Local training data and scheduler output
 data/
 logs/
