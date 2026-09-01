@@ -208,10 +208,44 @@ theorem in the form used by the FNO,
  \equiv R(\mathbf k)\widehat v(\mathbf k).
  \label{eq:fourier-multiplier}
 \end{equation}
-Instead of coupling every pair of real-space points, the operator acts
-independently on each reciprocal-space mode. Its application consists of a
-fast Fourier transform (FFT), multiplication by \(R(\mathbf k)\), and an
-inverse FFT.
+Equation~\eqref{eq:fourier-multiplier} contains three distinct quantities.
+The coefficient \(\widehat v(\mathbf k)\) measures the amplitude and phase of
+the input field at wavevector \(\mathbf k\). The multiplier
+\(R(\mathbf k)=\widehat\kappa(\mathbf k)\) is the eigenvalue of the convolution
+operator for that Fourier mode. The left-hand side is the corresponding
+coefficient of the output field. If
+\(\widehat v(\mathbf k)=A\exp(i\varphi)\) and
+\(R(\mathbf k)=B\exp(i\psi)\), then
+\[
+ \widehat{\mathcal K v}(\mathbf k)=AB\exp[i(\varphi+\psi)].
+\]
+The magnitude \(|R(\mathbf k)|\) therefore amplifies or suppresses that
+wavelength, while its phase changes the phase of the response. For a real,
+even kernel, \(R(\mathbf k)\) is real and even. More general kernels can yield
+complex multipliers, with conjugate symmetry ensuring a real output field.
+
+The mode-wise multiplication is local in wavevector but global in real space.
+Each coefficient \(\widehat v(\mathbf k)\) is an integral over the complete
+domain, and each Fourier basis function extends across that domain. Thus,
+Eq.~\eqref{eq:fourier-multiplier} does not remove nonlocal coupling. It
+represents the same coupling in a basis where a translation-invariant operator
+is diagonal. A single output coefficient depends only on the input coefficient
+at the same \(\mathbf k\), but the reconstructed value at any mesh point
+depends on all retained coefficients.
+
+For an exact convolution, \(R(\mathbf k)\) is fixed by the physical kernel.
+The FNO replaces it within a retained spectral band by trainable parameters
+\(R_\theta(\mathbf k)\). It thereby learns which wavelengths are transmitted,
+attenuated, or amplified. Modes outside the retained band are set to zero in
+the spectral pathway, while the pointwise pathway in Eq.~\eqref{eq:fno-layer}
+preserves local high-frequency information. The learned multiplier is not
+automatically a pair potential, dielectric function, or Coulomb Green's
+function. Such an interpretation requires independent physical diagnostics.
+
+Applying Eq.~\eqref{eq:fourier-multiplier} consists of a fast Fourier
+transform (FFT), multiplication by \(R(\mathbf k)\), and an inverse FFT.
+Instead of coupling every pair of real-space points explicitly, the operator
+therefore processes reciprocal-space modes independently.
 
 The same result has a useful matrix interpretation. On a one-dimensional
 periodic grid, a separation-dependent kernel produces a circulant matrix such
