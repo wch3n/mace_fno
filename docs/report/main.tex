@@ -131,104 +131,237 @@ learning instead makes that hypothesis testable through controlled baselines,
 reciprocal-space diagnostics, cell-size tests, and physically targeted
 endpoints.
 
-\section{Fourier neural operators}
+\section{Fourier neural operator construction}
 
-\subsection{From a neural network to a neural operator}
+\subsection{Continuous operator and discrete Fourier layer}
 
-A conventional neural network maps one finite vector to another. A neural
-operator maps one function to another,
-\[
- \mathcal G_\omega:a(\mathbf r)\longmapsto u(\mathbf r),
-\]
-with shared parameters across spatial locations and, in its ideal continuum
-formulation, across discretizations~\citep{kovachki2023neuraloperator}. The
-Fourier neural operator parameterizes the nonlocal integral kernel in
-reciprocal space~\citep{li2021fno}. A typical layer is
+A conventional neural network maps one finite-dimensional vector to another.
+A neural operator instead maps an input function to an output function,
+\(
+ \mathcal G_\omega:a(\mathbf r)\mapsto u(\mathbf r)
+\), with parameters shared over the spatial domain and, in the continuum
+idealization, across discretizations~\citep{kovachki2023neuraloperator}. A
+generic operator layer can be written as
+\begin{equation}
+ (\mathcal K_\ell v_\ell)(\mathbf r)
+ =\int_\Omega
+ \kappa_\ell(\mathbf r,\mathbf r')v_\ell(\mathbf r')\,\mathrm d\mathbf r'.
+ \label{eq:integral-operator}
+\end{equation}
+When the domain is periodic and the kernel is translation invariant,
+\(\kappa_\ell(\mathbf r,\mathbf r')=\kappa_\ell(\mathbf r-\mathbf r')\), the
+convolution theorem converts Eq.~\eqref{eq:integral-operator} into a
+multiplication in reciprocal space. The Fourier neural operator (FNO)
+parameterizes that multiplier rather than storing a dense real-space kernel
+between every pair of mesh points~\citep{li2021fno}.
+
+On a mesh with multi-index \(\mathbf m=(m_1,\ldots,m_d)\) and dimensions
+\(N_1\times\cdots\times N_d\), we use the discrete transform
+\begin{equation}
+ \widehat v_{\ell a}(\mathbf n)
+ =\sum_{\mathbf m}v_{\ell a}(\mathbf m)
+ \exp\!\left[-2\pi i\sum_{\alpha=1}^{d}
+ \frac{n_\alpha m_\alpha}{N_\alpha}\right],
+ \label{eq:discrete-fourier}
+\end{equation}
+where \(a\) labels a feature channel and \(\mathbf n\) labels an integer
+reciprocal-grid mode. One nonlinear FNO block is
 \begin{equation}
  v_{\ell+1}(\mathbf r)=\sigma\!\left[
  W_\ell v_\ell(\mathbf r)+
- \mathcal F^{-1}\{R_\ell(\mathbf k)\mathcal F[v_\ell](\mathbf k)\}(\mathbf r)
- \right],
+ \mathcal F^{-1}\{R_\ell(\mathbf n)\widehat v_\ell(\mathbf n)\}(\mathbf r)
+ \right].
  \label{eq:fno-layer}
 \end{equation}
-where \(W_\ell\) is a pointwise channel mixer and \(R_\ell\) is learned on a
-truncated set of modes. A Fourier mode is a basis function
-\(\exp(i\mathbf k\cdot\mathbf r)\) identified by a discrete reciprocal vector
-\(\mathbf k\). The configured mode cutoff selects the lowest Fourier indices
-on which \(R_\ell\) acts. These low-\(k\) components describe slowly varying
-fields, while a larger cutoff adds shorter-wavelength structure and increases
-cost. Every retained Fourier basis function is global. Increasing the mode
-count therefore improves spectral resolution rather than extending the
-receptive field. The pointwise path \(W_\ell v_\ell\) still carries local mesh
-information outside the truncated spectral branch.
+The matrix \(W_\ell\) mixes channels independently at every mesh point. The
+spectral matrix \(R_\ell(\mathbf n)\) mixes input and output channels at each
+retained mode, and all unretained spectral coefficients are set to zero. A
+single retained basis function spans the entire periodic domain. The FNO
+therefore obtains a global receptive field in one block; increasing the mode
+cutoff adds shorter-wavelength resolution rather than increasing the maximum
+communication distance.
 
-Channels instead label the components of the learned feature vector
-\(v_\ell(\mathbf r)\) at each mesh point. In Eq.~\eqref{eq:fno-layer},
-\(W_\ell\) mixes channels pointwise and \(R_\ell(\mathbf k)\) mixes them at
-retained wavevectors. We distinguish the \(C\) latent source channels
-\(\rho_c\) from the hidden channels used inside each FNO block. Source
-channels provide capacity for several learned source--response components,
-whereas hidden channels set the internal network width. Neither type denotes
-a chemical species, atomic orbital or assigned electrostatic multipole. The
-learned source-channel basis remains non-unique under equivalent latent
-representations.
-
-The use of Fourier space does not itself make a model electrostatic.
-Electrostatics is one possible global operator, whose periodic 3D Green's
-function scales as \(1/k^2\) away from \(k=0\). A generic FNO can learn other
-filters and nonlinear, environment-dependent couplings. This flexibility is
-the motivation for using it as a residual model and also the reason that
-interpretability must be demonstrated rather than assumed.
-
-\subsection{Learned residual sources and response fields}
-
-We do not feed a nuclear charge density to the FNO, and we do not ask it to
-predict the energy directly. We obtain invariant atomic descriptors
-\(\mathbf h_i\) from frozen MACE and map each descriptor to \(C\) scalar
-source amplitudes with a learned head,
+Our nonlinear operators first lift the \(C\) deposited source channels to
+\(H_f\) hidden channels, apply \(L_f\) blocks of the form in
+Eq.~\eqref{eq:fno-layer}, and project back to \(C\) response channels:
 \begin{equation}
- \widetilde{\mathbf s}_i=g_\psi(\mathbf h_i),\qquad
+ v_0=P\boldsymbol\rho,\qquad
+ v_{\ell+1}=\mathcal B_\ell(v_\ell),\qquad
+ \boldsymbol\phi=Q_2\,\mathrm{GELU}(Q_1v_{L_f}).
+ \label{eq:fno-stack}
+\end{equation}
+The lifting and projection maps are pointwise \(1\times1\) convolutions. We
+disable their biases and do not add Cartesian position embeddings. These
+choices preserve discrete periodic translation equivariance and prevent the
+residual energy from acquiring a configuration-independent offset through
+the mesh branch. The local pathway in Eq.~\eqref{eq:fno-layer} also preserves
+mesh information outside the retained spectral band, although only the
+spectral pathway communicates it globally.
+
+Modes and channels control different kinds of capacity. Modes specify which
+spatial wavelengths receive learned global mixing. Channels specify how many
+components of a field are carried at one mesh point. We distinguish the
+\(C\) latent source channels \(\rho_c\) from the \(H_f\) hidden channels
+inside the operator. Increasing \(C\) gives the model more independent
+source--response components, whereas increasing \(H_f\) widens every FNO
+block. Neither index labels a chemical species, atomic orbital, charge state,
+or electrostatic multipole.
+
+\subsection{Invariant atomic sources}
+
+The FNO does not receive atomic numbers or coordinates as isolated scalar
+inputs. We first run the frozen MACE model and collect all even-parity scalar
+\(0e\) components from the product output of each interaction layer. Their
+concatenation defines the invariant descriptor \(\mathbf h_i\) for atom
+\(i\). This choice retains local chemical information while ensuring that the
+learned source amplitudes are unchanged by a rigid rotation of the atomic
+configuration.
+
+We map each descriptor to \(C\) raw scalar amplitudes with
+\begin{equation}
+ \widetilde{\mathbf s}_i
+ =A_2\,\mathrm{SiLU}\!\left[A_1\,\mathrm{LN}(\mathbf h_i)\right],\qquad
  \mathbf s_i=\widetilde{\mathbf s}_i
- -\frac{1}{N_g}\sum_{j\in g}\widetilde{\mathbf s}_j ,
+ -\frac{1}{N_g}\sum_{j\in g}\widetilde{\mathbf s}_j .
  \label{eq:neutral-source}
 \end{equation}
-where the mean is removed separately for each structure and latent channel.
-We deposit these amplitudes with cubic B splines to obtain real-space latent
-source fields
+Here \(A_1\) expands to the source-head hidden width, \(A_2\) projects to
+\(C\) channels without a bias, and the second operation is performed
+separately for every structure \(g\) and channel. Consequently,
+\(\sum_{i\in g}s_{ic}=0\) to numerical precision. Neutralization removes the
+unconstrained zero-wavevector source and is appropriate for the neutral
+systems considered here. It is not a treatment of a physically charged cell
+or of the compensating background used by periodic electronic-structure
+codes.
+
+Equation~\eqref{eq:neutral-source} also clarifies how the FNO uses MACE. MACE
+determines which local environments generate the latent sources; the mesh
+operator determines how those sources interact across the full cell. Remote
+information does not enter \(\mathbf h_i\) directly when it lies outside the
+MACE receptive field. It reaches atom \(i\) through the response field
+generated by sources deposited elsewhere.
+
+\subsection{Cubic B-spline particle--mesh assignment}
+
+We express each atomic position in fractional cell coordinates and convert a
+fractional component to a mesh coordinate \(u=p+t\), where \(p=\lfloor
+u\rfloor\) and \(0\leq t<1\). The four cardinal cubic B-spline weights are
 \begin{equation}
- \rho_c(\mathbf r_m)=\sum_i s_{ic}B_3(\mathbf r_m-\mathbf r_i),
- \quad\text{cf. Refs.~\citep{darden1993pme,essmann1995pme}.}
+ \mathbf b(t)=\frac{1}{6}\left(
+ (1-t)^3,
+ 3t^3-6t^2+4,
+ -3t^3+3t^2+3t+1,
+ t^3\right),
+ \label{eq:bspline-weights}
+\end{equation}
+and correspond to mesh offsets \((-1,0,1,2)\). Their tensor product assigns
+one atom to 16 points on a planar mesh or 64 points on a three-dimensional
+mesh. This compact support is smooth through second derivatives, which is
+important because force training differentiates through the assignment.
+
+For structure \(g\), the deposited field is
+\begin{equation}
+ \rho_{gc}(\mathbf m)
+ =\frac{1}{\Delta\Omega_g}
+ \sum_{i\in g}s_{ic}\,A_i(\mathbf m),\qquad
+ A_i(\mathbf m)=\prod_{\alpha\in\mathcal P}
+ b_{m_\alpha-p_{i\alpha}}(t_{i\alpha}),
  \label{eq:latent-source-field}
 \end{equation}
-The symbol \(\rho_c\) denotes a deposited field and does not imply an
-electronic or induced charge density. Equation~\eqref{eq:latent-source-field}
-constructs this field before FNO evaluation. The mean subtraction in
-Eq.~\eqref{eq:neutral-source} enforces zero net source amplitude per channel,
-but the channels retain arbitrary normalization and can mix under equivalent
-latent representations. Energy--force training therefore does not
-assign physical charge units, and moments of \(\rho_c\) cannot presently be
-interpreted as polarization or Born effective charges.
-
-The FNO maps these sources to response fields
-\(\boldsymbol\phi=\mathcal G_\omega[\boldsymbol\rho;\mathbf H]\), and we
-compute the scalar correction as a bilinear mesh functional,
+where \(\mathcal P\) contains the meshed coordinates and a spline factor is
+zero outside its four-point support. The element \(\Delta\Omega_g\) is the
+mesh-point area for a planar field and the voxel volume for a slab or bulk
+field. This normalization makes the assignment conservative:
 \begin{equation}
- \Delta E_{\mathrm{FNO}}
- =\frac{1}{2}\sum_c\int_\Omega
- \rho_c(\mathbf r)\phi_c(\mathbf r)\,\mathrm d\mathbf r .
+ \Delta\Omega_g\sum_{\mathbf m}\rho_{gc}(\mathbf m)
+ =\sum_{i\in g}s_{ic}=0.
+ \label{eq:mesh-neutrality}
+\end{equation}
+The construction follows the smooth particle--mesh assignment used in
+particle--mesh electrostatics~\citep{darden1993pme,essmann1995pme}, but the
+deposited amplitudes here are learned latent variables.
+
+The symbol \(\rho_c\) therefore denotes a real-space latent source field, not
+an electronic, induced, or nuclear charge density. The channel basis can be
+rotated or rescaled if compensating changes are made in the source head and
+field operator. Energy--force training alone does not fix physical charge
+units, so moments of \(\rho_c\) cannot presently be interpreted as
+polarization or Born effective charges.
+
+\subsection{Response field, scalar energy and conservative forces}
+
+The FNO maps the deposited sources to response fields,
+\(\boldsymbol\phi=\mathcal G_\omega[\boldsymbol\rho;\mathbf H]\). We then
+construct one scalar correction for each structure:
+\begin{equation}
+ \Delta E_{g,\mathrm{FNO}}
+ =\frac{\Delta\Omega_g}{2}
+ \sum_{c,\mathbf m}\rho_{gc}(\mathbf m)\phi_{gc}(\mathbf m)
+ \longrightarrow
+ \frac{1}{2}\sum_c\int_{\Omega_g}
+ \rho_c(\mathbf r)\phi_c(\mathbf r)\,\mathrm d\mathbf r.
  \label{eq:mesh-energy}
 \end{equation}
-Finally,
+This form is bilinear in the displayed source and response fields, but it is
+not generally quadratic in \(\boldsymbol\rho\) because the nonlinear FNO
+makes \(\boldsymbol\phi\) depend nonlinearly on
+\(\boldsymbol\rho\). It gives an extensive scalar with the correct mesh
+measure for each cell and provides a single energy from which all residual
+forces are derived.
+
+The term ``response field'' is deliberate. For a nonlinear or nonsymmetric
+operator, \(\boldsymbol\phi\) is not necessarily the functional derivative of
+the energy. In compact notation,
+\begin{equation}
+ \frac{\delta\Delta E_{\mathrm{FNO}}}{\delta\boldsymbol\rho}
+ =\frac{1}{2}\left[
+ \boldsymbol\phi+
+ J_{\mathcal G}(\boldsymbol\rho)^{\mathsf T}\boldsymbol\rho
+ \right],
+ \label{eq:energy-functional-derivative}
+\end{equation}
+where \(J_{\mathcal G}\) is the Jacobian of the learned field operator. Only a
+linear self-adjoint operator reduces Eq.~\eqref{eq:energy-functional-derivative}
+to the usual electrostatic potential. Our current architecture does not impose
+linearity, self-adjointness, or Poisson's equation.
+
+The total force follows from the summed MACE and mesh energies,
 \begin{equation}
  \mathbf F_i=-\frac{\partial}{\partial\mathbf r_i}
- (E_{\mathrm{MACE}}+\Delta E_{\mathrm{FNO}}).
+ \left(E_{\mathrm{MACE}}+\Delta E_{\mathrm{FNO}}\right).
+ \label{eq:total-force}
 \end{equation}
-Equation~\eqref{eq:mesh-energy} makes energy conservation explicit. We pass
-force derivatives through deposition, the learned source head, and the frozen
-MACE descriptors. Freezing parameters therefore does not detach descriptors.
+The coordinate derivative of the mesh field contains a direct assignment path
+and a descriptor-mediated path,
+\begin{equation}
+ \frac{\partial\boldsymbol\rho}{\partial\mathbf r_i}
+ =\left.\frac{\partial\boldsymbol\rho}{\partial\mathbf r_i}\right|_{\mathbf s}
+ +\sum_{j,q}
+ \frac{\partial\boldsymbol\rho}{\partial\mathbf s_j}
+ \frac{\partial\mathbf s_j}{\partial\widetilde{\mathbf s}_q}
+ \frac{\partial\widetilde{\mathbf s}_q}{\partial\mathbf h_q}
+ \frac{\partial\mathbf h_q}{\partial\mathbf r_i}.
+ \label{eq:force-paths}
+\end{equation}
+The first term moves the spline stencil. The second changes the latent source
+amplitudes as local MACE environments change; the graph-wise mean in
+Eq.~\eqref{eq:neutral-source} couples the source derivatives within each
+structure. We freeze all MACE parameters but deliberately retain the
+coordinate graph through \(\mathbf h_i\). Freezing the weights therefore
+does not detach the descriptors or remove their contribution to the residual
+forces.
 
-Figure~\ref{fig:fno-workflow} summarizes this information flow. In particular,
-we distinguish the neutral latent fields from physical charge density and the
+The FNO consequently learns a configuration-dependent source--response map,
+not a direct scalar regressor and not a single fixed reciprocal-space kernel.
+Its local dependence enters through \(g_\psi(\mathbf h_i)\); its nonlocal
+dependence enters through the global Fourier blocks. The low-wavevector audit
+later in this report probes the curvature of Eq.~\eqref{eq:mesh-energy} under
+controlled Fourier perturbations. A \(1/k^2\) curvature is evidence for an
+electrostatic-like component of the learned energy, but it does not identify
+any one latent channel as charge.
+
+Figure~\ref{fig:fno-workflow} summarizes the complete forward and derivative
+paths. It distinguishes neutral latent fields from physical charge density and
 fixed MACE weights from the coordinate derivatives that remain active.
 
 \begin{figure}[t]
@@ -243,28 +376,43 @@ mesh fields are learned internal variables, not assigned charge densities.}
 \label{fig:fno-workflow}
 \end{figure}
 
-\section{Geometry and symmetry}
+\section{Implemented geometries, symmetries and cost}
 
-\subsection{2D FNO for slabs}
+\subsection{Slab-resolved 2D FNO}
 
 For a supported cluster, the physical boundary conditions are periodic in the
 surface plane and finite through the vacuum direction. A fully periodic 3D
-FFT would spuriously identify the two slab boundaries. We therefore retain a
-field of shape \((C,n_z,n_x,n_y)\), transform only \(x,y\), and mix \(z\)
-explicitly:
+FFT would spuriously identify the top and bottom of the finite slab window. We
+define the surface plane with the first two cell vectors, wrap the associated
+fractional coordinates, and project Cartesian positions onto their unit
+normal. The finite normal coordinate is not wrapped. We center a window of
+length \(L_z\) on the instantaneous mean atomic height, which makes a rigid
+translation normal to the surface exactly invariant. Cubic-spline support
+that crosses a window boundary is accumulated into the nearest boundary
+voxel rather than wrapped to the opposite surface.
+
+We retain a field of shape \((C,n_z,n_x,n_y)\), transform only \(x,y\), and
+mix \(z\) explicitly. Each nonlinear block is
 \begin{equation}
  v_{\ell+1}=\mathrm{GELU}\left[
  \mathcal F_{xy}^{-1}R_\ell(\mathbf k_\parallel)\mathcal F_{xy}v_\ell+
  Z_\ell v_\ell+W_\ell v_\ell\right].
+ \label{eq:slab-fno-layer}
 \end{equation}
-Here \(Z_\ell\) is a dense, channel-wise \(n_z\times n_z\) response shared
-over the lateral mesh. It neither wraps nor identifies the top and bottom
-boundaries. We center the finite window on the instantaneous mean \(z\)
-coordinate, making a rigid normal translation exactly invariant.
+The first term applies the same learned 2D spectral convolution independently
+to each normal layer. In the established Au$_2$/MgO model, \(Z_\ell\) is an
+independent dense \(n_z\times n_z\) matrix for every hidden channel, shared
+over the lateral mesh. It couples any two normal layers without identifying
+the two boundaries. The package also provides zero-padded local normal
+convolutions and a controlled linear operator with an explicit dense
+\(R(\mathbf k_\parallel,z,z')\), but neither is used for the reported endpoint
+result.
 
-We label this architecture the 2D FNO because spectral propagation spans the
-two periodic in-plane directions. The surface-normal coordinate remains
-explicitly resolved on a finite, nonperiodic grid.
+We call this architecture the 2D FNO because its Fourier propagation spans the
+two periodic in-plane directions. The normal coordinate remains explicitly
+resolved on a finite, nonperiodic grid. A purely planar projection with field
+shape \((C,n_x,n_y)\) is retained in the code as an ablation, but the reported
+Au$_2$/MgO model uses the slab-resolved field in Eq.~\eqref{eq:slab-fno-layer}.
 
 The electrostatic reference is different from the 3D-periodic \(1/k^2\)
 kernel. After Fourier transforming only the surface plane, an isolated-slab
@@ -272,60 +420,233 @@ Coulomb Green's function has the form
 \begin{equation}
  G_{2\mathrm D}(k_\parallel;z,z')\propto
  \frac{\exp[-k_\parallel|z-z'|]}{k_\parallel},\qquad k_\parallel>0.
+ \label{eq:slab-green-function}
 \end{equation}
 The 2D FNO spectral diagnostic therefore tests a \(1/k_\parallel\) planar
 monopole response and the associated finite-\(z\) profile, rather than applying
 the bulk \(1/k^2\) criterion.
 
+The spline assignment is exact under an integer mesh translation but only
+approximately invariant under an arbitrary continuous translation. With
+\code{lateral-interlacing=2}, we average energies from the four combinations
+of zero and half-grid shifts along the two periodic directions:
+\begin{equation}
+ \Delta E_{\mathrm{int}}
+ =\frac{1}{4}\sum_{\delta_x,\delta_y\in\{0,1/2\}}
+ \Delta E(\delta_x,\delta_y).
+ \label{eq:slab-interlacing}
+\end{equation}
+The four replicas are evaluated as one larger batch. Interlacing reduces the
+particle--mesh egg-box error, but does not eliminate it and does not yield one
+unique deposited field for spectral analysis.
 
-We average four half-grid lateral origins when
-\code{lateral-interlacing=2}. This reduces, but does not eliminate, the
-continuous particle--mesh egg-box error. We also use D4 averaging to enforce
-the discrete rotations and reflections of a square lateral grid in every
-forward evaluation.
+For a square lateral grid, we implement the four rotations and four
+reflections of \(D_4\). During training, successive forward passes cycle
+through one transformed image, providing balanced symmetry augmentation
+without an eightfold cost. During evaluation, we use the group average
+\begin{equation}
+ \overline{\mathcal G}(\rho)
+ =\frac{1}{8}\sum_{g\in D_4}
+ T_g^{-1}\mathcal G(T_g\rho),
+ \label{eq:d4-average}
+\end{equation}
+which makes the evaluated field operator exactly \(D_4\)-equivariant up to
+floating-point precision. The established Au$_2$/MgO model combines this
+evaluation-time average with four-origin lateral interlacing.
 
 \subsection{Periodic 3D and the EqGINO-style contraction}
 
-For bulk water, all three directions are periodic. The conventional 3D FNO
-learns independent channel-mixing matrices at retained wavevectors. We
-instead share a real mixing matrix among integer reciprocal vectors with the
-same squared radius in the EqGINO-style variant,
-\begin{equation}
- R(\mathbf n)=R(n_x^2+n_y^2+n_z^2).
-\end{equation}
-For real scalar fields on a cubic grid, this gives exact equivariance under
-signed axis permutations while greatly reducing the number of spectral
-parameters. We use an atomistic real-to-real adaptation of
-EqGINO~\citep{kim2026eqgino}, not a reproduction of the full complex-feature
-architecture. We further reduce cost with grouped channel contractions. Our
-water model accepts uniformly scaled cubic cells and conditions the nonlinear
-operator on the logarithm of cell length.
+For bulk systems, we convert Cartesian positions with the full cell matrix,
+wrap all three fractional coordinates, and deposit each source on 64 periodic
+mesh points. The voxel measure in Eq.~\eqref{eq:mesh-energy} is
+\(|\det\mathbf H|/(n_zn_xn_y)\). The conventional 3D FNO uses a real-to-complex
+FFT and learns independent complex channel-mixing matrices for the retained
+positive and negative mode sectors. This implementation supports a fixed
+general cell, but it does not by itself provide transfer between arbitrary
+cell shapes because the learned weights are indexed by fractional-grid modes.
 
+For cubic bulk water we use a more restrictive EqGINO-style contraction. We
+share one real channel-mixing matrix among integer reciprocal vectors with the
+same squared radius,
+\begin{equation}
+ R_\ell(\mathbf n)=R_{\ell,s},\qquad
+ s=n_x^2+n_y^2+n_z^2.
+ \label{eq:eqgino-shell}
+\end{equation}
+All signed permutations of the cubic axes leave \(s\) unchanged. The spectral
+convolution is therefore exactly equivariant under the 48 signed axis
+permutations of the cubic grid. Real shell weights preserve Hermitian symmetry
+for the real scalar fields used here. This is an atomistic real-to-real
+adaptation of EqGINO~\citep{kim2026eqgino}, rather than a reproduction of its
+complex-feature architecture.
+
+Equation~\eqref{eq:eqgino-shell} replaces one matrix per retained wavevector by
+one matrix per distinct radial shell. We additionally divide the hidden
+channels into \(G\) spectral groups and apply a block-diagonal contraction.
+The pointwise \(W_\ell\) pathway remains dense and communicates between groups
+at each mesh point. For the water configuration, four groups and radial-shell
+sharing reduce the residual parameter count from 271,824 for the matched
+dense-wavevector FNO to 12,112, while preserving two nonlinear Fourier blocks.
+
+EqGINO shell sharing requires a cubic mesh, equal mode cutoffs, and cubic
+cells. The water cells are aligned cubes with varying lengths. We append
+\begin{equation}
+ \chi_g=\log L_g,\qquad
+ L_g=|\det\mathbf H_g|^{1/3},
+ \label{eq:cell-conditioning}
+\end{equation}
+as a spatially constant input channel so that the nonlinear operator receives
+an explicit physical length scale. The current cell validator accepts only
+positive uniform scalings of the reference cube in this mode. Arbitrary
+anisotropic cell changes require metric-aware wavevectors or separate
+shape-compatible models.
+
+Three-dimensional volume interlacing is also implemented. At level two, it
+averages the eight combinations of zero and half-grid offsets in the three
+periodic directions. We disable it in the reported water fit for throughput,
+which leaves the continuous-translation error quantified in the numerical
+audit.
+
+\subsection{Computational scaling and present runtime tradeoffs}
+
+Let \(N\) be the number of atoms, \(M=n_zn_xn_y\) the number of mesh points,
+\(H_f\) the hidden width, \(K\) the number of retained modes, \(L_f\) the
+number of FNO blocks, and \(G\) the number of spectral groups. Cubic B-spline
+assignment costs \(O(64NC)\) in 3D and \(O(64NC)\) for the slab-resolved mesh;
+the purely planar projection costs \(O(16NC)\). The leading operator costs are
+approximately
+\begin{equation}
+ O(L_fH_fM\log M)
+ +O(L_fKH_f^2/G)
+ +O(L_fMH_f^2),
+ \label{eq:fno-cost}
+\end{equation}
+from the FFTs, grouped spectral contractions, and dense pointwise channel
+mixing, respectively. The slab model additionally incurs
+\(O(L_fH_fn_z^2n_xn_y)\) for global normal mixing. Memory scales primarily as
+\(O(H_fM)\) per structure, apart from temporary symmetry or interlacing
+replicas.
+
+At fixed mesh size, the FNO communication range is global and its cost does
+not depend on the separation between two atoms. For increasing physical cell
+size at fixed spatial resolution, however, \(M\) grows with volume and the FFT
+term approaches \(O(M\log M)\). The method is therefore more favorable than a
+dense all-pairs interaction, but less local and less communication-friendly
+than the frozen MACE branch.
+
+Symmetry restoration and interlacing introduce transparent multipliers. The
+water calculation uses neither volume interlacing nor explicit cubic group
+averaging because EqGINO is equivariant by construction. The Au$_2$/MgO
+inference path evaluates four mesh origins and eight \(D_4\) images, equivalent
+to 32 FNO replicas even though they are vectorized into large batches. During
+training, cycling one \(D_4\) image reduces this to four interlaced replicas.
+These choices improve symmetry and translation behavior but explain why the
+slab-resolved model is slower than an unaveraged 2D FNO.
+
+Freezing MACE reduces trainable parameters and permits a one-interaction local
+baseline, but it does not make the backbone forward or coordinate derivatives
+free. Force training also differentiates a force loss through
+Eq.~\eqref{eq:total-force}, producing mixed derivatives with respect to model
+parameters and atomic coordinates. We therefore do not yet claim that
+MACE--FNO inference is faster than a deeper standalone MACE model. A fair
+runtime comparison must report energy-only and energy--force throughput,
+batch size, mesh resolution, symmetry averaging, interlacing, precision, and
+system size.
+
+\clearpage
 \subsection{Exact symmetries and numerical approximations}
 
-We test source neutrality, force additivity, automatic differentiation
-against finite differences, exact one-grid and full-lattice translations, and
-the promised discrete point-group operations. Arbitrary continuous
-translations are not exact because atom-to-mesh deposition depends on the
-grid origin. Interlacing suppresses this error at additional cost. We
-distinguish mathematical symmetries enforced by the architecture from
-approximate particle--mesh behavior measured by audits.
+The current implementation separates architectural guarantees from numerical
+particle--mesh approximations. Table~\ref{tab:symmetry-status} summarizes this
+distinction.
+
+\begin{table}[h!]
+\centering
+\caption{Symmetries and conservation properties of the implemented residual
+models. ``Exact'' denotes equality up to floating-point precision for the
+stated geometry.}
+\label{tab:symmetry-status}
+\small
+\begin{tabularx}{\textwidth}{>{\raggedright\arraybackslash}p{31mm}
+>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}p{29mm}}
+\toprule
+Property & Implementation mechanism & Status\\
+\midrule
+Latent neutrality & Graph-wise channel mean subtraction & Exact\\
+Energy conservation & One scalar mesh functional differentiated for forces & Exact\\
+Periodic lattice shift & Fractional wrapping and periodic spline indices & Exact\\
+Integer mesh shift & Translation-equivariant FFT and pointwise paths & Exact\\
+Rigid slab-normal shift & Mean-height finite-window center & Exact\\
+Slab \(D_4\) operations & Evaluation-time group average & Exact at evaluation\\
+Cubic signed permutations & EqGINO radial-shell sharing & Exact for cubic cells\\
+Arbitrary translation & Finite particle--mesh origin & Approximate; audited\\
+Arbitrary cell-shape transfer & No general metric conditioning & Not supported\\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+We test these statements through source sums, force additivity, the acoustic
+sum rule, finite differences, full-lattice and one-grid translations, and the
+promised point-group operations. Finite-difference agreement establishes that
+the forces are derivatives of the discretized energy. It does not establish
+continuous translation invariance, because atom-to-mesh assignment still
+depends on the grid origin. Interlacing suppresses this egg-box error at an
+explicit computational cost.
 
 \section{Training and model selection}
 
-We optimize only FNO-branch parameters. For energy and force scales
-\(\sigma_E,\sigma_F\), model selection uses
+We precompute the residual labels of the frozen baseline,
+\begin{equation}
+ \Delta E_g^{\mathrm{ref}}=E_g^{\mathrm{ref}}-E_g^{\mathrm{MACE}},
+ \qquad
+ \Delta\mathbf F_i^{\mathrm{ref}}
+ =\mathbf F_i^{\mathrm{ref}}-\mathbf F_i^{\mathrm{MACE}}.
+ \label{eq:residual-targets}
+\end{equation}
+Caching these labels avoids recomputing frozen-MACE reference forces for every
+optimization batch. We still execute the MACE forward graph because the
+current atomic descriptors and their coordinate derivatives are required by
+Eq.~\eqref{eq:force-paths}.
+
+We optimize the source head and FNO parameters against residual energies and
+forces. For a batch of \(B\) structures containing \(N_{\mathrm{tot}}\) atoms,
+the training loss is
+\begin{equation}
+ \mathcal L_{\mathrm{train}}=
+ \frac{w_E}{B}\sum_{g=1}^{B}
+ \left[
+ \frac{\Delta E_g-\Delta E_g^{\mathrm{ref}}}{N_g\sigma_E}
+ \right]^2
+ +\frac{w_F}{3N_{\mathrm{tot}}}
+ \sum_{i,\alpha}
+ \left[
+ \frac{\Delta F_{i\alpha}-\Delta F_{i\alpha}^{\mathrm{ref}}}{\sigma_F}
+ \right]^2.
+ \label{eq:training-loss}
+\end{equation}
+The energy term is an MSE of per-atom residuals, while the force term is an
+MSE over Cartesian components. Backpropagating the second term differentiates
+the energy gradient in Eq.~\eqref{eq:total-force} with respect to residual
+parameters. This mixed derivative is substantially more expensive than
+energy-only fitting and is one reason that force convergence controls the
+training time.
+
+Both selected benchmarks use \(w_E=w_F=1\). For water--SCAN, we set
+\(\sigma_E=0.01\)~eV atom\(^{-1}\) and
+\(\sigma_F=0.10\)~eV \angstrom\(^{-1}\). For Au$_2$/MgO, we use the frozen
+baseline training errors,
+\(\sigma_E=0.002260\)~eV atom\(^{-1}\) and
+\(\sigma_F=0.056280\)~eV \angstrom\(^{-1}\). The scales make the two loss
+terms dimensionless and prevent their numerical units from setting the
+relative importance of energies and forces.
+
+Checkpoint selection applies the same normalization to validation RMSEs:
 \begin{equation}
  \mathcal L_{\mathrm{val}}=
  w_E\left(\frac{\RMSE_E}{\sigma_E}\right)^2+
  w_F\left(\frac{\RMSE_F}{\sigma_F}\right)^2 .
  \label{eq:validation-objective}
 \end{equation}
-In both benchmarks, \(w_E=1\), \(w_F=10\),
-\(\sigma_E=1\)~eV atom\(^{-1}\), and
-\(\sigma_F=1\)~eV \angstrom\(^{-1}\). Thus the numerical validation
-objective is dimensionless and gives the force RMSE ten times the quadratic
-weight of the energy RMSE after conversion to these common eV-based scales.
 We never use the reported test sets or Au$_2$/MgO wetting endpoints to choose
 a checkpoint or a convergence-sweep configuration.
 
@@ -337,7 +658,7 @@ parameters and then, if still tied, by the number of mesh points. We vary one
 factor at a time around
 \((n_x,n_y,n_z)=(24,24,16)\), an in-plane mode cutoff of four, and four latent
 source channels. We hold seed 17, 20\,000 optimization steps, float64,
-global \(z\) mixing, mean-\(z\) centering, two-way lateral interlacing and D4
+global \(z\) mixing, mean-\(z\) centering, two-way lateral interlacing and \(D_4\)
 averaging fixed. We treat this as a convergence study, not a statistical
 estimate over random seeds.
 
@@ -488,7 +809,7 @@ one-interaction MACE model with \(r_{\max}=5.5\)~\angstrom. Our established
 2D FNO residual uses a
 \(24\times24\times16\) mesh, an in-plane mode cutoff of four, and four latent
 source channels. It contains two FNO blocks with 16 hidden channels, global
-finite-\(z\) mixing, two-way lateral interlacing, D4 averaging and float64
+finite-\(z\) mixing, two-way lateral interlacing, \(D_4\) averaging and float64
 arithmetic, with 50\,624 trainable
 parameters. We measured 1~h 13~min for the corresponding 20\,000-step job on
 one A100 GPU.
@@ -513,7 +834,7 @@ MACE+2D FNO & \AuFnoEnergy & \AuFnoForce\\
 Our residual reduces energy RMSE by about 95\% and force RMSE by about 76\%.
 Our 32-structure strict audit gives an energy RMSE of 0.108~\mevpa{} and
 force RMSE of 12.86~\meva. Source neutrality, force finite differences,
-one-grid lateral translations, and D4 transformations pass. The remaining
+one-grid lateral translations, and \(D_4\) transformations pass. The remaining
 0.1-\angstrom{} lateral translation error is 1.36~meV in energy, with a
 3.02~\meva{} RMS net residual-force component along the less favorable
 lateral direction. Interlacing substantially reduces this egg-box effect
