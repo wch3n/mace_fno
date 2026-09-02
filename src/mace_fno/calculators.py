@@ -23,8 +23,8 @@ from .training.runtime import choose_device
 class MACEFNOCalculator(Calculator):
     """Evaluate combined MACE-FNO energies and conservative forces in ASE.
 
-    Stress is intentionally unavailable: the current FNO checkpoints are
-    trained for fixed cells (or explicitly isotropic 3D cells), and no virial
+    Stress is intentionally unavailable: the current FNO checkpoints may be
+    conditioned on fixed, isotropic, or anisotropic 3D cells, but no virial
     derivative has yet been validated.  ``results`` additionally exposes
     ``mace_energy`` and ``residual_energy`` for diagnostics.
 

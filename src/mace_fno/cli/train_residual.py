@@ -157,11 +157,13 @@ def main() -> None:
     spatial_scheme = args.spatial_scheme
     if spatial_scheme == "auto":
         spatial_scheme = "2.5d" if args.z_grid else "2d"
-    if args.cell_mode == "isotropic" and spatial_scheme != "3d":
-        raise ValueError("--cell-mode isotropic requires --spatial-scheme 3d")
-    if args.cell_mode == "isotropic" and args.architecture != "nonlinear":
+    if args.cell_mode != "fixed" and spatial_scheme != "3d":
+        raise ValueError("variable --cell-mode requires --spatial-scheme 3d")
+    if args.cell_mode != "fixed" and args.architecture != "nonlinear":
+        raise ValueError("variable --cell-mode requires --architecture nonlinear")
+    if args.cell_mode == "anisotropic" and args.spectral_symmetry == "eqgino":
         raise ValueError(
-            "--cell-mode isotropic requires --architecture nonlinear"
+            "--cell-mode anisotropic is incompatible with --spectral-symmetry eqgino"
         )
     resolved_z_modes = args.z_modes or args.modes
     if args.spectral_groups < 1:

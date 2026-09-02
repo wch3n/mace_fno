@@ -371,12 +371,20 @@ class MACEFNOResidual(nn.Module):
             raise ValueError("fno_spectral_groups must be positive")
         if fno_spectral_symmetry == "none" and fno_spectral_groups != 1:
             raise ValueError("fno_spectral_groups applies only to EqGINO symmetry")
-        if cell_mode not in {"fixed", "isotropic"}:
-            raise ValueError("cell_mode must be 'fixed' or 'isotropic'")
-        if cell_mode == "isotropic" and resolved_scheme != "3d":
-            raise ValueError("isotropic cell mode applies only to the 3D scheme")
-        if cell_mode == "isotropic" and fno_architecture != "nonlinear":
-            raise ValueError("isotropic cell mode requires a nonlinear FNO")
+        if cell_mode not in {"fixed", "isotropic", "anisotropic"}:
+            raise ValueError(
+                "cell_mode must be 'fixed', 'isotropic', or 'anisotropic'"
+            )
+        if cell_mode != "fixed" and resolved_scheme != "3d":
+            raise ValueError(
+                "variable-cell modes apply only to the fully periodic 3D scheme"
+            )
+        if cell_mode != "fixed" and fno_architecture != "nonlinear":
+            raise ValueError("variable-cell mode requires a nonlinear FNO")
+        if cell_mode == "anisotropic" and fno_spectral_symmetry == "eqgino":
+            raise ValueError(
+                "anisotropic cell mode is incompatible with cubic EqGINO symmetry"
+            )
 
         if resolved_scheme == "2d":
             if z_grid_size is not None:
@@ -446,7 +454,7 @@ class MACEFNOResidual(nn.Module):
                 spectral_symmetry=fno_spectral_symmetry,
                 spectral_groups=fno_spectral_groups,
                 cell_conditioning=(
-                    "isotropic" if cell_mode == "isotropic" else "none"
+                    cell_mode if cell_mode in {"isotropic", "anisotropic"} else "none"
                 ),
                 volume_interlacing=fno_volume_interlacing,
                 check_neutrality=False,
@@ -471,6 +479,17 @@ class MACEFNOResidual(nn.Module):
         if self.fno_spectral_symmetry == "eqgino":
             if any(not is_cubic_cell(cell) for cell in cells):
                 raise ValueError("EqGINO symmetry requires cubic cells")
+        if self.cell_mode == "anisotropic":
+            determinants = torch.linalg.det(cells)
+            valid = torch.isfinite(cells).all(dim=(-2, -1)) & torch.isfinite(
+                determinants
+            )
+            valid = valid & (determinants.abs() > torch.finfo(cells.dtype).eps)
+            if not bool(valid.all().detach().cpu()):
+                raise ValueError(
+                    "anisotropic cell mode requires finite, nonsingular cells"
+                )
+            return
         if self.reference_cell.numel() == 0:
             return
         reference = self.reference_cell.to(dtype=cells.dtype, device=cells.device)

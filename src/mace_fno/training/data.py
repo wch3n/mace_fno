@@ -32,6 +32,17 @@ def _is_positive_isotropic_scaling(
     return bool(torch.allclose(cell, scale * reference, atol=atol, rtol=rtol))
 
 
+def _is_finite_nonsingular_cell(cell: torch.Tensor) -> bool:
+    """Return whether a cell is finite and has nonzero volume."""
+    if cell.shape != (3, 3) or not bool(torch.isfinite(cell).all()):
+        return False
+    determinant = torch.linalg.det(cell)
+    return bool(
+        torch.isfinite(determinant)
+        & (determinant.abs() > torch.finfo(cell.dtype).eps)
+    )
+
+
 def clone_graph(
     data: dict[str, Any],
     device: torch.device,
@@ -240,15 +251,16 @@ def load_or_create_samples(
                 else None
             )
             if compared_reference is not None:
-                cells_match = (
-                    _is_positive_isotropic_scaling(
+                if cell_mode == "isotropic":
+                    cells_match = _is_positive_isotropic_scaling(
                         compared_cached, compared_reference
                     )
-                    if cell_mode == "isotropic"
-                    else torch.allclose(
+                elif cell_mode == "anisotropic":
+                    cells_match = _is_finite_nonsingular_cell(cached_cell)
+                else:
+                    cells_match = torch.allclose(
                         compared_cached, compared_reference, atol=1.0e-6, rtol=1.0e-6
                     )
-                )
                 if not cells_match:
                     raise ValueError(f"cached cell mismatch in {cache_file}")
             print(f"loaded sample cache: {cache_file}", flush=True)
@@ -285,10 +297,12 @@ def load_samples(
     cell_mode: str = "fixed",
 ) -> tuple[list[dict[str, Any]], torch.Tensor]:
     """Read labeled structures and build the corresponding MACE graph samples."""
-    if cell_mode not in {"fixed", "isotropic"}:
-        raise ValueError("cell_mode must be 'fixed' or 'isotropic'")
-    if cell_mode == "isotropic" and spatial_scheme != "3d":
-        raise ValueError("isotropic cell mode applies only to the 3D scheme")
+    if cell_mode not in {"fixed", "isotropic", "anisotropic"}:
+        raise ValueError(
+            "cell_mode must be 'fixed', 'isotropic', or 'anisotropic'"
+        )
+    if cell_mode != "fixed" and spatial_scheme != "3d":
+        raise ValueError("variable-cell modes apply only to the 3D scheme")
     configurations = read(filename, index=":")
     if not isinstance(configurations, list):
         configurations = [configurations]
@@ -349,13 +363,16 @@ def load_samples(
         compared_reference = (
             reference_cell if spatial_scheme == "3d" else reference_cell[:2]
         )
-        cells_match = (
-            _is_positive_isotropic_scaling(compared_cell, compared_reference)
-            if cell_mode == "isotropic"
-            else torch.allclose(
+        if cell_mode == "isotropic":
+            cells_match = _is_positive_isotropic_scaling(
+                compared_cell, compared_reference
+            )
+        elif cell_mode == "anisotropic":
+            cells_match = _is_finite_nonsingular_cell(cell)
+        else:
+            cells_match = torch.allclose(
                 compared_cell, compared_reference, atol=1.0e-6, rtol=1.0e-6
             )
-        )
         if not cells_match:
             if skip_cell_mismatch:
                 cell_mismatch_count += 1
@@ -363,7 +380,8 @@ def load_samples(
             raise ValueError(
                 f"cell mismatch at index {index}: cell_mode={cell_mode!r} "
                 "requires the same relevant vectors (fixed) or a positive "
-                "uniform scaling of the reference cubic cell (isotropic)"
+                "uniform scaling of the reference cubic cell (isotropic), or "
+                "a finite nonsingular 3D cell (anisotropic)"
             )
         batch = calculator._atoms_to_batch(atoms)
         batch_dict = batch.to("cpu").to_dict()
@@ -388,15 +406,16 @@ def load_samples(
         target_forces = torch.as_tensor(
             np.asarray(reference_forces(atoms, forces_key)), dtype=torch.float64
         )
-        samples.append(
-            {
-                "data": {key: batch_dict[key] for key in graph_keys},
-                "energy": target_energy,
-                "forces": target_forces,
-                "num_atoms": len(atoms),
-                "formula": atoms.get_chemical_formula(),
-            }
-        )
+        sample = {
+            "data": {key: batch_dict[key] for key in graph_keys},
+            "energy": target_energy,
+            "forces": target_forces,
+            "num_atoms": len(atoms),
+            "formula": atoms.get_chemical_formula(),
+        }
+        if "benchmark_group" in atoms.info:
+            sample["benchmark_group"] = str(atoms.info["benchmark_group"])
+        samples.append(sample)
     if periodic_z_count and spatial_scheme != "3d":
         print(
             f"warning: {periodic_z_count} selected structures are periodic along z; "

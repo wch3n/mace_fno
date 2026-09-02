@@ -186,6 +186,57 @@ class FullyPeriodicFNOTests(unittest.TestCase):
                 1, (2, 2, 2), architecture="linear", cell_conditioning="isotropic"
             )
 
+    def test_anisotropic_cell_conditioning_uses_rotation_invariant_metric(self) -> None:
+        model = FNOFieldOperator3d(
+            2,
+            (2, 2, 2),
+            hidden_channels=4,
+            n_layers=1,
+            cell_conditioning="anisotropic",
+        ).to(dtype=DTYPE)
+        density = torch.randn(
+            (2, 2, 8, 8, 8), dtype=DTYPE, requires_grad=True
+        )
+        cells = torch.stack(
+            (
+                torch.diag(torch.tensor((8.0, 9.0, 10.0), dtype=DTYPE)),
+                torch.tensor(
+                    ((8.2, 0.1, 0.0), (0.4, 9.1, 0.2), (0.0, -0.3, 10.4)),
+                    dtype=DTYPE,
+                ),
+            )
+        )
+        output = model(density, cells)
+        self.assertEqual(output.shape, density.shape)
+        self.assertEqual(model.fno.in_channels, 9)
+        output.square().mean().backward()
+        self.assertIsNotNone(density.grad)
+        self.assertTrue(torch.isfinite(density.grad).all())
+
+        rotation = torch.tensor(
+            ((0.0, -1.0, 0.0), (1.0, 0.0, 0.0), (0.0, 0.0, 1.0)),
+            dtype=DTYPE,
+        )
+        torch.testing.assert_close(
+            model(density.detach(), cells @ rotation),
+            model(density.detach(), cells),
+            atol=2e-12,
+            rtol=2e-12,
+        )
+
+        singular = cells.clone()
+        singular[1, 2] = singular[1, 1]
+        with self.assertRaisesRegex(ValueError, "requires finite cells"):
+            model(density.detach(), singular)
+
+        with self.assertRaisesRegex(ValueError, "requires architecture"):
+            FNOFieldOperator3d(
+                1,
+                (2, 2, 2),
+                architecture="linear",
+                cell_conditioning="anisotropic",
+            )
+
     def test_energy_has_conservative_force_along_third_lattice_direction(self) -> None:
         cell = torch.tensor(
             ((9.0, 0.0, 0.0), (0.8, 10.0, 0.0), (0.3, -0.2, 11.0)),

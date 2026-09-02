@@ -44,6 +44,31 @@ class MetricFormattingTests(unittest.TestCase):
             print_metrics("empty", {})
         self.assertEqual(output.getvalue(), "")
 
+    def test_benchmark_groups_use_the_same_fixed_width(self) -> None:
+        metrics = {
+            "energy_mae": 0.001,
+            "energy_rmse": 0.002,
+            "energy_bias": 0.0,
+            "force_mae": 0.03,
+            "force_rmse": 0.04,
+            "by_formula": {},
+            "formula_counts": {},
+            "by_benchmark_group": {
+                "tetragonal": {"energy_rmse": 0.003, "force_rmse": 0.05}
+            },
+            "benchmark_group_counts": {"tetragonal": 12},
+        }
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            print_metrics("MACE+FNO test", metrics)
+        rows = output.getvalue().splitlines()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(
+            [index for index, char in enumerate(rows[0]) if char == "|"],
+            [index for index, char in enumerate(rows[1]) if char == "|"],
+        )
+        self.assertIn("group=tetragonal (n=12)", rows[1])
+
 
 if __name__ == "__main__":
     unittest.main()

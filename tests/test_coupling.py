@@ -619,6 +619,60 @@ class CouplingTests(unittest.TestCase):
                 cell_mode="isotropic",
             )
 
+    def test_anisotropic_3d_cell_mode_accepts_variable_cell_shapes(self) -> None:
+        data = _batch_data()
+        data["cell"] = torch.stack(
+            (
+                torch.diag(torch.tensor((8.0, 9.0, 10.0), dtype=DTYPE)),
+                torch.tensor(
+                    ((8.4, 0.0, 0.0), (0.3, 9.2, 0.0), (0.1, -0.2, 10.7)),
+                    dtype=DTYPE,
+                ),
+            )
+        )
+        model = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=2,
+            n_modes=(2, 2),
+            source_hidden_channels=8,
+            fno_hidden_channels=4,
+            fno_layers=1,
+            spatial_scheme="3d",
+            z_grid_size=8,
+            fno_z_modes=2,
+            invariant_indices=(0, 2),
+            reference_cell=data["cell"][0],
+            cell_mode="anisotropic",
+        ).to(dtype=DTYPE)
+        output = model(data, compute_force=False, compute_residual_force=True)
+        self.assertEqual(output["energy"].shape, (2,))
+        self.assertTrue(torch.isfinite(output["residual_forces"]).all())
+        self.assertEqual(
+            model.long_range.field_operator.cell_conditioning, "anisotropic"
+        )
+
+        invalid = {key: value.clone() for key, value in data.items()}
+        invalid["cell"][1, 2] = invalid["cell"][1, 1]
+        with self.assertRaisesRegex(ValueError, "nonsingular"):
+            model(invalid, compute_force=False)
+
+        with self.assertRaisesRegex(ValueError, "incompatible with cubic EqGINO"):
+            MACEFNOResidual(
+                _FakeMACE(),
+                (8, 8),
+                channels=2,
+                n_modes=(2, 2),
+                fno_hidden_channels=4,
+                spatial_scheme="3d",
+                z_grid_size=8,
+                fno_z_modes=2,
+                fno_spectral_symmetry="eqgino",
+                fno_spectral_groups=2,
+                invariant_indices=(0, 2),
+                cell_mode="anisotropic",
+            )
+
     def test_eqgino_3d_coupling_requires_cubic_geometry(self) -> None:
         cubic_cell = 8.0 * torch.eye(3, dtype=DTYPE)
         model = MACEFNOResidual(
@@ -877,6 +931,12 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(parameters["fno_z_modes"], 3)
         self.assertEqual(parameters["fno_spectral_symmetry"], "eqgino")
         self.assertEqual(parameters["fno_spectral_groups"], 4)
+
+        checkpoint["cell_mode"] = "anisotropic"
+        checkpoint["spectral_symmetry"] = "none"
+        checkpoint["spectral_groups"] = 1
+        parameters = checkpoint_model_parameters(checkpoint)
+        self.assertEqual(parameters["cell_mode"], "anisotropic")
 
     def test_legacy_artifact_model_path_follows_relocated_checkpoint(self) -> None:
         with TemporaryDirectory() as directory:

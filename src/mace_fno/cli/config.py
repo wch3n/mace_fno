@@ -84,12 +84,13 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--cell-mode",
-        choices=("fixed", "isotropic"),
+        choices=("fixed", "isotropic", "anisotropic"),
         default="fixed",
         help=(
             "Cell treatment for the FNO residual. Isotropic accepts positive "
-            "uniform scalings of a cubic 3D reference cell and conditions the "
-            "nonlinear operator on log(cell length)."
+            "uniform scalings of a cubic 3D reference cell. Anisotropic accepts "
+            "finite 3D cells and conditions the nonlinear operator on volume "
+            "and the normalized lattice metric."
         ),
     )
     parser.add_argument(

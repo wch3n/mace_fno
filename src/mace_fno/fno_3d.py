@@ -386,6 +386,12 @@ class FNOFieldOperator3d(nn.Module):
     operator distinguish structures represented on the same fractional mesh
     but at different physical volumes, while preserving translation and cubic
     signed-axis symmetries.
+
+    ``cell_conditioning='anisotropic'`` instead appends seven constant
+    channels: the logarithmic volume length and the six independent entries
+    of the volume-normalized lattice metric.  The metric is unchanged by a
+    rigid Cartesian rotation of the cell and supplies the operator with both
+    cell size and shape without tying it to one laboratory orientation.
     """
 
     def __init__(
@@ -404,8 +410,10 @@ class FNOFieldOperator3d(nn.Module):
         super().__init__()
         if architecture not in {"linear", "nonlinear"}:
             raise ValueError("architecture must be 'linear' or 'nonlinear'")
-        if cell_conditioning not in {"none", "isotropic"}:
-            raise ValueError("cell_conditioning must be 'none' or 'isotropic'")
+        if cell_conditioning not in {"none", "isotropic", "anisotropic"}:
+            raise ValueError(
+                "cell_conditioning must be 'none', 'isotropic', or 'anisotropic'"
+            )
         if cell_conditioning != "none" and architecture != "nonlinear":
             raise ValueError("cell conditioning requires architecture='nonlinear'")
         self.architecture = architecture
@@ -413,7 +421,12 @@ class FNOFieldOperator3d(nn.Module):
         self.spectral_symmetry = spectral_symmetry
         self.spectral_groups = int(spectral_groups)
         self.cell_conditioning = cell_conditioning
-        input_channels = channels + int(cell_conditioning == "isotropic")
+        conditioning_channels = {
+            "none": 0,
+            "isotropic": 1,
+            "anisotropic": 7,
+        }[cell_conditioning]
+        input_channels = channels + conditioning_channels
         if architecture == "linear":
             self.fno = LinearFNO3d(
                 input_channels,
@@ -486,6 +499,37 @@ class FNOFieldOperator3d(nn.Module):
                 raise ValueError("cell volumes must be positive")
             condition = lengths.log().reshape(-1, 1, 1, 1, 1).expand(
                 -1, 1, *density_batch.shape[-3:]
+            )
+            normalized = torch.cat((normalized, condition), dim=1)
+        elif self.cell_conditioning == "anisotropic":
+            if cells is None:
+                raise ValueError("anisotropic cell conditioning requires cell")
+            if cells.shape[0] != density_batch.shape[0]:
+                raise ValueError("cell batch size must match density batch size")
+            determinants = torch.linalg.det(cells)
+            volume_lengths = determinants.abs().pow(1.0 / 3.0)
+            valid = torch.isfinite(cells).all(dim=(-2, -1)) & torch.isfinite(
+                volume_lengths
+            )
+            valid = valid & (volume_lengths > 0)
+            if not bool(valid.all().detach().cpu()):
+                raise ValueError("anisotropic cell conditioning requires finite cells")
+            metric = cells @ cells.transpose(-2, -1)
+            metric = metric / volume_lengths.square().reshape(-1, 1, 1)
+            condition_values = torch.stack(
+                (
+                    volume_lengths.log(),
+                    metric[:, 0, 0],
+                    metric[:, 1, 1],
+                    metric[:, 2, 2],
+                    metric[:, 0, 1],
+                    metric[:, 0, 2],
+                    metric[:, 1, 2],
+                ),
+                dim=1,
+            )
+            condition = condition_values.reshape(-1, 7, 1, 1, 1).expand(
+                -1, -1, *density_batch.shape[-3:]
             )
             normalized = torch.cat((normalized, condition), dim=1)
         potential = self.fno(normalized) * self.output_scale

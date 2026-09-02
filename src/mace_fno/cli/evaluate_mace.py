@@ -25,6 +25,10 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--test-file", type=Path, required=True)
     parser.add_argument("--energy-key", default="REF_energy")
     parser.add_argument("--forces-key", default="REF_forces")
+    parser.add_argument(
+        "--group-key",
+        help="Optional Atoms.info field used for additional grouped metrics",
+    )
     parser.add_argument("--head")
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
     parser.add_argument("--dtype", choices=("float32", "float64"), default="float64")
@@ -92,6 +96,7 @@ def predict(
     energy_key: str,
     forces_key: str,
     label: str,
+    group_key: str | None = None,
 ) -> list[dict[str, Any]]:
     records = []
     for index, source in enumerate(structures):
@@ -101,17 +106,20 @@ def predict(
         target_forces = np.asarray(reference_forces(source, forces_key), dtype=float)
         predicted_energy = float(atoms.get_potential_energy())
         predicted_forces = np.asarray(atoms.get_forces(), dtype=float)
-        records.append(
-            {
-                "formula": source.get_chemical_formula(),
-                "num_atoms": len(source),
-                "energy_error_per_atom": (
-                    predicted_energy - target_energy
+        record = {
+            "formula": source.get_chemical_formula(),
+            "num_atoms": len(source),
+            "energy_error_per_atom": (predicted_energy - target_energy)
+            / len(source),
+            "force_errors": (predicted_forces - target_forces).reshape(-1),
+        }
+        if group_key is not None:
+            if group_key not in source.info:
+                raise KeyError(
+                    f"{label} structure {index} lacks group key {group_key!r}"
                 )
-                / len(source),
-                "force_errors": (predicted_forces - target_forces).reshape(-1),
-            }
-        )
+            record["benchmark_group"] = str(source.info[group_key])
+        records.append(record)
         if (index + 1) % 100 == 0 or index + 1 == len(structures):
             print(f"{label}: predicted {index + 1}/{len(structures)}", flush=True)
     return records
@@ -139,12 +147,21 @@ def summarize(
             "forces_eV_per_A": scalar_metrics(force_errors),
         }
 
-    return {
+    result = {
         "overall": one_group(records),
         "by_formula": {
             formula: one_group(group) for formula, group in sorted(grouped.items())
         },
     }
+    if all("benchmark_group" in record for record in records):
+        benchmark_groups: dict[str, list[dict[str, Any]]] = defaultdict(list)
+        for record in records:
+            benchmark_groups[record["benchmark_group"]].append(record)
+        result["by_benchmark_group"] = {
+            name: one_group(group)
+            for name, group in sorted(benchmark_groups.items())
+        }
+    return result
 
 
 def fitted_shifts(
@@ -183,6 +200,15 @@ def print_summary(label: str, summary: dict[str, Any]) -> None:
             f"F_RMSE={1000 * forces['rmse']:.3f} meV/A",
             flush=True,
         )
+    for name, group in summary.get("by_benchmark_group", {}).items():
+        energy = group["energy_eV_per_atom"]
+        forces = group["forces_eV_per_A"]
+        print(
+            f"  group={name} (n={group['structures']}): "
+            f"E_RMSE={1000 * energy['rmse']:.3f} meV/atom, "
+            f"F_RMSE={1000 * forces['rmse']:.3f} meV/A",
+            flush=True,
+        )
 
 
 def main() -> None:
@@ -209,15 +235,28 @@ def main() -> None:
         flush=True,
     )
     train_records = predict(
-        calculator, train, args.energy_key, args.forces_key, "train"
+        calculator,
+        train,
+        args.energy_key,
+        args.forces_key,
+        "train",
+        args.group_key,
     )
-    test_records = predict(calculator, test, args.energy_key, args.forces_key, "test")
+    test_records = predict(
+        calculator,
+        test,
+        args.energy_key,
+        args.forces_key,
+        "test",
+        args.group_key,
+    )
 
     global_shifts = fitted_shifts(train_records, by_formula=False)
     formula_shifts = fitted_shifts(train_records, by_formula=True)
     results = {
         "model": str(args.model),
         "head": args.head,
+        "group_key": args.group_key,
         "train_file": str(args.train_file),
         "test_file": str(args.test_file),
         "skipped_train": skipped_train,

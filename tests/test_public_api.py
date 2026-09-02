@@ -64,6 +64,19 @@ class PublicAPITests(unittest.TestCase):
         self.assertEqual(args.spectral_diagnostic_depth, "deep")
         self.assertEqual(args.spectral_diagnostic_amplitudes, [0.01, 0.04])
 
+    def test_anisotropic_cell_mode_can_be_selected(self) -> None:
+        args = parse_arguments(
+            [
+                "--mace-model",
+                "model.pt",
+                "--train-file",
+                "train.xyz",
+                "--cell-mode",
+                "anisotropic",
+            ]
+        )
+        self.assertEqual(args.cell_mode, "anisotropic")
+
 
 if __name__ == "__main__":
     unittest.main()

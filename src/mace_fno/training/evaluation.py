@@ -89,6 +89,8 @@ def evaluate(
     force_errors = []
     group_energy_errors: dict[str, list[torch.Tensor]] = defaultdict(list)
     group_force_errors: dict[str, list[torch.Tensor]] = defaultdict(list)
+    benchmark_energy_errors: dict[str, list[torch.Tensor]] = defaultdict(list)
+    benchmark_force_errors: dict[str, list[torch.Tensor]] = defaultdict(list)
     for start in range(0, len(samples), batch_size):
         sample_batch = samples[start : start + batch_size]
         graph, target_energy, target_forces = collate_samples(
@@ -137,6 +139,14 @@ def evaluate(
             group_force_errors[sample["formula"]].append(
                 force_error[atom_mask].reshape(-1)
             )
+            if "benchmark_group" in sample:
+                benchmark_group = str(sample["benchmark_group"])
+                benchmark_energy_errors[benchmark_group].append(
+                    energy_error[graph_index : graph_index + 1]
+                )
+                benchmark_force_errors[benchmark_group].append(
+                    force_error[atom_mask].reshape(-1)
+                )
 
     def metrics(
         energy_error_list: list[torch.Tensor],
@@ -161,6 +171,17 @@ def evaluate(
         formula: len(group_energy_errors[formula])
         for formula in sorted(group_energy_errors)
     }
+    if benchmark_energy_errors:
+        result["by_benchmark_group"] = {
+            group: metrics(
+                benchmark_energy_errors[group], benchmark_force_errors[group]
+            )
+            for group in sorted(benchmark_energy_errors)
+        }
+        result["benchmark_group_counts"] = {
+            group: len(benchmark_energy_errors[group])
+            for group in sorted(benchmark_energy_errors)
+        }
     model.train(was_training)
     return result
 
@@ -214,6 +235,18 @@ def print_metrics(label: str, metrics: dict[str, Any]) -> None:
         print(
             _metric_row(
                 f"  {formula} (n={metrics['formula_counts'][formula]})",
+                energy_mae=None,
+                energy_rmse=group["energy_rmse"],
+                energy_bias=None,
+                force_mae=None,
+                force_rmse=group["force_rmse"],
+            ),
+            flush=True,
+        )
+    for name, group in metrics.get("by_benchmark_group", {}).items():
+        print(
+            _metric_row(
+                f"  group={name} (n={metrics['benchmark_group_counts'][name]})",
                 energy_mae=None,
                 energy_rmse=group["energy_rmse"],
                 energy_bias=None,
