@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 import torch
 
 from mace_fno.cli.config import parse_arguments
-from mace_fno.cli.train_residual import _save_checkpoint
+from mace_fno.cli.yaml_config import resolved_configuration
 from mace_fno.training import (
     OptimizationResult,
     PreparedData,
@@ -17,6 +17,8 @@ from mace_fno.training import (
     evaluate_frozen_baseline,
     evaluate_selected_model,
     optimize_residual,
+    save_training_checkpoint,
+    training_checkpoint_payload,
 )
 
 
@@ -161,14 +163,23 @@ class ResidualTrainerTests(unittest.TestCase):
                 final_learning_rate=5.0e-4,
             )
             with redirect_stdout(io.StringIO()):
-                _save_checkpoint(
+                effective = resolved_configuration(
                     arguments,
+                    spatial_scheme=configuration.model.spatial_scheme,
+                    z_modes=configuration.model.resolved_z_modes,
+                    evaluation_batch_size=(
+                        configuration.optimization.evaluation_batch_size
+                    ),
+                    output_warmup_learning_rate=result.warmup_learning_rate,
+                )
+                payload = training_checkpoint_payload(
                     configuration,
                     prepared,
                     result,
-                    None,
                     _ToyResidual(),
+                    effective_configuration=effective,
                 )
+                save_training_checkpoint(checkpoint, payload)
 
             payload = torch.load(checkpoint, weights_only=False)
             self.assertEqual(payload["spatial_scheme"], "3d")
@@ -176,7 +187,7 @@ class ResidualTrainerTests(unittest.TestCase):
             self.assertEqual(payload["n_modes"], (6, 8, 8))
             self.assertEqual(payload["spectral_symmetry"], "metric_eqgino")
             self.assertEqual(payload["best_step"], 4)
-            self.assertTrue(checkpoint.with_suffix(".config.yaml").is_file())
+            self.assertEqual(payload["training_configuration"], effective)
 
 
 if __name__ == "__main__":

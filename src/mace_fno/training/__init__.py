@@ -12,6 +12,8 @@ from .checkpoint import (
     load_residual_state_dict,
     residual_state_dict,
     resolve_checkpoint_model_path,
+    save_training_checkpoint,
+    training_checkpoint_payload,
 )
 from .configuration import (
     DataConfig,
@@ -122,9 +124,11 @@ __all__ = [
     "residual_state_dict",
     "sample_cache_metadata",
     "save_sample_cache",
+    "save_training_checkpoint",
     "slab_2p5d_response_diagnostic",
     "summarize_amplitude_convergence",
     "SpectralMonitor",
     "split_samples",
+    "training_checkpoint_payload",
     "validation_objective",
 ]

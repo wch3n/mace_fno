@@ -10,13 +10,173 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import torch
 
 from ..coupling import MACEFNOResidual
 
+if TYPE_CHECKING:
+    from .configuration import TrainingConfig
+    from .setup import PreparedData
+    from .trainer import OptimizationResult
+
 CHECKPOINT_FORMAT_VERSION = 1
+
+
+def training_checkpoint_payload(
+    configuration: TrainingConfig,
+    prepared: PreparedData,
+    result: OptimizationResult,
+    model: torch.nn.Module,
+    *,
+    effective_configuration: Mapping[str, Any],
+    spectral_diagnostic: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Build the complete, versioned payload for one training run.
+
+    Keeping this schema beside the reconstruction code makes additions and
+    compatibility changes auditable in one module. The flat version-1 layout
+    is retained so existing inference and benchmark tooling remains valid.
+    """
+    data = configuration.data
+    model_config = configuration.model
+    optimization = configuration.optimization
+    return {
+        "checkpoint_format_version": CHECKPOINT_FORMAT_VERSION,
+        "training_configuration": dict(effective_configuration),
+        "residual_state_dict": residual_state_dict(model),
+        "mace_model": str(data.mace_model),
+        "mace_head": data.head,
+        "train_file": str(data.train_file),
+        "validation_file": (
+            str(data.validation_file) if data.validation_file is not None else None
+        ),
+        "validation_indices_file": (
+            str(data.validation_indices_file)
+            if data.validation_indices_file is not None
+            else None
+        ),
+        "test_file": str(data.test_file) if data.test_file is not None else None,
+        "grid_shape": (model_config.grid, model_config.grid),
+        "n_modes": (
+            (
+                model_config.resolved_z_modes,
+                model_config.modes,
+                model_config.modes,
+            )
+            if model_config.spatial_scheme == "3d"
+            else (model_config.modes, model_config.modes)
+        ),
+        "spatial_scheme": model_config.spatial_scheme,
+        "cell_mode": model_config.cell_mode,
+        "z_grid_size": model_config.z_grid or None,
+        "z_extent": (
+            model_config.z_extent if model_config.spatial_scheme == "2.5d" else None
+        ),
+        "z_center": (
+            model_config.z_center if model_config.spatial_scheme == "2.5d" else None
+        ),
+        "lateral_interlacing": (
+            model_config.lateral_interlacing
+            if model_config.spatial_scheme == "2.5d"
+            else 1
+        ),
+        "volume_interlacing": (
+            model_config.volume_interlacing
+            if model_config.spatial_scheme == "3d"
+            else 1
+        ),
+        "interlacing_training": (
+            model_config.interlacing_training
+            if model_config.spatial_scheme == "3d"
+            else "full"
+        ),
+        "planar_symmetry": (
+            model_config.planar_symmetry
+            if model_config.spatial_scheme == "2.5d"
+            else "none"
+        ),
+        "spectral_symmetry": (
+            model_config.spectral_symmetry
+            if model_config.spatial_scheme == "3d"
+            else "none"
+        ),
+        "spectral_groups": (
+            model_config.spectral_groups
+            if model_config.spatial_scheme == "3d"
+            else 1
+        ),
+        "metric_hidden_channels": (
+            model_config.metric_hidden_channels
+            if model_config.spatial_scheme == "3d"
+            else 16
+        ),
+        "z_kernel_size": (
+            model_config.z_kernel_size
+            if model_config.spatial_scheme == "2.5d"
+            else None
+        ),
+        "z_mixing": (
+            "spectral"
+            if model_config.spatial_scheme == "2.5d"
+            and model_config.architecture == "linear"
+            else model_config.z_mixing
+            if model_config.spatial_scheme == "2.5d"
+            else None
+        ),
+        "channels": model_config.channels,
+        "source_hidden_channels": model_config.source_hidden_channels,
+        "fno_hidden_channels": model_config.fno_hidden_channels,
+        "fno_layers": model_config.fno_layers,
+        "architecture": model_config.architecture,
+        "reference_cell": prepared.reference_cell.detach().cpu(),
+        "num_atoms": data.num_atoms,
+        "validation_fraction": data.validation_fraction,
+        "skip_cell_mismatch": data.skip_cell_mismatch,
+        "accumulation_steps": optimization.accumulation_steps,
+        "batch_size": optimization.batch_size,
+        "evaluation_batch_size": optimization.evaluation_batch_size,
+        "evaluation_scope": optimization.evaluation_scope,
+        "steps": optimization.steps,
+        "completed_steps": result.completed_steps,
+        "stopped_early": result.stopped_early,
+        "eval_interval": optimization.eval_interval,
+        "learning_rate": optimization.learning_rate,
+        "output_initialization_scale": optimization.output_initialization_scale,
+        "output_warmup_steps": optimization.output_warmup_steps,
+        "output_warmup_learning_rate": result.warmup_learning_rate,
+        "final_learning_rate": result.final_learning_rate,
+        "lr_scheduler": optimization.lr_scheduler,
+        "lr_decay_factor": optimization.lr_decay_factor,
+        "lr_patience_evals": optimization.lr_patience_evals,
+        "minimum_learning_rate": optimization.minimum_learning_rate,
+        "early_stopping_patience_evals": optimization.early_stopping_patience_evals,
+        "energy_weight": optimization.energy_weight,
+        "force_weight": optimization.force_weight,
+        "energy_scale": optimization.energy_scale,
+        "force_scale": optimization.force_scale,
+        "dtype": configuration.runtime.dtype,
+        "train_cache": str(data.train_cache) if data.train_cache else None,
+        "validation_cache": (
+            str(data.validation_cache) if data.validation_cache else None
+        ),
+        "test_cache": str(data.test_cache) if data.test_cache else None,
+        "best_step": result.best_step,
+        "best_validation_objective": result.best_validation_objective,
+        "spectral_diagnostic": (
+            dict(spectral_diagnostic) if spectral_diagnostic is not None else None
+        ),
+        "seed": configuration.runtime.seed,
+    }
+
+
+def save_training_checkpoint(path: str | Path, payload: Mapping[str, Any]) -> Path:
+    """Serialize a training payload, creating its parent directory if needed."""
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    torch.save(dict(payload), destination)
+    return destination
 
 
 def load_checkpoint_payload(path: str | Path) -> dict[str, Any]:
@@ -272,7 +432,7 @@ def load_mace_fno_model(
     return model, checkpoint
 
 
-def residual_state_dict(model: MACEFNOResidual) -> dict[str, torch.Tensor]:
+def residual_state_dict(model: torch.nn.Module) -> dict[str, torch.Tensor]:
     """Return learned state without duplicating the frozen MACE checkpoint."""
     prefix = "backbone.mace_model."
     return {
