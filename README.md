@@ -214,3 +214,9 @@ inference.
   dielectric tensor.
 - The current ASE adapter provides energy and forces, but not stress or a
   production LAMMPS deployment.
+
+## Contributing and citation
+
+Development conventions and the verification checklist are collected in
+[CONTRIBUTING.md](CONTRIBUTING.md). Citation metadata are provided in
+[CITATION.cff](CITATION.cff) and can be rendered directly by GitHub.
