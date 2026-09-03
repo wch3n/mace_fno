@@ -10,8 +10,8 @@ from torch import Tensor, nn
 
 from .model import (
     LearnedParticleMeshLongRange,
-    LearnedParticleMeshLongRange2p5D,
     LearnedParticleMeshLongRange3D,
+    LearnedSlabParticleMeshLongRange,
 )
 from .symmetry import is_cubic_cell
 
@@ -412,7 +412,7 @@ class MACEFNOResidual(nn.Module):
                 raise ValueError("z_grid_size is required for spatial_scheme='2.5d'")
             if z_extent is None:
                 raise ValueError("z_extent is required when z_grid_size is set")
-            self.long_range = LearnedParticleMeshLongRange2p5D(
+            self.long_range = LearnedSlabParticleMeshLongRange(
                 (int(z_grid_size), *grid_shape),
                 z_extent,
                 channels,
@@ -507,7 +507,7 @@ class MACEFNOResidual(nn.Module):
         scale = compared_reference.abs().max().clamp_min(1.0)
         if bool((maximum_error > self.cell_tolerance * scale).detach().cpu()):
             raise ValueError(
-                "FNOFieldOperator is fixed-cell, but a cell differs from "
+                "the planar FNO field operator is fixed-cell, but a cell differs from "
                 "reference_cell beyond cell_tolerance"
             )
 

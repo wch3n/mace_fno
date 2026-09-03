@@ -11,7 +11,7 @@ from torch.nn import functional as F
 from .symmetry import is_cubic_cell
 
 
-class SpectralConv3d(nn.Module):
+class SpectralConv3D(nn.Module):
     """Learned convolution on truncated modes of a fully periodic 3D field.
 
     Field tensors use spatial order ``(z, x, y)``.  A real FFT is used along y,
@@ -96,7 +96,7 @@ class SpectralConv3d(nn.Module):
         )
 
 
-class MetricEqGINOSpectralConv3d(nn.Module):
+class MetricEqGINOSpectralConv3D(nn.Module):
     """Cell-metric-aware isotropic convolution for periodic scalar fields.
 
     The layer evaluates a small radial network at the physical wavevector
@@ -279,9 +279,9 @@ def _spectral_conv3d(
             raise ValueError(
                 "spectral_groups applies only to metric-aware EqGINO"
             )
-        return SpectralConv3d(in_channels, out_channels, n_modes)
+        return SpectralConv3D(in_channels, out_channels, n_modes)
     if spectral_symmetry == "metric_eqgino":
-        return MetricEqGINOSpectralConv3d(
+        return MetricEqGINOSpectralConv3D(
             in_channels,
             out_channels,
             n_modes,
@@ -291,7 +291,7 @@ def _spectral_conv3d(
     raise ValueError("spectral_symmetry must be 'none' or 'metric_eqgino'")
 
 
-class FNOBlock3d(nn.Module):
+class FNOBlock3D(nn.Module):
     """One fully periodic 3D spectral convolution plus a pointwise pathway."""
 
     def __init__(
@@ -329,7 +329,7 @@ class FNOBlock3d(nn.Module):
         return F.gelu(spectral + self.local(field))
 
 
-class LinearFNO3d(nn.Module):
+class LinearFNO3D(nn.Module):
     """A single linear Fourier operator on a fully periodic 3D mesh."""
 
     def __init__(
@@ -377,7 +377,7 @@ class LinearFNO3d(nn.Module):
         return output.squeeze(0) if unbatched else output
 
 
-class FNO3d(nn.Module):
+class FNO3D(nn.Module):
     """Compact fully periodic FNO for fixed-cell three-dimensional fields."""
 
     def __init__(
@@ -409,7 +409,7 @@ class FNO3d(nn.Module):
             self.in_channels, hidden_channels, kernel_size=1, bias=False
         )
         self.blocks = nn.ModuleList(
-            FNOBlock3d(
+            FNOBlock3D(
                 hidden_channels,
                 self.n_modes,
                 spectral_symmetry=self.spectral_symmetry,
@@ -447,7 +447,7 @@ class FNO3d(nn.Module):
         return output.squeeze(0) if unbatched else output
 
 
-class FNOFieldOperator3d(nn.Module):
+class FNOFieldOperator3D(nn.Module):
     """Normalized field operator for periodic 3D fields.
 
     ``cell_conditioning='isotropic'`` appends the logarithmic cubic cell
@@ -499,7 +499,7 @@ class FNOFieldOperator3d(nn.Module):
         }[cell_conditioning]
         input_channels = channels + conditioning_channels
         if architecture == "linear":
-            self.fno = LinearFNO3d(
+            self.fno = LinearFNO3D(
                 input_channels,
                 channels,
                 n_modes,
@@ -508,7 +508,7 @@ class FNOFieldOperator3d(nn.Module):
                 metric_hidden_channels=metric_hidden_channels,
             )
         else:
-            self.fno = FNO3d(
+            self.fno = FNO3D(
                 input_channels,
                 channels,
                 n_modes,

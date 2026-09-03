@@ -8,10 +8,10 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
-from .fno_2d import SpectralConv2d
+from .fno_2d import SpectralConv2D
 
 
-class SpectralConv2p5d(nn.Module):
+class SlabSpectralConv2D(nn.Module):
     """Dense ``R(k_parallel, z, z')`` with Fourier transforms only in x/y.
 
     This layer is intended for controlled linear models with modest channel
@@ -88,7 +88,7 @@ class SpectralConv2p5d(nn.Module):
         return torch.fft.irfft2(output_k, s=(nx, ny), dim=(-2, -1))
 
 
-class PlanarSpectralConv2p5d(nn.Module):
+class SlabPlanarSpectralConv2D(nn.Module):
     """Apply one shared 2D spectral convolution independently to each z layer."""
 
     def __init__(
@@ -100,7 +100,7 @@ class PlanarSpectralConv2p5d(nn.Module):
         super().__init__()
         self.in_channels = int(in_channels)
         self.out_channels = int(out_channels)
-        self.spectral = SpectralConv2d(in_channels, out_channels, n_modes)
+        self.spectral = SpectralConv2D(in_channels, out_channels, n_modes)
 
     def forward(self, field: Tensor) -> Tensor:
         if field.ndim != 5 or field.shape[1] != self.in_channels:
@@ -150,7 +150,7 @@ class GlobalZMixing(nn.Module):
         return torch.einsum("bcixy,coi->bcoxy", field, self.weight)
 
 
-class FNOBlock2p5d(nn.Module):
+class SlabFNOBlock2D(nn.Module):
     """In-plane spectral mixing plus local or global nonperiodic z mixing."""
 
     def __init__(
@@ -165,7 +165,7 @@ class FNOBlock2p5d(nn.Module):
         super().__init__()
         if z_mixing not in {"local", "global"}:
             raise ValueError("z_mixing must be 'local' or 'global'")
-        self.spectral = PlanarSpectralConv2p5d(channels, channels, n_modes)
+        self.spectral = SlabPlanarSpectralConv2D(channels, channels, n_modes)
         if z_mixing == "local":
             if z_kernel_size < 1 or z_kernel_size % 2 == 0:
                 raise ValueError("z_kernel_size must be a positive odd integer")
@@ -184,7 +184,7 @@ class FNOBlock2p5d(nn.Module):
         return F.gelu(self.spectral(field) + self.z_mixing(field) + self.local(field))
 
 
-class LinearFNO2p5D(nn.Module):
+class LinearSlabFNO2D(nn.Module):
     """A linear, explicit learned ``R(k_parallel, z, z')`` operator."""
 
     def __init__(
@@ -198,7 +198,7 @@ class LinearFNO2p5D(nn.Module):
         self.in_channels = int(in_channels)
         self.out_channels = int(out_channels)
         self.n_z = int(n_z)
-        self.spectral = SpectralConv2p5d(in_channels, out_channels, n_z, n_modes)
+        self.spectral = SlabSpectralConv2D(in_channels, out_channels, n_z, n_modes)
 
     def forward(self, field: Tensor) -> Tensor:
         unbatched = field.ndim == 4
@@ -217,7 +217,7 @@ class LinearFNO2p5D(nn.Module):
         return output.squeeze(0) if unbatched else output
 
 
-class FNO2p5D(nn.Module):
+class SlabFNO2D(nn.Module):
     """Hybrid slab FNO with 2D FFTs and finite, nonperiodic z mixing.
 
     z remains an explicit axis throughout. Consequently the model is periodic
@@ -255,7 +255,7 @@ class FNO2p5D(nn.Module):
             self.in_channels, hidden_channels, kernel_size=1, bias=False
         )
         self.blocks = nn.ModuleList(
-            FNOBlock2p5d(
+            SlabFNOBlock2D(
                 hidden_channels,
                 self.n_z,
                 self.n_modes,
@@ -293,7 +293,7 @@ class FNO2p5D(nn.Module):
         return output.squeeze(0) if unbatched else output
 
 
-class FNOFieldOperator2p5D(nn.Module):
+class SlabFNOFieldOperator2D(nn.Module):
     """Normalized field-operator adapter for explicit finite z layers."""
 
     def __init__(
@@ -324,9 +324,9 @@ class FNOFieldOperator2p5D(nn.Module):
         self.planar_symmetry = planar_symmetry
         self._training_symmetry_index = 0
         if architecture == "linear":
-            self.fno = LinearFNO2p5D(channels, channels, n_z, n_modes)
+            self.fno = LinearSlabFNO2D(channels, channels, n_z, n_modes)
         else:
-            self.fno = FNO2p5D(
+            self.fno = SlabFNO2D(
                 channels,
                 channels,
                 n_z,

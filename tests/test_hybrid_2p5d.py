@@ -5,11 +5,11 @@ import unittest
 import torch
 
 from mace_fno import (
-    FNO2p5D,
     GlobalZMixing,
-    LearnedParticleMeshLongRange2p5D,
-    LinearFNO2p5D,
-    SlabParticleMesh2p5D,
+    LearnedSlabParticleMeshLongRange,
+    LinearSlabFNO2D,
+    SlabFNO2D,
+    SlabParticleMesh,
 )
 
 DTYPE = torch.float64
@@ -23,7 +23,7 @@ class SlabParticleMeshTests(unittest.TestCase):
             dtype=DTYPE,
         )
         self.values = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
-        self.assignment = SlabParticleMesh2p5D(
+        self.assignment = SlabParticleMesh(
             (8, 16, 20), z_extent=8.0, z_center="mean"
         )
 
@@ -58,7 +58,7 @@ class SlabParticleMeshTests(unittest.TestCase):
         )
 
     def test_z_boundary_is_clamped_not_wrapped(self) -> None:
-        assignment = SlabParticleMesh2p5D((8, 16, 16), z_extent=16.0, z_center="cell")
+        assignment = SlabParticleMesh((8, 16, 16), z_extent=16.0, z_center="cell")
         position = torch.tensor(((2.0, 3.0, 2.1),), dtype=DTYPE)
         density = assignment(position, torch.ones(1, dtype=DTYPE), self.cell)
         self.assertGreater(density[:, 0].abs().sum().item(), 0.0)
@@ -78,7 +78,7 @@ class HybridFNOTests(unittest.TestCase):
         torch.manual_seed(23)
 
     def test_nonlinear_shape_and_gradients(self) -> None:
-        model = FNO2p5D(
+        model = SlabFNO2D(
             2,
             3,
             6,
@@ -116,7 +116,7 @@ class HybridFNOTests(unittest.TestCase):
         )
 
     def test_global_nonlinear_shape_and_gradients(self) -> None:
-        model = FNO2p5D(
+        model = SlabFNO2D(
             2,
             3,
             6,
@@ -138,7 +138,7 @@ class HybridFNOTests(unittest.TestCase):
         field = torch.zeros((1, 6, 12, 12))
         for z_mixing in ("local", "global"):
             with self.subTest(z_mixing=z_mixing):
-                model = FNO2p5D(
+                model = SlabFNO2D(
                     1,
                     1,
                     6,
@@ -154,7 +154,7 @@ class HybridFNOTests(unittest.TestCase):
         translated = torch.roll(field, shifts=(2, -3), dims=(-2, -1))
         for z_mixing in ("local", "global"):
             with self.subTest(z_mixing=z_mixing):
-                model = FNO2p5D(
+                model = SlabFNO2D(
                     1,
                     1,
                     6,
@@ -169,14 +169,14 @@ class HybridFNOTests(unittest.TestCase):
                 )
 
     def test_one_operator_accepts_multiple_lateral_resolutions(self) -> None:
-        model = FNO2p5D(1, 2, 5, (3, 3), hidden_channels=4, n_layers=1).to(dtype=DTYPE)
+        model = SlabFNO2D(1, 2, 5, (3, 3), hidden_channels=4, n_layers=1).to(dtype=DTYPE)
         first = model(torch.randn((1, 5, 12, 12), dtype=DTYPE))
         second = model(torch.randn((1, 5, 16, 20), dtype=DTYPE))
         self.assertEqual(first.shape, (2, 5, 12, 12))
         self.assertEqual(second.shape, (2, 5, 16, 20))
 
     def test_dense_linear_operator_obeys_superposition(self) -> None:
-        model = LinearFNO2p5D(1, 2, 5, (3, 3)).to(dtype=DTYPE)
+        model = LinearSlabFNO2D(1, 2, 5, (3, 3)).to(dtype=DTYPE)
         first = torch.randn((2, 1, 5, 12, 12), dtype=DTYPE)
         second = torch.randn((2, 1, 5, 12, 12), dtype=DTYPE)
         scale = -0.7
@@ -191,7 +191,7 @@ class HybridFNOTests(unittest.TestCase):
             dtype=DTYPE,
         )
         charges = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
-        model = LearnedParticleMeshLongRange2p5D(
+        model = LearnedSlabParticleMeshLongRange(
             (6, 12, 12),
             8.0,
             channels=1,
@@ -223,7 +223,7 @@ class HybridFNOTests(unittest.TestCase):
             dtype=DTYPE,
         )
         charges = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
-        model = LearnedParticleMeshLongRange2p5D(
+        model = LearnedSlabParticleMeshLongRange(
             (6, 12, 12),
             8.0,
             channels=1,
@@ -253,7 +253,7 @@ class HybridFNOTests(unittest.TestCase):
             dtype=DTYPE,
         )
         charges = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
-        model = LearnedParticleMeshLongRange2p5D(
+        model = LearnedSlabParticleMeshLongRange(
             (8, 12, 12),
             10.0,
             channels=1,
@@ -297,10 +297,10 @@ class HybridFNOTests(unittest.TestCase):
             z_center="mean",
             z_mixing="global",
         )
-        plain = LearnedParticleMeshLongRange2p5D(**common, lateral_interlacing=1).to(
+        plain = LearnedSlabParticleMeshLongRange(**common, lateral_interlacing=1).to(
             dtype=DTYPE
         )
-        interlaced = LearnedParticleMeshLongRange2p5D(
+        interlaced = LearnedSlabParticleMeshLongRange(
             **common, lateral_interlacing=2
         ).to(dtype=DTYPE)
         interlaced.load_state_dict(plain.state_dict())
@@ -327,7 +327,7 @@ class HybridFNOTests(unittest.TestCase):
             dtype=DTYPE,
         )
         charges = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
-        model = LearnedParticleMeshLongRange2p5D(
+        model = LearnedSlabParticleMeshLongRange(
             (8, 12, 12),
             10.0,
             channels=1,

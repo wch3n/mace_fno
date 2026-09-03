@@ -248,7 +248,7 @@ class PeriodicParticleMesh3D(nn.Module):
         return density[0] if unbatched else density
 
 
-class SlabParticleMesh2p5D(nn.Module):
+class SlabParticleMesh(nn.Module):
     """Deposit atom features on a mesh periodic in-plane and finite along z.
 
     The first two cell vectors define the periodic plane. The surface-normal

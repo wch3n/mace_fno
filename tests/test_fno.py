@@ -5,10 +5,10 @@ import unittest
 import torch
 
 from mace_fno import (
-    FNO2d,
-    FNOFieldOperator,
+    FNO2D,
+    FNOFieldOperator2D,
     LearnedParticleMeshLongRange,
-    LinearFNO2d,
+    LinearFNO2D,
 )
 
 DTYPE = torch.float64
@@ -19,7 +19,7 @@ class FNOTests(unittest.TestCase):
         torch.manual_seed(7)
 
     def test_batched_shape_and_parameter_gradients(self) -> None:
-        model = FNO2d(
+        model = FNO2D(
             in_channels=2,
             out_channels=3,
             n_modes=(4, 5),
@@ -37,12 +37,12 @@ class FNOTests(unittest.TestCase):
         )
 
     def test_zero_field_maps_to_zero(self) -> None:
-        model = FNO2d(1, 1, (4, 4), hidden_channels=8, n_layers=2)
+        model = FNO2D(1, 1, (4, 4), hidden_channels=8, n_layers=2)
         field = torch.zeros((1, 16, 16))
         torch.testing.assert_close(model(field), field, atol=0, rtol=0)
 
     def test_linear_fno_obeys_superposition(self) -> None:
-        model = LinearFNO2d(1, 2, (4, 4)).to(dtype=DTYPE)
+        model = LinearFNO2D(1, 2, (4, 4)).to(dtype=DTYPE)
         first = torch.randn((3, 1, 16, 16), dtype=DTYPE)
         second = torch.randn((3, 1, 16, 16), dtype=DTYPE)
         scale = -1.7
@@ -51,7 +51,7 @@ class FNOTests(unittest.TestCase):
         torch.testing.assert_close(combined, expected, atol=3e-12, rtol=3e-12)
 
     def test_discrete_periodic_translation_equivariance(self) -> None:
-        model = FNO2d(1, 1, (4, 4), hidden_channels=8, n_layers=2).to(
+        model = FNO2D(1, 1, (4, 4), hidden_channels=8, n_layers=2).to(
             dtype=DTYPE
         )
         field = torch.randn((2, 1, 16, 20), dtype=DTYPE)
@@ -61,7 +61,7 @@ class FNOTests(unittest.TestCase):
         torch.testing.assert_close(actual, expected, atol=2e-12, rtol=2e-12)
 
     def test_normalization_is_stored_per_channel(self) -> None:
-        operator = FNOFieldOperator(
+        operator = FNOFieldOperator2D(
             channels=2, n_modes=(3, 3), hidden_channels=4, n_layers=1
         )
         inputs = torch.randn((5, 2, 12, 12))

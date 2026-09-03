@@ -9,7 +9,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 
-class SpectralConv2d(nn.Module):
+class SpectralConv2D(nn.Module):
     """Learned global convolution on a truncated set of 2D Fourier modes.
 
     Real and imaginary weights are stored separately. This makes ``module.double()``
@@ -76,19 +76,19 @@ class SpectralConv2d(nn.Module):
         return torch.fft.irfft2(output_k, s=(nx, ny), dim=(-2, -1))
 
 
-class FNOBlock2d(nn.Module):
+class FNOBlock2D(nn.Module):
     """One global spectral convolution plus a local pointwise pathway."""
 
     def __init__(self, channels: int, n_modes: tuple[int, int]) -> None:
         super().__init__()
-        self.spectral = SpectralConv2d(channels, channels, n_modes)
+        self.spectral = SpectralConv2D(channels, channels, n_modes)
         self.local = nn.Conv2d(channels, channels, kernel_size=1, bias=False)
 
     def forward(self, field: Tensor) -> Tensor:
         return F.gelu(self.spectral(field) + self.local(field))
 
 
-class LinearFNO2d(nn.Module):
+class LinearFNO2D(nn.Module):
     """A single learned linear Fourier operator.
 
     This is the appropriate controlled model when the target is a known linear
@@ -105,7 +105,7 @@ class LinearFNO2d(nn.Module):
         super().__init__()
         self.in_channels = int(in_channels)
         self.out_channels = int(out_channels)
-        self.spectral = SpectralConv2d(in_channels, out_channels, n_modes)
+        self.spectral = SpectralConv2D(in_channels, out_channels, n_modes)
 
     def forward(self, field: Tensor) -> Tensor:
         unbatched = field.ndim == 3
@@ -119,7 +119,7 @@ class LinearFNO2d(nn.Module):
         return output.squeeze(0) if unbatched else output
 
 
-class FNO2d(nn.Module):
+class FNO2D(nn.Module):
     """A compact FNO for fixed-cell, two-dimensional periodic fields.
 
     No Cartesian positional embedding is used, so the architecture remains
@@ -150,7 +150,7 @@ class FNO2d(nn.Module):
             self.in_channels, hidden_channels, kernel_size=1, bias=False
         )
         self.blocks = nn.ModuleList(
-            FNOBlock2d(hidden_channels, self.n_modes) for _ in range(n_layers)
+            FNOBlock2D(hidden_channels, self.n_modes) for _ in range(n_layers)
         )
         self.projection_hidden = nn.Conv2d(
             hidden_channels, projection_channels, kernel_size=1, bias=False
@@ -176,8 +176,8 @@ class FNO2d(nn.Module):
         return output.squeeze(0) if unbatched else output
 
 
-class FNOFieldOperator(nn.Module):
-    """Adapt :class:`FNO2d` to the particle-mesh field-operator interface.
+class FNOFieldOperator2D(nn.Module):
+    """Adapt :class:`FNO2D` to the particle-mesh field-operator interface.
 
     The current model is intentionally fixed-cell: ``cell`` is accepted for API
     compatibility but is not used by the network. Input and target RMS scales
@@ -199,9 +199,9 @@ class FNOFieldOperator(nn.Module):
             raise ValueError("architecture must be 'linear' or 'nonlinear'")
         self.architecture = architecture
         if architecture == "linear":
-            self.fno = LinearFNO2d(channels, channels, n_modes)
+            self.fno = LinearFNO2D(channels, channels, n_modes)
         else:
-            self.fno = FNO2d(
+            self.fno = FNO2D(
                 in_channels=channels,
                 out_channels=channels,
                 n_modes=n_modes,

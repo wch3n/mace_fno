@@ -5,11 +5,15 @@ from __future__ import annotations
 import torch
 from torch import Tensor, nn
 
-from .fno import FNOFieldOperator, FNOFieldOperator2p5D, FNOFieldOperator3d
+from .fno import (
+    FNOFieldOperator2D,
+    FNOFieldOperator3D,
+    SlabFNOFieldOperator2D,
+)
 from .particle_mesh import (
     PeriodicParticleMesh2D,
     PeriodicParticleMesh3D,
-    SlabParticleMesh2p5D,
+    SlabParticleMesh,
 )
 from .spectral import (
     PlanarCoulombOperator,
@@ -124,7 +128,7 @@ class LearnedParticleMeshLongRange(ParticleMeshEnergy):
         check_neutrality: bool = True,
         neutrality_tolerance: float = 1.0e-10,
     ) -> None:
-        operator = FNOFieldOperator(
+        operator = FNOFieldOperator2D(
             channels=channels,
             n_modes=n_modes,
             hidden_channels=hidden_channels,
@@ -140,7 +144,7 @@ class LearnedParticleMeshLongRange(ParticleMeshEnergy):
         )
 
 
-class ParticleMeshEnergy2p5D(nn.Module):
+class SlabParticleMeshEnergy(nn.Module):
     """Conservative particle-mesh energy on periodic x/y and finite z layers."""
 
     def __init__(
@@ -155,7 +159,7 @@ class ParticleMeshEnergy2p5D(nn.Module):
         neutrality_tolerance: float = 1.0e-10,
     ) -> None:
         super().__init__()
-        self.assignment = SlabParticleMesh2p5D(
+        self.assignment = SlabParticleMesh(
             grid_shape,
             z_extent=z_extent,
             z_center=z_center,
@@ -285,7 +289,7 @@ class ParticleMeshEnergy2p5D(nn.Module):
         return energy
 
 
-class LearnedParticleMeshLongRange2p5D(ParticleMeshEnergy2p5D):
+class LearnedSlabParticleMeshLongRange(SlabParticleMeshEnergy):
     """Learned slab operator with 2D FFTs and explicit nonperiodic z layers."""
 
     def __init__(
@@ -308,7 +312,7 @@ class LearnedParticleMeshLongRange2p5D(ParticleMeshEnergy2p5D):
         neutrality_tolerance: float = 1.0e-10,
     ) -> None:
         nz, _, _ = grid_shape
-        operator = FNOFieldOperator2p5D(
+        operator = SlabFNOFieldOperator2D(
             channels=channels,
             n_z=nz,
             n_modes=n_modes,
@@ -522,7 +526,7 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
         check_neutrality: bool = True,
         neutrality_tolerance: float = 1.0e-10,
     ) -> None:
-        operator = FNOFieldOperator3d(
+        operator = FNOFieldOperator3D(
             channels=channels,
             n_modes=n_modes,
             hidden_channels=hidden_channels,

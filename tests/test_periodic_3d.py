@@ -5,11 +5,11 @@ import unittest
 import torch
 
 from mace_fno import (
-    FNO3d,
-    FNOFieldOperator3d,
+    FNO3D,
+    FNOFieldOperator3D,
     LearnedParticleMeshLongRange3D,
-    LinearFNO3d,
-    MetricEqGINOSpectralConv3d,
+    LinearFNO3D,
+    MetricEqGINOSpectralConv3D,
     PeriodicParticleMesh3D,
     cubic_signed_permutation_matrices,
 )
@@ -109,7 +109,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         torch.manual_seed(37)
 
     def test_nonlinear_shape_and_gradients(self) -> None:
-        model = FNO3d(
+        model = FNO3D(
             2, 3, (3, 3, 4), hidden_channels=5, n_layers=2
         ).to(dtype=DTYPE)
         field = torch.randn((2, 2, 10, 12, 14), dtype=DTYPE, requires_grad=True)
@@ -123,12 +123,12 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         self.assertTrue(all(torch.isfinite(gradient).all() for gradient in gradients))
 
     def test_zero_field_maps_to_zero(self) -> None:
-        model = FNO3d(1, 1, (3, 3, 3), hidden_channels=4, n_layers=2)
+        model = FNO3D(1, 1, (3, 3, 3), hidden_channels=4, n_layers=2)
         field = torch.zeros((1, 8, 10, 12))
         torch.testing.assert_close(model(field), field, atol=0.0, rtol=0.0)
 
     def test_discrete_translation_equivariance_in_all_directions(self) -> None:
-        model = FNO3d(1, 1, (3, 3, 3), hidden_channels=4, n_layers=2).to(
+        model = FNO3D(1, 1, (3, 3, 3), hidden_channels=4, n_layers=2).to(
             dtype=DTYPE
         )
         field = torch.randn((2, 1, 10, 12, 14), dtype=DTYPE)
@@ -141,7 +141,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         )
 
     def test_linear_operator_obeys_superposition(self) -> None:
-        model = LinearFNO3d(1, 2, (3, 3, 3)).to(dtype=DTYPE)
+        model = LinearFNO3D(1, 2, (3, 3, 3)).to(dtype=DTYPE)
         first = torch.randn((2, 1, 10, 12, 14), dtype=DTYPE)
         second = torch.randn((2, 1, 10, 12, 14), dtype=DTYPE)
         scale = -0.73
@@ -150,7 +150,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         torch.testing.assert_close(actual, expected, atol=4e-12, rtol=4e-12)
 
     def test_isotropic_cell_conditioning_shape_and_gradients(self) -> None:
-        model = FNOFieldOperator3d(
+        model = FNOFieldOperator3D(
             2,
             (2, 2, 2),
             hidden_channels=4,
@@ -181,12 +181,12 @@ class FullyPeriodicFNOTests(unittest.TestCase):
             )
 
         with self.assertRaisesRegex(ValueError, "requires architecture"):
-            FNOFieldOperator3d(
+            FNOFieldOperator3D(
                 1, (2, 2, 2), architecture="linear", cell_conditioning="isotropic"
             )
 
     def test_anisotropic_cell_conditioning_uses_rotation_invariant_metric(self) -> None:
-        model = FNOFieldOperator3d(
+        model = FNOFieldOperator3D(
             2,
             (2, 2, 2),
             hidden_channels=4,
@@ -229,7 +229,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
             model(density.detach(), singular)
 
         with self.assertRaisesRegex(ValueError, "requires architecture"):
-            FNOFieldOperator3d(
+            FNOFieldOperator3D(
                 1,
                 (2, 2, 2),
                 architecture="linear",
@@ -424,10 +424,10 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
                 with self.assertRaisesRegex(
                     ValueError, "must be 'none' or 'metric_eqgino'"
                 ):
-                    FNO3d(1, 1, (2, 2, 2), spectral_symmetry=legacy)
+                    FNO3D(1, 1, (2, 2, 2), spectral_symmetry=legacy)
 
     def test_heterogeneous_cells_shape_gradients_and_independent_batches(self) -> None:
-        layer = MetricEqGINOSpectralConv3d(
+        layer = MetricEqGINOSpectralConv3D(
             4,
             4,
             (2, 3, 2),
@@ -461,7 +461,7 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
         )
 
     def test_physical_wavevectors_use_reciprocal_cell_metric(self) -> None:
-        layer = MetricEqGINOSpectralConv3d(1, 1, (2, 2, 2)).to(dtype=DTYPE)
+        layer = MetricEqGINOSpectralConv3D(1, 1, (2, 2, 2)).to(dtype=DTYPE)
         squared = layer._physical_squared_wavevectors(self.cells[:1])
         expected_x = (2.0 * torch.pi / self.cells[0, 0, 0]).square()
         expected_y = (2.0 * torch.pi / self.cells[0, 1, 1]).square()
@@ -472,7 +472,7 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
         self.assertNotEqual(squared[0, 0, 1, 0], squared[0, 0, 0, 1])
 
     def test_rigid_cartesian_cell_rotation_leaves_operator_unchanged(self) -> None:
-        layer = MetricEqGINOSpectralConv3d(
+        layer = MetricEqGINOSpectralConv3D(
             2, 2, (3, 3, 3), groups=2
         ).to(dtype=DTYPE)
         field = torch.randn((2, 2, 8, 8, 8), dtype=DTYPE)
@@ -483,7 +483,7 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
         torch.testing.assert_close(rotated, reference, atol=2e-12, rtol=2e-12)
 
     def test_cubic_signed_axis_equivariance_is_exact(self) -> None:
-        model = FNO3d(
+        model = FNO3D(
             2,
             2,
             (3, 3, 3),
@@ -539,7 +539,7 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
         )
 
     def test_metric_operator_requires_valid_cells(self) -> None:
-        layer = MetricEqGINOSpectralConv3d(1, 1, (2, 2, 2)).to(dtype=DTYPE)
+        layer = MetricEqGINOSpectralConv3D(1, 1, (2, 2, 2)).to(dtype=DTYPE)
         field = torch.randn((1, 1, 8, 8, 8), dtype=DTYPE)
         with self.assertRaisesRegex(ValueError, "cell must have shape"):
             layer(field, self.cells)
