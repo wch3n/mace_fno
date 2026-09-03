@@ -1,0 +1,58 @@
+# Runtime paths, seed, dtype, and checkpoint are supplied by the Slurm wrapper.
+# These settings match the established 20,000-step slab benchmark except for
+# end-to-end MACE-FNO optimization and its MACE warm-up controls.
+data:
+  energy_key: energy
+  forces_key: forces
+  allow_periodic_z: true
+
+model:
+  spatial_scheme: 2.5d
+  cell_mode: fixed
+  grid: 24
+  modes: 4
+  z_grid: 16
+  z_extent: 22.0
+  z_center: mean
+  lateral_interlacing: 2
+  planar_symmetry: d4
+  z_kernel_size: 3
+  z_mixing: global
+  channels: 4
+  source_hidden_channels: 64
+  fno_hidden_channels: 16
+  fno_layers: 2
+  architecture: nonlinear
+
+training:
+  mace_training: joint
+  steps: 20000
+  learning_rate: 3.0e-4
+  mace_learning_rate: 1.0e-5
+  mace_warmup_steps: 500
+  lr_scheduler: plateau
+  lr_decay_factor: 0.5
+  lr_patience_evals: 4
+  minimum_learning_rate: 1.0e-6
+  early_stopping_patience_evals: 0
+  energy_weight: 1.0
+  force_weight: 1.0
+  energy_scale: 0.002260
+  force_scale: 0.056280
+  validation_fraction: 0.05
+  eval_interval: 500
+  batch_size: 4
+  evaluation_batch_size: 8
+  accumulation_steps: 1
+  evaluation_scope: validation-test
+
+diagnostics:
+  spectral_diagnostic_samples: 0
+  spectral_diagnostic_max_mode: 1
+  spectral_diagnostic_fit_shells: 2
+  spectral_diagnostic_z_profiles: 3
+  spectral_diagnostic_field_batch_size: 32
+  spectral_diagnostic_depth: fast
+
+runtime:
+  device: cuda

@@ -42,6 +42,11 @@ The FNO launchers read their defaults from
 and checkpoint are supplied by the Slurm wrappers. Set `FNO_CONFIG` to a copied
 and edited YAML file to define a new run without modifying the repository.
 
+[`train_joint_2p5d.yaml`](train_joint_2p5d.yaml) retains the established
+20,000-step float64 slab protocol, including two-way lateral interlacing and
+`D4` averaging, while jointly fine-tuning MACE at `1e-5` after a 500-step
+FNO-only warm-up.
+
 For convergence studies, the 2D FNO slab launcher
 (`train_fno_2p5d.slurm`) exposes `GRID`, `MODES`, `Z_GRID`, `CHANNELS`,
 `SOURCE_HIDDEN_CHANNELS`, `FNO_HIDDEN_CHANNELS`, and `FNO_LAYERS` as

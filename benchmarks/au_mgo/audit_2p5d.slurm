@@ -24,9 +24,11 @@ fi
 : "${CHECKPOINT:?Set CHECKPOINT to the trained 2.5D residual checkpoint}"
 AUDIT_SAMPLES=${AUDIT_SAMPLES:-32}
 AUDIT_OUTPUT=${AUDIT_OUTPUT:-${CHECKPOINT%.pt}_audit.json}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${AUDIT_OUTPUT}")/work}
 
-cd "${PROJECT_ROOT}"
-mkdir -p "$(dirname "${AUDIT_OUTPUT}")"
+mkdir -p "$(dirname "${AUDIT_OUTPUT}")" "${JOB_WORK_ROOT}"
+test -s "${CHECKPOINT}"
+cd "${JOB_WORK_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1

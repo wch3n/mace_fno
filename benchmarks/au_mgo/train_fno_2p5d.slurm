@@ -30,10 +30,15 @@ FNO_CONFIG=${FNO_CONFIG:-${PROJECT_ROOT}/benchmarks/au_mgo/train_fno_2p5d.yaml}
 FNO_SEED=${FNO_SEED:-17}
 MODEL_DTYPE=${MODEL_DTYPE:-float64}
 CHECKPOINT=${CHECKPOINT:-${MACE_FNO_WORK_ROOT}/les_au_mgo/les_au_mgo_fno_2p5d_seed${FNO_SEED}_${MODEL_DTYPE}.pt}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${CHECKPOINT}")/work}
 
-cd "${PROJECT_ROOT}"
-mkdir -p "$(dirname "${CHECKPOINT}")" "${CACHE_ROOT}"
+mkdir -p "$(dirname "${CHECKPOINT}")" "${CACHE_ROOT}" "${JOB_WORK_ROOT}"
 test -s "${FNO_CONFIG}"
+test -s "${MACE_MODEL}"
+test -s "${DATA_ROOT}/train-Au-MgO-Al.xyz"
+test -s "${DATA_ROOT}/test-Au-MgO-Al.xyz"
+test -s "${VALIDATION_INDICES}"
+cd "${JOB_WORK_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1
@@ -48,9 +53,9 @@ if command -v nvidia-smi >/dev/null 2>&1; then
 fi
 
 # This is matched to the established 2D seed-17/29 benchmark except for the
-# explicit finite z mesh and z mixer. Mean centring is the physical default:
+# explicit finite z mesh and z mixer. Mean centering is the physical default:
 # it makes the residual exactly invariant to a rigid translation of the whole
-# slab along z. Cell centring remains available as an explicit diagnostic.
+# slab along z. Cell centering remains available as an explicit diagnostic.
 # A 22 A window with 16 layers contains all atoms with either convention.
 train_args=(
     --config "${FNO_CONFIG}"
@@ -73,7 +78,10 @@ for override in \
     Z_MIXING:--z-mixing CHANNELS:--channels \
     SOURCE_HIDDEN_CHANNELS:--source-hidden-channels \
     FNO_HIDDEN_CHANNELS:--fno-hidden-channels FNO_LAYERS:--fno-layers \
+    MACE_TRAINING:--mace-training \
     LEARNING_RATE:--learning-rate LR_SCHEDULER:--lr-scheduler \
+    MACE_LEARNING_RATE:--mace-learning-rate \
+    MACE_WARMUP_STEPS:--mace-warmup-steps \
     LR_DECAY_FACTOR:--lr-decay-factor LR_PATIENCE_EVALS:--lr-patience-evals \
     MINIMUM_LEARNING_RATE:--minimum-learning-rate \
     EARLY_STOPPING_PATIENCE_EVALS:--early-stopping-patience-evals \

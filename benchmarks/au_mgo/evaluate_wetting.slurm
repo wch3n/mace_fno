@@ -31,9 +31,14 @@ OUTPUT_DIR=${OUTPUT_DIR:-${OUTPUT_ROOT}/${RUN_NAME}}
 DTYPE=${DTYPE:-float64}
 FMAX=${FMAX:-0.01}
 STEPS=${STEPS:-500}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-${OUTPUT_ROOT}/work}
 
-cd "${PROJECT_ROOT}"
-mkdir -p "${OUTPUT_DIR}"
+mkdir -p "${OUTPUT_DIR}" "${JOB_WORK_ROOT}"
+test -s "${MODEL}"
+for structure in 1-undoped.xyz 3-undoped.xyz 1-doped.xyz 3-doped.xyz; do
+    test -s "${STRUCTURES_DIR}/${structure}"
+done
+cd "${JOB_WORK_ROOT}"
 
 export OMP_NUM_THREADS=${SLURM_CPUS_PER_TASK:-1}
 export PYTHONUNBUFFERED=1

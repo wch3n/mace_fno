@@ -52,6 +52,11 @@ Its reproducible FNO defaults are stored in
 paths, seed, dtype, and explicit environment overrides. Set `FNO_CONFIG` to a
 copied and edited YAML file for a distinct configuration.
 
+[`train_joint_3d.yaml`](train_joint_3d.yaml) retains the established
+60,000-step float64 protocol and jointly fine-tunes MACE at `1e-5` after a
+500-step FNO-only warm-up. It is the controlled end-to-end comparison with the
+frozen-backbone result reported above.
+
 ## Running
 
 Prepare the data and submit the complete dependency graph with:
