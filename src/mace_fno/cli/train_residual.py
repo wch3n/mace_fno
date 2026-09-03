@@ -18,6 +18,10 @@ import torch
 
 from mace_fno import MACEFNOResidual, energy_force_loss
 from mace_fno.cli.config import parse_arguments
+from mace_fno.cli.yaml_config import (
+    resolved_configuration,
+    write_resolved_configuration,
+)
 from mace_fno.training import (
     CHECKPOINT_FORMAT_VERSION,
     amplitude_convergence_diagnostic,
@@ -897,9 +901,17 @@ def main() -> None:
 
     if args.checkpoint is not None:
         args.checkpoint.parent.mkdir(parents=True, exist_ok=True)
+        effective_configuration = resolved_configuration(
+            args,
+            spatial_scheme=spatial_scheme,
+            z_modes=resolved_z_modes if spatial_scheme == "3d" else 0,
+            evaluation_batch_size=evaluation_batch_size,
+            output_warmup_learning_rate=warmup_learning_rate,
+        )
         torch.save(
             {
                 "checkpoint_format_version": CHECKPOINT_FORMAT_VERSION,
+                "training_configuration": effective_configuration,
                 "residual_state_dict": residual_state_dict(model),
                 "mace_model": str(args.mace_model),
                 "mace_head": args.head,
@@ -1020,6 +1032,9 @@ def main() -> None:
             args.checkpoint,
         )
         print(f"checkpoint: {args.checkpoint}")
+        configuration_path = args.checkpoint.with_suffix(".config.yaml")
+        write_resolved_configuration(configuration_path, effective_configuration)
+        print(f"resolved configuration: {configuration_path}")
 
     total_seconds = elapsed_since(total_start, device)
     print(

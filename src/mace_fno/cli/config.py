@@ -12,9 +12,12 @@ import argparse
 from collections.abc import Sequence
 from pathlib import Path
 
+from mace_fno.cli.yaml_config import add_config_argument, parse_args_with_config
+
 
 def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
+    add_config_argument(parser)
     parser.add_argument("--mace-model", type=Path, required=True)
     parser.add_argument("--train-file", type=Path, required=True)
     parser.add_argument(
@@ -40,7 +43,8 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--test-cache", type=Path)
     parser.add_argument(
         "--rebuild-cache",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=False,
         help="Ignore and replace compatible preprocessed sample caches",
     )
     parser.add_argument("--energy-key", default="REF_energy")
@@ -56,7 +60,8 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--allow-periodic-z",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=False,
         help=(
             "Accept 3D-periodic input with a 2D/2.5D residual that remains "
             "nonperiodic in z"
@@ -64,7 +69,8 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--skip-cell-mismatch",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=False,
         help=(
             "Skip structures outside the reference in-plane cell (2D/2.5D) "
             "or complete cell (3D)"
@@ -352,7 +358,8 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--random-residual-initialization",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=False,
         help="Do not initialize the combined model to the frozen-MACE baseline",
     )
     parser.add_argument("--seed", type=int, default=17)
@@ -367,4 +374,4 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument("--checkpoint", type=Path)
-    return parser.parse_args(argv)
+    return parse_args_with_config(parser, argv)

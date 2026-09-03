@@ -8,6 +8,8 @@ The resulting scalar residual energy is differentiated to obtain forces.
 
 New users can start with the [MACE-FNO quick-start tutorial](TUTORIAL.md),
 which covers data preparation, residual training, audits, and ASE inference.
+Training options may be supplied through `mace-fno-train --config train.yaml`;
+explicit command-line options override YAML values.
 
 Implemented geometries are:
 

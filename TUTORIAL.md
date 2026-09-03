@@ -126,55 +126,78 @@ a trivial fitted offset and should improve forces as well as energies.
 
 ## 4. Run a small 3D smoke test
 
-Set paths to a directory outside the repository:
+Create a run directory outside the repository:
 
 ```bash
-export MACE_MODEL=/absolute/path/to/local_mace.model
-export DATA_ROOT=/absolute/path/to/data
 export RUN_ROOT=/absolute/path/to/mace_fno_run
 mkdir -p "$RUN_ROOT/cache"
 ```
 
-For heterogeneous bulk cells, a short metric-aware EqGINO run is:
+Store the run settings in `$RUN_ROOT/train.yaml`. Paths in YAML may be absolute
+or relative to the YAML file; shell variables are not expanded inside it. A
+short metric-aware EqGINO configuration for heterogeneous bulk cells is:
+
+```yaml
+mace_model: /absolute/path/to/local_mace.model
+
+data:
+  train_file: /absolute/path/to/data/train.xyz
+  validation_file: /absolute/path/to/data/validation.xyz
+  test_file: /absolute/path/to/data/test.xyz
+  energy_key: REF_energy
+  forces_key: REF_forces
+  train_cache: cache/train.pt
+  validation_cache: cache/validation.pt
+  test_cache: cache/test.pt
+
+model:
+  spatial_scheme: 3d
+  cell_mode: anisotropic
+  grid: 24
+  z_grid: 24
+  modes: 4
+  z_modes: 4
+  channels: 4
+  fno_hidden_channels: 16
+  fno_layers: 2
+  spectral_symmetry: metric_eqgino
+  metric_hidden_channels: 16
+  output_initialization_scale: 0.1
+
+training:
+  learning_rate: 3.0e-4
+  lr_scheduler: plateau
+  energy_weight: 1.0
+  force_weight: 1.0
+  energy_scale: 0.01
+  force_scale: 0.10
+  batch_size: 2
+  evaluation_batch_size: 4
+  steps: 200
+  eval_interval: 50
+  evaluation_scope: validation-test
+  seed: 17
+
+runtime:
+  dtype: float32
+  device: cuda
+
+checkpoint: mace_fno_3d.pt
+```
+
+Run it with:
 
 ```bash
-mace-fno-train \
-  --mace-model "$MACE_MODEL" \
-  --train-file "$DATA_ROOT/train.xyz" \
-  --validation-file "$DATA_ROOT/validation.xyz" \
-  --test-file "$DATA_ROOT/test.xyz" \
-  --energy-key REF_energy \
-  --forces-key REF_forces \
-  --train-cache "$RUN_ROOT/cache/train.pt" \
-  --validation-cache "$RUN_ROOT/cache/validation.pt" \
-  --test-cache "$RUN_ROOT/cache/test.pt" \
-  --spatial-scheme 3d \
-  --cell-mode anisotropic \
-  --grid 24 \
-  --z-grid 24 \
-  --modes 4 \
-  --z-modes 4 \
-  --channels 4 \
-  --fno-hidden-channels 16 \
-  --fno-layers 2 \
-  --spectral-symmetry metric_eqgino \
-  --metric-hidden-channels 16 \
-  --output-initialization-scale 0.1 \
-  --learning-rate 3e-4 \
-  --lr-scheduler plateau \
-  --energy-weight 1 \
-  --force-weight 1 \
-  --energy-scale 0.01 \
-  --force-scale 0.10 \
-  --batch-size 2 \
-  --evaluation-batch-size 4 \
-  --steps 200 \
-  --eval-interval 50 \
-  --evaluation-scope validation-test \
-  --seed 17 \
-  --dtype float32 \
-  --device cuda \
-  --checkpoint "$RUN_ROOT/mace_fno_3d.pt"
+mace-fno-train --config "$RUN_ROOT/train.yaml"
+```
+
+Section names such as `data`, `model`, and `training` are organizational; every
+leaf key must match a documented command-line option, using underscores or
+hyphens. Unknown and duplicate keys are rejected. An explicit command-line
+option overrides YAML, which is convenient for controlled repeats:
+
+```bash
+mace-fno-train --config "$RUN_ROOT/train.yaml" --seed 29 --steps 25000
 ```
 
 Two hundred steps only verify that data loading, batching, differentiation, and
@@ -211,24 +234,27 @@ training step; validation and inference still average all origins.
 
 ## 5. Adapt the command to a slab
 
-For a surface or adsorption system, replace the 3D geometry block by:
+For a surface or adsorption system, replace the `model` section by:
 
-```bash
-  --spatial-scheme 2.5d \
-  --cell-mode fixed \
-  --grid 24 \
-  --modes 4 \
-  --z-grid 16 \
-  --z-extent 22.0 \
-  --z-center mean \
-  --z-mixing global \
-  --lateral-interlacing 1
+```yaml
+model:
+  spatial_scheme: 2.5d
+  cell_mode: fixed
+  grid: 24
+  modes: 4
+  z_grid: 16
+  z_extent: 22.0
+  z_center: mean
+  z_mixing: global
+  lateral_interlacing: 1
+  channels: 4
+  fno_hidden_channels: 16
+  fno_layers: 2
 ```
 
-Also remove `--z-modes`, `--spectral-symmetry`, and
-`--metric-hidden-channels` from the 3D command. The slab operator Fourier
-transforms only the periodic x-y plane and retains an explicit finite z
-direction. `z_extent` must contain every atom in every configuration.
+The slab operator Fourier transforms only the periodic x-y plane and retains
+an explicit finite z direction. `z_extent` must contain every atom in every
+configuration.
 
 Many electronic-structure files mark the vacuum direction as periodic even
 though the learned response should be nonperiodic along z. Add
@@ -252,6 +278,9 @@ mace-fno-evaluate \
 
 Compare the `frozen_mace` and `mace_fno` sections. Report energy RMSE in
 eV/atom and force RMSE in eV/angstrom, and repeat the fit with multiple seeds.
+The training command also writes `mace_fno_3d.config.yaml` next to the
+checkpoint and embeds the same resolved configuration in the checkpoint. This
+record contains the effective YAML and command-line values with absolute paths.
 
 ## 7. Run the physics audits
 
