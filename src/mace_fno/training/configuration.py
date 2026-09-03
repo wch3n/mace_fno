@@ -1,4 +1,4 @@
-"""Typed, validated configuration for frozen-MACE residual training."""
+"""Typed, validated configuration for frozen or joint MACE-FNO training."""
 
 from __future__ import annotations
 
@@ -200,7 +200,10 @@ class OptimizationConfig:
     """Optimizer, objective, batching, and model-selection settings."""
 
     steps: int
+    mace_training: str
     learning_rate: float
+    mace_learning_rate: float
+    mace_warmup_steps: int
     output_initialization_scale: float
     output_warmup_steps: int
     output_warmup_learning_rate: float
@@ -227,7 +230,10 @@ class OptimizationConfig:
         )
         return cls(
             steps=int(values["steps"]),
+            mace_training=str(values["mace_training"]),
             learning_rate=float(values["learning_rate"]),
+            mace_learning_rate=float(values["mace_learning_rate"]),
+            mace_warmup_steps=int(values["mace_warmup_steps"]),
             output_initialization_scale=float(values["output_initialization_scale"]),
             output_warmup_steps=int(values["output_warmup_steps"]),
             output_warmup_learning_rate=float(values["output_warmup_learning_rate"]),
@@ -253,6 +259,19 @@ class OptimizationConfig:
     def validate(self, architecture: str) -> None:
         if self.steps < 1:
             raise ValueError("steps must be positive")
+        if self.mace_training not in {"frozen", "joint"}:
+            raise ValueError("mace_training must be 'frozen' or 'joint'")
+        if self.learning_rate <= 0.0 or self.mace_learning_rate <= 0.0:
+            raise ValueError("learning rates must be positive")
+        if self.mace_warmup_steps < 0 or self.mace_warmup_steps >= self.steps:
+            raise ValueError("mace_warmup_steps must satisfy 0 <= warm-up < steps")
+        if self.mace_training == "frozen" and self.mace_warmup_steps:
+            raise ValueError("mace_warmup_steps requires --mace-training joint")
+        if self.mace_training == "joint" and self.output_warmup_steps:
+            raise ValueError(
+                "output-projection warm-up is incompatible with joint MACE training; "
+                "use --mace-warmup-steps and scaled FNO output initialization"
+            )
         if self.output_warmup_steps < 0 or self.output_warmup_steps >= self.steps:
             raise ValueError("output_warmup_steps must satisfy 0 <= warm-up < steps")
         if self.output_warmup_learning_rate < 0.0:

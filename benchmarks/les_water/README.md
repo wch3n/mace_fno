@@ -68,3 +68,22 @@ A later architectural ablation should therefore compare a frozen local
 residual head, EqGINO alone, and the two heads together. That control will test
 whether EqGINO is learning a genuinely nonlocal contribution rather than being
 asked to absorb residual local fitting error.
+
+## Joint MACE-EqGINO fit
+
+`train_joint_3d.yaml` enables the end-to-end alternative while retaining the
+same mesh, split, loss normalization, and held-out test set. It first trains the
+new EqGINO branch for 500 steps, then fine-tunes MACE at `1e-5` while the FNO
+continues at `3e-4`. Use the existing launcher with a distinct external run
+directory and checkpoint name:
+
+```bash
+FNO_CONFIG="$PWD/benchmarks/les_water/train_joint_3d.yaml" \
+RUN_ROOT="$MACE_FNO_WORK_ROOT/les_water/joint" \
+CHECKPOINT="$MACE_FNO_WORK_ROOT/les_water/joint/model.pt" \
+sbatch benchmarks/les_water/train_fno_3d.slurm
+```
+
+The frozen and joint fits should use identical development/test splits. The
+joint checkpoint is larger because it contains the fine-tuned MACE state in
+addition to the EqGINO state.

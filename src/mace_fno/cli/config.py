@@ -1,4 +1,4 @@
-"""Train frozen MACE plus a 2D, hybrid 2.5D, or periodic 3D FNO residual.
+"""Train MACE plus a 2D, slab, or periodic 3D FNO residual.
 
 The input should be an extended XYZ file containing reference total energies
 and forces. Validation data are never used for gradients, and a separate test
@@ -207,7 +207,31 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--architecture", choices=("linear", "nonlinear"), default="nonlinear"
     )
+    parser.add_argument(
+        "--mace-training",
+        choices=("frozen", "joint"),
+        default="frozen",
+        help=(
+            "Keep the loaded MACE weights fixed, or jointly fine-tune MACE and "
+            "the FNO against total reference energies and forces"
+        ),
+    )
     parser.add_argument("--learning-rate", type=float, default=1.0e-3)
+    parser.add_argument(
+        "--mace-learning-rate",
+        type=float,
+        default=1.0e-5,
+        help="Learning rate for MACE parameters in joint training",
+    )
+    parser.add_argument(
+        "--mace-warmup-steps",
+        type=int,
+        default=0,
+        help=(
+            "Keep MACE fixed for this many initial joint-training steps while "
+            "the FNO branch begins fitting"
+        ),
+    )
     parser.add_argument(
         "--output-initialization-scale",
         type=float,

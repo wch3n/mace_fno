@@ -22,6 +22,7 @@ from mace_fno.training import (
     ensure_frozen_residual_targets,
     infer_checkpoint_z_mixing,
     low_k_response_diagnostic,
+    mace_state_dict,
     residual_state_dict,
     resolve_checkpoint_model_path,
 )
@@ -275,6 +276,32 @@ class CouplingTests(unittest.TestCase):
         self.assertTrue(trainable_gradients)
         self.assertTrue(all(torch.isfinite(grad).all() for grad in trainable_gradients))
         self.assertIsNone(model.backbone.mace_model.local_scale.grad)
+
+    def test_joint_mode_backpropagates_total_force_loss_into_mace(self) -> None:
+        data = _batch_data()
+        backbone = _FakeMACE()
+        model = MACEFNOResidual(
+            backbone,
+            (8, 8),
+            channels=1,
+            n_modes=(2, 2),
+            fno_architecture="linear",
+            invariant_indices=(0, 2),
+            reference_cell=data["cell"][0],
+            mace_training="joint",
+        ).to(dtype=DTYPE)
+        model.train()
+        output = model(data, training=True, compute_force=True)
+        loss = output["energy"].square().mean() + output["forces"].square().mean()
+        loss.backward()
+
+        self.assertTrue(backbone.local_scale.requires_grad)
+        self.assertTrue(backbone.training)
+        self.assertIsNotNone(backbone.local_scale.grad)
+        self.assertTrue(torch.isfinite(backbone.local_scale.grad))
+
+        model.eval()
+        self.assertFalse(backbone.training)
 
     def test_batched_hybrid_2p5d_coupling(self) -> None:
         data = _batch_data()
@@ -970,6 +997,44 @@ class CouplingTests(unittest.TestCase):
         )
         for key, expected in checkpoint["residual_state_dict"].items():
             torch.testing.assert_close(residual_state_dict(restored)[key], expected)
+
+    def test_joint_checkpoint_restores_updated_mace_state(self) -> None:
+        reference_cell = _batch_data()["cell"][0]
+        original = MACEFNOResidual(
+            _FakeMACE(with_irreps=True),
+            (8, 8),
+            channels=1,
+            n_modes=(2, 2),
+            fno_architecture="linear",
+            reference_cell=reference_cell,
+            mace_training="joint",
+        ).to(dtype=DTYPE)
+        original.backbone.mace_model.local_scale.data.fill_(0.321)
+        checkpoint = {
+            "checkpoint_format_version": 2,
+            "mace_training": "joint",
+            "mace_state_dict": mace_state_dict(original),
+            "residual_state_dict": residual_state_dict(original),
+            "grid_shape": (8, 8),
+            "n_modes": (2, 2),
+            "spatial_scheme": "2d",
+            "channels": 1,
+            "source_hidden_channels": 64,
+            "fno_hidden_channels": 32,
+            "fno_layers": 4,
+            "architecture": "linear",
+            "reference_cell": reference_cell,
+            "dtype": "float64",
+        }
+
+        restored = build_mace_fno_model(
+            checkpoint, _FakeMACE(with_irreps=True), dtype=DTYPE
+        )
+
+        self.assertEqual(restored.mace_training, "joint")
+        self.assertAlmostEqual(
+            restored.backbone.mace_model.local_scale.item(), 0.321
+        )
 
     def test_legacy_artifact_model_path_follows_relocated_checkpoint(self) -> None:
         with TemporaryDirectory() as directory:

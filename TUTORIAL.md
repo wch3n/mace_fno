@@ -5,7 +5,7 @@ existing local MACE model, check that the correction behaves correctly, and use
 the combined model in ASE. Generated data, caches, and checkpoints should be
 kept outside the Git checkout.
 
-The workflow is:
+The default frozen workflow is:
 
 ```text
 labeled XYZ -> frozen MACE -> latent atomic sources -> mesh -> FNO -> residual energy
@@ -21,10 +21,12 @@ E = E_{\mathrm{MACE}} + \Delta E_{\mathrm{FNO}},
 \mathbf F_i = -\frac{\partial E}{\partial \mathbf R_i}.
 \]
 
-MACE supplies the baseline energy and local descriptors. Its weights remain
-fixed during residual training. Only the latent-source head and FNO are
-optimized. Forces are obtained by differentiating the complete energy, so the
-result is conservative by construction.
+MACE supplies the baseline energy and local descriptors. In the default mode,
+its weights remain fixed and only the latent-source head and FNO are optimized.
+In joint mode, the same total loss is backpropagated through both branches, so
+the MACE parameters can adapt to information supplied by the FNO loss. Forces
+are obtained by differentiating the complete energy, so either model is
+conservative by construction.
 
 ## 1. Install the package
 
@@ -191,6 +193,25 @@ Run it with:
 mace-fno-train --config "$RUN_ROOT/train.yaml"
 ```
 
+The example above uses the default `mace_training: frozen` mode and fits cached
+DFT-minus-MACE residual targets. To fine-tune both parts against total DFT
+energies and forces, add the following settings:
+
+```yaml
+training:
+  mace_training: joint
+  learning_rate: 3.0e-4
+  mace_learning_rate: 1.0e-5
+  mace_warmup_steps: 50
+  output_initialization_scale: 0.1
+```
+
+The warm-up initially protects the local model while the new global branch
+develops a useful signal. Joint mode then uses two optimizer parameter groups:
+the FNO learning rate applies to the latent-source and field-operator branches,
+whereas `mace_learning_rate` applies to MACE. Validation selects and restores
+both states together.
+
 Section names such as `data`, `model`, and `training` are organizational; every
 leaf key must match a documented command-line option, using underscores or
 hyphens. Unknown and duplicate keys are rejected. An explicit command-line
@@ -322,8 +343,9 @@ trainer writes the history automatically beside the checkpoint as
 
 ## 8. Use the combined model in ASE
 
-The residual checkpoint stores only the learned correction, not a second copy
-of the frozen MACE weights. Keep both files when moving or sharing a model:
+Frozen-mode checkpoints store only the learned correction. Joint checkpoints
+also embed the updated MACE state. In both cases, keep the original MACE file
+because it defines the architecture and graph conversion used at inference:
 
 ```python
 from ase.io import read

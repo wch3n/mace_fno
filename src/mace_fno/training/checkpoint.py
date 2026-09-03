@@ -1,9 +1,9 @@
-"""Save and reconstruct frozen-MACE residual models.
+"""Save and reconstruct frozen or jointly trained MACE-FNO models.
 
-The training checkpoint deliberately stores only the learned residual weights;
-the much larger frozen MACE model remains in its original file.  This module is
-the single compatibility boundary for reconstructing the combined model from
-both files.
+Frozen training stores only the learned residual weights. Joint training also
+stores the updated MACE state, while retaining the original MACE file as the
+architecture and graph-construction reference. This module is the single
+compatibility boundary for reconstructing either form.
 """
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
     from .setup import PreparedData
     from .trainer import OptimizationResult
 
-CHECKPOINT_FORMAT_VERSION = 1
+CHECKPOINT_FORMAT_VERSION = 2
 
 
 def training_checkpoint_payload(
@@ -36,8 +36,8 @@ def training_checkpoint_payload(
     """Build the complete, versioned payload for one training run.
 
     Keeping this schema beside the reconstruction code makes additions and
-    compatibility changes auditable in one module. The flat version-1 layout
-    is retained so existing inference and benchmark tooling remains valid.
+    compatibility changes auditable in one module. The flat layout is retained
+    so existing inference and benchmark tooling remains valid.
     """
     data = configuration.data
     model_config = configuration.model
@@ -46,6 +46,10 @@ def training_checkpoint_payload(
         "checkpoint_format_version": CHECKPOINT_FORMAT_VERSION,
         "training_configuration": dict(effective_configuration),
         "residual_state_dict": residual_state_dict(model),
+        "mace_state_dict": (
+            mace_state_dict(model) if optimization.mace_training == "joint" else None
+        ),
+        "mace_training": optimization.mace_training,
         "mace_model": str(data.mace_model),
         "mace_head": data.head,
         "train_file": str(data.train_file),
@@ -143,10 +147,13 @@ def training_checkpoint_payload(
         "stopped_early": result.stopped_early,
         "eval_interval": optimization.eval_interval,
         "learning_rate": optimization.learning_rate,
+        "mace_learning_rate": optimization.mace_learning_rate,
+        "mace_warmup_steps": optimization.mace_warmup_steps,
         "output_initialization_scale": optimization.output_initialization_scale,
         "output_warmup_steps": optimization.output_warmup_steps,
         "output_warmup_learning_rate": result.warmup_learning_rate,
         "final_learning_rate": result.final_learning_rate,
+        "final_mace_learning_rate": result.final_mace_learning_rate,
         "lr_scheduler": optimization.lr_scheduler,
         "lr_decay_factor": optimization.lr_decay_factor,
         "lr_patience_evals": optimization.lr_patience_evals,
@@ -198,6 +205,13 @@ def load_checkpoint_payload(path: str | Path) -> dict[str, Any]:
         )
     if not isinstance(checkpoint.get("residual_state_dict"), Mapping):
         raise KeyError("checkpoint does not contain a residual_state_dict mapping")
+    mace_training = str(checkpoint.get("mace_training", "frozen"))
+    if mace_training not in {"frozen", "joint"}:
+        raise ValueError(f"unsupported checkpoint mace_training {mace_training!r}")
+    if mace_training == "joint" and not isinstance(
+        checkpoint.get("mace_state_dict"), Mapping
+    ):
+        raise KeyError("joint checkpoint does not contain a mace_state_dict mapping")
     return checkpoint
 
 
@@ -276,6 +290,7 @@ def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]
         "spatial_scheme": scheme,
         "reference_cell": _required(checkpoint, "reference_cell"),
         "cell_mode": str(checkpoint.get("cell_mode") or "fixed"),
+        "mace_training": str(checkpoint.get("mace_training") or "frozen"),
     }
     if scheme == "2.5d":
         parameters.update(
@@ -330,6 +345,8 @@ def build_mace_fno_model(
         mace_model,
         **checkpoint_model_parameters(checkpoint),
     ).to(device=resolved_device, dtype=resolved_dtype)
+    if str(checkpoint.get("mace_training", "frozen")) == "joint":
+        load_mace_state_dict(model, _required(checkpoint, "mace_state_dict"))
     load_residual_state_dict(model, _required(checkpoint, "residual_state_dict"))
     model.eval()
     return model
@@ -390,7 +407,7 @@ def load_mace_fno_components(
         from mace.calculators import MACECalculator
     except ImportError as error:
         raise ImportError(
-            "loading a frozen-MACE checkpoint requires the optional "
+            "loading a MACE-FNO checkpoint requires the optional "
             "'mace-torch' dependency"
         ) from error
 
@@ -421,7 +438,7 @@ def load_mace_fno_model(
     mace_model_path: str | Path | None = None,
     mace_head: str | None = None,
 ) -> tuple[MACEFNOResidual, dict[str, Any]]:
-    """Load the frozen MACE file and residual checkpoint as one model."""
+    """Load the MACE reference file and combined training checkpoint."""
     model, checkpoint, _ = load_mace_fno_components(
         checkpoint_path,
         device=device,
@@ -433,13 +450,33 @@ def load_mace_fno_model(
 
 
 def residual_state_dict(model: torch.nn.Module) -> dict[str, torch.Tensor]:
-    """Return learned state without duplicating the frozen MACE checkpoint."""
+    """Return non-MACE state without duplicating backbone parameters."""
     prefix = "backbone.mace_model."
     return {
         key: value.detach().cpu()
         for key, value in model.state_dict().items()
         if not key.startswith(prefix)
     }
+
+
+def mace_state_dict(model: torch.nn.Module) -> dict[str, torch.Tensor]:
+    """Return a portable copy of the current MACE parameters and buffers."""
+    try:
+        mace_model = model.backbone.mace_model
+    except AttributeError as error:
+        raise TypeError("model does not expose backbone.mace_model") from error
+    return {
+        key: value.detach().cpu()
+        for key, value in mace_model.state_dict().items()
+    }
+
+
+def load_mace_state_dict(
+    model: MACEFNOResidual,
+    state: Mapping[str, torch.Tensor],
+) -> None:
+    """Restore the complete MACE state embedded by joint training."""
+    model.backbone.mace_model.load_state_dict(dict(state), strict=True)
 
 
 def load_residual_state_dict(

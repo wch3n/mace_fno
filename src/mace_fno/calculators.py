@@ -1,4 +1,4 @@
-"""ASE inference adapter for a frozen-MACE plus FNO residual checkpoint."""
+"""ASE inference adapter for a frozen or jointly trained MACE-FNO checkpoint."""
 
 from __future__ import annotations
 

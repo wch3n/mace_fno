@@ -1,4 +1,4 @@
-"""Train a frozen-MACE plus 2D, slab, or periodic-3D FNO residual.
+"""Train a frozen or jointly optimized MACE-FNO model.
 
 The input should be an extended XYZ file containing reference total energies
 and forces. Validation data are never used for gradients, and a separate test
@@ -86,7 +86,7 @@ def _save_checkpoint(
 
 
 def main() -> None:
-    """Execute one configured frozen-MACE residual training run."""
+    """Execute one configured MACE-FNO training run."""
     total_start = perf_counter()
     args = parse_arguments()
     configuration = TrainingConfig.from_namespace(args)
@@ -171,7 +171,7 @@ def main() -> None:
     print(
         "timings: "
         f"setup={setup_seconds:.2f}s, "
-        f"frozen-target-cache={target_cache_seconds:.2f}s, "
+        f"baseline-target-cache={target_cache_seconds:.2f}s, "
         f"initial-evaluation={initial_evaluation_seconds:.2f}s, "
         f"optimization+validation={optimization_seconds:.2f}s, "
         f"final-evaluation={final_evaluation_seconds:.2f}s, "

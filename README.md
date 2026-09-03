@@ -1,10 +1,11 @@
 # MACE-FNO long-range residuals
 
 This repository develops conservative Fourier neural-operator corrections for
-a frozen local MACE potential. MACE supplies local invariant descriptors and a
-baseline energy. A neutral latent source head deposits descriptor-dependent
-fields onto a periodic mesh, and an FNO maps those fields to a global response.
-The resulting scalar residual energy is differentiated to obtain forces.
+local MACE potentials. MACE supplies local invariant descriptors and a baseline
+energy. A neutral latent source head deposits descriptor-dependent fields onto
+a periodic mesh, and an FNO maps those fields to a global response. The MACE
+backbone can remain frozen or be fine-tuned jointly with the FNO. The resulting
+total scalar energy is differentiated to obtain forces.
 
 New users can start with the [MACE-FNO quick-start tutorial](TUTORIAL.md),
 which covers data preparation, residual training, audits, and ASE inference.
@@ -43,7 +44,7 @@ Install the core package with:
 python3 -m pip install -e .
 ```
 
-Training or loading a frozen MACE checkpoint additionally requires:
+Training or loading a MACE checkpoint additionally requires:
 
 ```bash
 python3 -m pip install -e '.[mace]'
@@ -73,11 +74,12 @@ There are deliberately no separate top-level `jobs/` or `examples/`
 directories: benchmark-specific launchers belong to their benchmark, while
 reusable implementations belong to the package.
 
-## Frozen-MACE residual training
+## Frozen and joint training modes
 
-The MACE weights remain fixed, but descriptor derivatives with respect to atom
-positions remain in the autograd graph. Detaching or evaluating the MACE
-descriptors under `torch.no_grad()` would omit part of the residual force.
+Frozen residual training is the default. MACE weights remain fixed, but
+descriptor derivatives with respect to atom positions remain in the autograd
+graph. Detaching or evaluating the descriptors under `torch.no_grad()` would
+omit part of the residual force.
 
 A generic fixed-cell `train.yaml` is:
 
@@ -105,8 +107,34 @@ Run it with:
 mace-fno-train --config train.yaml
 ```
 
-The saved checkpoint contains the learned residual state and reconstruction
-metadata, but does not duplicate the frozen MACE weights.
+The saved frozen-mode checkpoint contains the learned residual state and
+reconstruction metadata, but does not duplicate the MACE weights.
+
+Joint training uses the same total model,
+
+```text
+atoms -> MACE descriptors -> latent sources -> mesh -> FNO -> residual energy
+   |          |                                               |
+   +----------+---------- MACE energy -------------------------+-> total energy
+```
+
+but optimizes the total DFT energy-and-force loss through both branches. Enable
+it with a smaller learning rate for the pretrained MACE parameters:
+
+```yaml
+training:
+  mace_training: joint
+  learning_rate: 3.0e-4
+  mace_learning_rate: 1.0e-5
+  mace_warmup_steps: 500
+  output_initialization_scale: 0.1
+```
+
+During `mace_warmup_steps`, only the FNO and latent-source parameters change.
+Afterward, backpropagation through both the MACE energy and the descriptors
+updates MACE and FNO together in every optimizer step. Joint checkpoints embed
+the updated MACE state; the original MACE file is still needed to reconstruct
+the architecture and its atom-to-graph conversion settings.
 
 ### 2D FNO for slabs
 

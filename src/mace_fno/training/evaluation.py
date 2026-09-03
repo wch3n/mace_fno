@@ -1,4 +1,4 @@
-"""Frozen-target preparation and metrics for MACE-FNO residuals."""
+"""Reference-target preparation and metrics for MACE-FNO models."""
 
 from __future__ import annotations
 
@@ -102,9 +102,19 @@ def evaluate(
         cached_base_forces = torch.cat(
             [sample["base_forces"] for sample in sample_batch]
         ).to(device=device)
+        joint_training = getattr(model, "mace_training", "frozen") == "joint"
         if baseline:
             predicted_energy = cached_base_energy
             predicted_forces = cached_base_forces
+        elif joint_training:
+            output = model(
+                graph,
+                training=False,
+                compute_force=True,
+                compute_residual_force=False,
+            )
+            predicted_energy = output["energy"]
+            predicted_forces = output["forces"]
         else:
             output = model(
                 graph,

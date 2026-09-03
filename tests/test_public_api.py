@@ -65,6 +65,8 @@ class PublicAPITests(unittest.TestCase):
         self.assertEqual(args.interlacing_training, "full")
         self.assertEqual(args.metric_hidden_channels, 16)
         self.assertEqual(args.batch_size, 1)
+        self.assertEqual(args.mace_training, "frozen")
+        self.assertEqual(args.mace_learning_rate, 1.0e-5)
         self.assertEqual(args.spectral_diagnostic_samples, 0)
         self.assertEqual(args.spectral_diagnostic_max_mode, 1)
         self.assertEqual(args.spectral_diagnostic_z_profiles, 3)

@@ -75,7 +75,10 @@ for override in \
     METRIC_HIDDEN_CHANNELS:--metric-hidden-channels \
     VOLUME_INTERLACING:--volume-interlacing \
     INTERLACING_TRAINING:--interlacing-training \
+    MACE_TRAINING:--mace-training \
     LEARNING_RATE:--learning-rate \
+    MACE_LEARNING_RATE:--mace-learning-rate \
+    MACE_WARMUP_STEPS:--mace-warmup-steps \
     OUTPUT_INITIALIZATION_SCALE:--output-initialization-scale \
     ENERGY_SCALE:--energy-scale FORCE_SCALE:--force-scale \
     ENERGY_WEIGHT:--energy-weight FORCE_WEIGHT:--force-weight \

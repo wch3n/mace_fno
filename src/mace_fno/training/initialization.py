@@ -8,7 +8,7 @@ from ..coupling import MACEFNOResidual
 
 
 def initialize_zero_residual(model: MACEFNOResidual) -> None:
-    """Make the initial combined prediction exactly equal to frozen MACE."""
+    """Make the initial combined prediction exactly equal to MACE."""
     operator = model.long_range.field_operator
     if operator.architecture == "linear":
         for parameter in operator.parameters():

@@ -1,4 +1,4 @@
-"""Reusable building blocks for frozen-MACE residual training."""
+"""Reusable building blocks for frozen or joint MACE-FNO training."""
 
 from .checkpoint import (
     CHECKPOINT_FORMAT_VERSION,
@@ -9,7 +9,9 @@ from .checkpoint import (
     load_checkpoint_payload,
     load_mace_fno_components,
     load_mace_fno_model,
+    load_mace_state_dict,
     load_residual_state_dict,
+    mace_state_dict,
     residual_state_dict,
     resolve_checkpoint_model_path,
     save_training_checkpoint,
@@ -108,11 +110,13 @@ __all__ = [
     "load_checkpoint_payload",
     "load_mace_fno_components",
     "load_mace_fno_model",
+    "load_mace_state_dict",
     "load_mace_calculator",
     "load_or_create_samples",
     "load_residual_state_dict",
     "load_samples",
     "low_k_response_diagnostic",
+    "mace_state_dict",
     "optimize_residual",
     "planar_2d_response_diagnostic",
     "periodic_3d_response_diagnostic",

@@ -1,4 +1,4 @@
-"""Evaluate a frozen-MACE plus FNO checkpoint from its sample caches."""
+"""Evaluate a frozen or jointly trained MACE-FNO checkpoint from caches."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from typing import Any
 import torch
 
 from ..training.checkpoint import load_mace_fno_model
+from ..training.data import split_samples
 from ..training.evaluation import (
     ensure_frozen_residual_targets,
     evaluate,
@@ -83,6 +84,53 @@ def resolve_cache_path(
     return path
 
 
+def _samples_from_cache(path: Path) -> list[dict[str, Any]]:
+    payload = torch.load(path, map_location="cpu", weights_only=False)
+    samples = payload.get("samples")
+    if not isinstance(samples, list) or not samples:
+        raise ValueError(f"no samples found in {path}")
+    return samples
+
+
+def load_split_samples(
+    split: str,
+    override: Path | None,
+    checkpoint: dict[str, Any],
+) -> tuple[Path, list[dict[str, Any]], bool]:
+    """Load one cache, reconstructing an absent internal validation split."""
+    try:
+        path = resolve_cache_path(split, override, checkpoint)
+    except (FileNotFoundError, ValueError):
+        if split != "validation" or override is not None:
+            raise
+        train_path = resolve_cache_path("train", None, checkpoint)
+        all_samples = _samples_from_cache(train_path)
+        indices_file = checkpoint.get("validation_indices_file")
+        validation_indices = None
+        if indices_file is not None:
+            indices_path = Path(indices_file).expanduser()
+            if not indices_path.is_file():
+                raise FileNotFoundError(indices_path)
+            validation_indices = [
+                int(value) for value in indices_path.read_text().split()
+            ]
+        _, samples = split_samples(
+            all_samples,
+            float(checkpoint.get("validation_fraction", 0.2)),
+            int(checkpoint.get("seed", 17)) + 2,
+            validation_indices=validation_indices,
+        )
+        if not samples:
+            raise ValueError("the reconstructed validation split is empty")
+        print(
+            "validation cache is absent; reconstructed the recorded split "
+            f"from {train_path}",
+            flush=True,
+        )
+        return train_path, samples, True
+    return path, _samples_from_cache(path), False
+
+
 def main() -> None:
     args = parse_arguments()
     if args.batch_size < 1:
@@ -104,16 +152,23 @@ def main() -> None:
         "checkpoint": str(args.checkpoint),
         "mace_model": str(checkpoint["mace_model"]),
         "best_step": checkpoint.get("best_step"),
+        "mace_training": checkpoint.get("mace_training", "frozen"),
         "cell_mode": checkpoint.get("cell_mode", "fixed"),
         "spatial_scheme": checkpoint.get("spatial_scheme", "2d"),
         "splits": {},
     }
     for split in dict.fromkeys(args.splits):
-        cache_path = resolve_cache_path(split, overrides[split], checkpoint)
-        payload = torch.load(cache_path, map_location="cpu", weights_only=False)
-        samples = payload.get("samples")
-        if not isinstance(samples, list) or not samples:
-            raise ValueError(f"no samples found in {cache_path}")
+        cache_path, samples, reconstructed = load_split_samples(
+            split, overrides[split], checkpoint
+        )
+        if checkpoint.get("mace_training", "frozen") == "joint":
+            required_baseline = {"base_energy", "base_forces"}
+            if any(not required_baseline <= set(sample) for sample in samples):
+                raise ValueError(
+                    "joint-checkpoint baseline comparison requires caches written "
+                    "before fine-tuning; the selected cache lacks initial-MACE "
+                    "predictions"
+                )
         ensure_frozen_residual_targets(
             model,
             samples,
@@ -127,8 +182,18 @@ def main() -> None:
             batch_size=args.batch_size,
         )
         corrected = evaluate(model, samples, batch_size=args.batch_size)
-        print_metrics(f"frozen MACE {split}", baseline)
-        print_metrics(f"MACE+FNO {split}", corrected)
+        baseline_label = (
+            "frozen MACE"
+            if checkpoint.get("mace_training", "frozen") == "frozen"
+            else "initial MACE"
+        )
+        corrected_label = (
+            "MACE+FNO"
+            if checkpoint.get("mace_training", "frozen") == "frozen"
+            else "joint MACE+FNO"
+        )
+        print_metrics(f"{baseline_label} {split}", baseline)
+        print_metrics(f"{corrected_label} {split}", corrected)
         improvements = metric_improvements(baseline, corrected)
         print(
             f"{split} improvement: "
@@ -138,6 +203,7 @@ def main() -> None:
         )
         results["splits"][split] = {
             "cache": str(cache_path),
+            "reconstructed_from_train_cache": reconstructed,
             "samples": len(samples),
             "frozen_mace": baseline,
             "mace_fno": corrected,

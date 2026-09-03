@@ -1,10 +1,15 @@
 from __future__ import annotations
 
 import unittest
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+import torch
 
 from mace_fno.cli.evaluate_residual import (
     format_percent,
     improvement_percent,
+    load_split_samples,
     metric_improvements,
 )
 
@@ -33,6 +38,30 @@ class ResidualEvaluationTests(unittest.TestCase):
         self.assertAlmostEqual(result["force_rmse_percent"], 10.0)
         self.assertEqual(format_percent(result["force_rmse_percent"]), "10.00%")
         self.assertEqual(format_percent(None), "--")
+
+    def test_missing_validation_cache_is_reconstructed_from_train_cache(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            train_cache = root / "train.pt"
+            validation_indices = root / "validation.txt"
+            samples = [{"index": index} for index in range(5)]
+            torch.save({"samples": samples}, train_cache)
+            validation_indices.write_text("1 4\n")
+            checkpoint = {
+                "train_cache": str(train_cache),
+                "validation_cache": str(root / "missing-validation.pt"),
+                "validation_indices_file": str(validation_indices),
+                "validation_fraction": 0.2,
+                "seed": 17,
+            }
+
+            path, selected, reconstructed = load_split_samples(
+                "validation", None, checkpoint
+            )
+
+            self.assertEqual(path, train_cache)
+            self.assertEqual([sample["index"] for sample in selected], [1, 4])
+            self.assertTrue(reconstructed)
 
 
 if __name__ == "__main__":

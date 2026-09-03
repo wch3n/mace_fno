@@ -26,7 +26,24 @@ class TrainingConfigurationTests(unittest.TestCase):
         self.assertEqual(configuration.model.spatial_scheme, "2d")
         self.assertEqual(configuration.model.resolved_z_modes, 8)
         self.assertEqual(configuration.optimization.evaluation_batch_size, 1)
+        self.assertEqual(configuration.optimization.mace_training, "frozen")
         self.assertFalse(configuration.diagnostic.enabled)
+
+    def test_joint_training_has_separate_mace_controls(self) -> None:
+        configuration = self._configuration(
+            "--steps",
+            "20",
+            "--mace-training",
+            "joint",
+            "--mace-learning-rate",
+            "2e-5",
+            "--mace-warmup-steps",
+            "5",
+        )
+
+        self.assertEqual(configuration.optimization.mace_training, "joint")
+        self.assertEqual(configuration.optimization.mace_learning_rate, 2.0e-5)
+        self.assertEqual(configuration.optimization.mace_warmup_steps, 5)
 
     def test_auto_scheme_resolves_to_slab_when_z_grid_is_present(self) -> None:
         configuration = self._configuration(
@@ -80,6 +97,8 @@ class TrainingConfigurationTests(unittest.TestCase):
             ("--spatial-scheme", "3d", "--z-grid", "8", "--z-modes", "5"),
             ("--output-warmup-steps", "1000"),
             ("--evaluation-batch-size", "-1"),
+            ("--mace-warmup-steps", "1"),
+            ("--mace-training", "joint", "--output-warmup-steps", "1"),
             (
                 "--spectral-diagnostic-samples",
                 "1",

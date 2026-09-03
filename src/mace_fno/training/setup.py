@@ -1,4 +1,4 @@
-"""Preparation of MACE, datasets, and frozen residual targets."""
+"""Preparation of MACE, datasets, and reference targets."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ class PreparedData:
 
 
 def load_mace_calculator(configuration: TrainingConfig, device: torch.device) -> Any:
-    """Load exactly one frozen MACE model without making MACE a base dependency."""
+    """Load exactly one MACE model without making MACE a base dependency."""
     from mace.calculators import MACECalculator
 
     data = configuration.data
@@ -157,7 +157,7 @@ def build_training_model(
     device: torch.device,
     dtype: torch.dtype,
 ) -> MACEFNOResidual:
-    """Construct and initialize the trainable residual around frozen MACE."""
+    """Construct and initialize the configured MACE-FNO model."""
     model_config = configuration.model
     optimization = configuration.optimization
     model = MACEFNOResidual(
@@ -189,7 +189,10 @@ def build_training_model(
         fno_metric_hidden_channels=model_config.metric_hidden_channels,
         reference_cell=reference_cell,
         cell_mode=model_config.cell_mode,
+        mace_training=optimization.mace_training,
     ).to(device=device, dtype=dtype)
+    if optimization.mace_training == "joint" and optimization.mace_warmup_steps:
+        model.backbone.set_trainable(False)
     if optimization.output_initialization_scale:
         initialize_scaled_residual_output(
             model, optimization.output_initialization_scale
@@ -224,7 +227,26 @@ def cache_frozen_targets(
             prepared.reference_cell,
         )
 
-    if data.validation_file is not None:
+    if data.validation_file is None:
+        if data.validation_cache is not None and (
+            train_changed or not data.validation_cache.is_file()
+        ):
+            validation_metadata = dict(prepared.train_cache_metadata)
+            validation_metadata["subset"] = "validation"
+            if data.validation_indices_file is not None:
+                validation_metadata["validation_indices_file"] = str(
+                    data.validation_indices_file.resolve()
+                )
+            else:
+                validation_metadata["validation_fraction"] = data.validation_fraction
+                validation_metadata["split_seed"] = configuration.runtime.seed + 2
+            save_sample_cache(
+                data.validation_cache,
+                validation_metadata,
+                prepared.validation_samples,
+                prepared.reference_cell,
+            )
+    else:
         validation_changed = ensure_frozen_residual_targets(
             model,
             prepared.validation_samples,
