@@ -37,6 +37,7 @@ class PublicAPITests(unittest.TestCase):
         )
         self.assertEqual(args.spatial_scheme, "auto")
         self.assertEqual(args.cell_mode, "fixed")
+        self.assertEqual(args.interlacing_training, "full")
         self.assertEqual(args.batch_size, 1)
         self.assertEqual(args.spectral_diagnostic_samples, 0)
         self.assertEqual(args.spectral_diagnostic_max_mode, 1)

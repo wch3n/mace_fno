@@ -346,6 +346,7 @@ class ParticleMeshEnergy3D(nn.Module):
         field_operator: nn.Module,
         *,
         volume_interlacing: int = 1,
+        interlacing_training: str = "full",
         check_neutrality: bool = True,
         neutrality_tolerance: float = 1.0e-10,
     ) -> None:
@@ -355,6 +356,13 @@ class ParticleMeshEnergy3D(nn.Module):
         if volume_interlacing not in {1, 2}:
             raise ValueError("volume_interlacing must be 1 or 2")
         self.volume_interlacing = int(volume_interlacing)
+        if interlacing_training not in {"full", "random"}:
+            raise ValueError("interlacing_training must be 'full' or 'random'")
+        if interlacing_training == "random" and volume_interlacing == 1:
+            raise ValueError(
+                "interlacing_training='random' requires volume_interlacing=2"
+            )
+        self.interlacing_training = str(interlacing_training)
         self.check_neutrality = bool(check_neutrality)
         self.neutrality_tolerance = float(neutrality_tolerance)
 
@@ -378,17 +386,10 @@ class ParticleMeshEnergy3D(nn.Module):
     ) -> Tensor | tuple[Tensor, Tensor]:
         """Evaluate the native single-mesh energy of a deposited field.
 
-        This is useful for interrogating a learned field operator directly,
-        for example by applying neutral Fourier-mode perturbations to its
-        input density.  An interlaced calculation averages several different
-        mesh origins and therefore has no unique native density; callers must
-        use the full particle path in that case.
+        This explicitly probes one mesh origin and is useful for interrogating
+        a learned field operator directly, including operators whose particle
+        path averages several mesh origins.
         """
-        if self.volume_interlacing != 1:
-            raise ValueError(
-                "energy_from_density is unavailable with volume interlacing because "
-                "there is no unique native mesh density"
-            )
         potential = self.field_operator(density, cell)
         energy = mesh_interaction_energy_3d(density, potential, cell)
         if return_potential:
@@ -443,6 +444,26 @@ class ParticleMeshEnergy3D(nn.Module):
                 for ix in range(self.volume_interlacing)
                 for iy in range(self.volume_interlacing)
             ]
+            if self.training and self.interlacing_training == "random":
+                selected = int(
+                    torch.randint(
+                        len(offsets), (1,), device=positions.device
+                    ).item()
+                )
+                shifted_positions = positions + offsets[selected].index_select(
+                    0, batch_indices
+                )
+                density = self.assignment(
+                    shifted_positions,
+                    values,
+                    cells,
+                    batch=batch_indices,
+                )
+                potential = self.field_operator(density, cells)
+                energy = mesh_interaction_energy_3d(density, potential, cells)
+                if unbatched:
+                    energy = energy.squeeze(0)
+                return energy
             replica_count = len(offsets)
             replicated_positions = torch.cat(
                 [
@@ -496,6 +517,7 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
         spectral_groups: int = 1,
         cell_conditioning: str = "none",
         volume_interlacing: int = 1,
+        interlacing_training: str = "full",
         check_neutrality: bool = True,
         neutrality_tolerance: float = 1.0e-10,
     ) -> None:
@@ -514,6 +536,7 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
             grid_shape,
             operator,
             volume_interlacing=volume_interlacing,
+            interlacing_training=interlacing_training,
             check_neutrality=check_neutrality,
             neutrality_tolerance=neutrality_tolerance,
         )

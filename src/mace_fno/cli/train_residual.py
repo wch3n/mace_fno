@@ -169,7 +169,11 @@ def main() -> None:
     if args.spectral_groups < 1:
         raise ValueError("spectral_groups must be positive")
     if args.spectral_symmetry == "none" and args.spectral_groups != 1:
-        raise ValueError("--spectral-groups applies only with EqGINO symmetry")
+        raise ValueError("--spectral-groups applies only with EqGINO-based symmetry")
+    if args.interlacing_training == "random" and args.volume_interlacing != 2:
+        raise ValueError(
+            "--interlacing-training random requires --volume-interlacing 2"
+        )
     if spatial_scheme == "2d":
         if args.z_grid:
             raise ValueError("--z-grid is incompatible with --spatial-scheme 2d")
@@ -215,11 +219,11 @@ def main() -> None:
             raise ValueError("--lateral-interlacing applies only to the 2.5D scheme")
         if args.planar_symmetry != "none":
             raise ValueError("--planar-symmetry applies only to the 2.5D scheme")
-        if args.spectral_symmetry == "eqgino":
+        if args.spectral_symmetry in {"eqgino", "cubic_adaptive"}:
             if args.z_grid != args.grid:
-                raise ValueError("EqGINO symmetry requires z_grid == grid")
+                raise ValueError("EqGINO-based symmetry requires z_grid == grid")
             if resolved_z_modes != args.modes:
-                raise ValueError("EqGINO symmetry requires z_modes == modes")
+                raise ValueError("EqGINO-based symmetry requires z_modes == modes")
             grouped_channels = (
                 args.channels
                 if args.architecture == "linear"
@@ -239,11 +243,6 @@ def main() -> None:
     if spectral_diagnostic_enabled:
         if spatial_scheme not in {"3d", "2.5d", "2d"}:
             raise ValueError("unsupported spatial scheme for the spectral diagnostic")
-        if spatial_scheme == "3d" and args.volume_interlacing != 1:
-            raise ValueError(
-                "the 3D diagnostic requires --volume-interlacing 1 because "
-                "the interlaced mesh has no unique deposited field"
-            )
         if spatial_scheme == "2.5d" and args.lateral_interlacing != 1:
             raise ValueError(
                 "the 2.5D diagnostic requires --lateral-interlacing 1 because "
@@ -476,6 +475,7 @@ def main() -> None:
         z_center=args.z_center,
         fno_lateral_interlacing=args.lateral_interlacing,
         fno_volume_interlacing=args.volume_interlacing,
+        fno_interlacing_training=args.interlacing_training,
         fno_z_kernel_size=args.z_kernel_size,
         fno_z_mixing=args.z_mixing,
         fno_planar_symmetry=args.planar_symmetry,
@@ -937,6 +937,9 @@ def main() -> None:
                 ),
                 "volume_interlacing": (
                     args.volume_interlacing if spatial_scheme == "3d" else 1
+                ),
+                "interlacing_training": (
+                    args.interlacing_training if spatial_scheme == "3d" else "full"
                 ),
                 "planar_symmetry": (
                     args.planar_symmetry if spatial_scheme == "2.5d" else "none"

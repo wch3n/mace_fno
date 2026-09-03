@@ -9,6 +9,7 @@ from .coupling import (
     mace_invariant_indices,
 )
 from .fno import (
+    CubicAdaptiveSpectralConv3d,
     FNO2D,
     FNO2d,
     FNO2p5D,
@@ -80,6 +81,7 @@ from .symmetry import (
 )
 
 __all__ = [
+    "CubicAdaptiveSpectralConv3d",
     "FNO2D",
     "FNO2d",
     "FNO2p5D",

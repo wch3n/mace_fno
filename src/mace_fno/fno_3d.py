@@ -234,6 +234,39 @@ class EqGINOSpectralConv3d(nn.Module):
         return torch.fft.ifftn(output_k, dim=(-3, -2, -1)).real
 
 
+class CubicAdaptiveSpectralConv3d(nn.Module):
+    """Cubic-equivariant core plus a cell-anisotropic spectral correction.
+
+    The EqGINO branch is shared by every cell.  A conventional spectral branch
+    is multiplied by a dimensionless cell-anisotropy gate that is exactly zero
+    for cubic cells.  Cubic configurations therefore retain exact signed-axis
+    equivariance, while noncubic cells can learn direction-dependent response.
+    The construction adds no group-averaging loop at inference time.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        n_modes: tuple[int, int, int],
+        *,
+        groups: int = 1,
+    ) -> None:
+        super().__init__()
+        self.isotropic = EqGINOSpectralConv3d(
+            in_channels, out_channels, n_modes, groups=groups
+        )
+        self.anisotropic = SpectralConv3d(in_channels, out_channels, n_modes)
+
+    def forward(self, field: Tensor, anisotropy_gate: Tensor | None = None) -> Tensor:
+        if anisotropy_gate is None:
+            raise ValueError("cubic-adaptive spectral convolution requires a cell gate")
+        if anisotropy_gate.ndim != 1 or anisotropy_gate.shape[0] != field.shape[0]:
+            raise ValueError("anisotropy_gate must have shape (batch,)")
+        gate = anisotropy_gate.to(field).reshape(-1, 1, 1, 1, 1)
+        return self.isotropic(field) + gate * self.anisotropic(field)
+
+
 def _spectral_conv3d(
     in_channels: int,
     out_channels: int,
@@ -250,7 +283,13 @@ def _spectral_conv3d(
         return EqGINOSpectralConv3d(
             in_channels, out_channels, n_modes, groups=spectral_groups
         )
-    raise ValueError("spectral_symmetry must be 'none' or 'eqgino'")
+    if spectral_symmetry == "cubic_adaptive":
+        return CubicAdaptiveSpectralConv3d(
+            in_channels, out_channels, n_modes, groups=spectral_groups
+        )
+    raise ValueError(
+        "spectral_symmetry must be 'none', 'eqgino', or 'cubic_adaptive'"
+    )
 
 
 class FNOBlock3d(nn.Module):
@@ -272,10 +311,17 @@ class FNOBlock3d(nn.Module):
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
         )
+        self.spectral_symmetry = spectral_symmetry
         self.local = nn.Conv3d(channels, channels, kernel_size=1, bias=False)
 
-    def forward(self, field: Tensor) -> Tensor:
-        return F.gelu(self.spectral(field) + self.local(field))
+    def forward(
+        self, field: Tensor, anisotropy_gate: Tensor | None = None
+    ) -> Tensor:
+        if self.spectral_symmetry == "cubic_adaptive":
+            spectral = self.spectral(field, anisotropy_gate)
+        else:
+            spectral = self.spectral(field)
+        return F.gelu(spectral + self.local(field))
 
 
 class LinearFNO3d(nn.Module):
@@ -300,8 +346,11 @@ class LinearFNO3d(nn.Module):
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
         )
+        self.spectral_symmetry = spectral_symmetry
 
-    def forward(self, field: Tensor) -> Tensor:
+    def forward(
+        self, field: Tensor, anisotropy_gate: Tensor | None = None
+    ) -> Tensor:
         unbatched = field.ndim == 4
         field_batch = field.unsqueeze(0) if unbatched else field
         if field_batch.ndim != 5 or field_batch.shape[1] != self.in_channels:
@@ -310,7 +359,10 @@ class LinearFNO3d(nn.Module):
                 f"(batch, {self.in_channels}, nz, nx, ny); "
                 f"received {tuple(field.shape)}"
             )
-        output = self.spectral(field_batch)
+        if self.spectral_symmetry == "cubic_adaptive":
+            output = self.spectral(field_batch, anisotropy_gate)
+        else:
+            output = self.spectral(field_batch)
         return output.squeeze(0) if unbatched else output
 
 
@@ -360,7 +412,9 @@ class FNO3d(nn.Module):
             projection_channels, self.out_channels, kernel_size=1, bias=False
         )
 
-    def forward(self, field: Tensor) -> Tensor:
+    def forward(
+        self, field: Tensor, anisotropy_gate: Tensor | None = None
+    ) -> Tensor:
         unbatched = field.ndim == 4
         if unbatched:
             field = field.unsqueeze(0)
@@ -373,7 +427,7 @@ class FNO3d(nn.Module):
 
         hidden = self.lifting(field)
         for block in self.blocks:
-            hidden = block(hidden)
+            hidden = block(hidden, anisotropy_gate)
         output = self.projection_output(F.gelu(self.projection_hidden(hidden)))
         return output.squeeze(0) if unbatched else output
 
@@ -532,5 +586,26 @@ class FNOFieldOperator3d(nn.Module):
                 -1, -1, *density_batch.shape[-3:]
             )
             normalized = torch.cat((normalized, condition), dim=1)
-        potential = self.fno(normalized) * self.output_scale
+        anisotropy_gate = None
+        if self.spectral_symmetry == "cubic_adaptive":
+            if cells is None:
+                raise ValueError("cubic-adaptive symmetry requires cell")
+            gram = cells @ cells.transpose(-2, -1)
+            mean_square_length = torch.diagonal(gram, dim1=-2, dim2=-1).mean(dim=-1)
+            identity = torch.eye(3, dtype=cells.dtype, device=cells.device)
+            deviation = gram / mean_square_length[:, None, None] - identity
+            raw_gate = torch.linalg.matrix_norm(deviation, ord="fro", dim=(-2, -1))
+            # A 10% metric deviation activates half of the anisotropic branch.
+            anisotropy_gate = raw_gate / (raw_gate + 0.1)
+            cubic = torch.tensor(
+                [is_cubic_cell(value) for value in cells],
+                dtype=torch.bool,
+                device=cells.device,
+            )
+            anisotropy_gate = torch.where(
+                cubic, torch.zeros_like(anisotropy_gate), anisotropy_gate
+            )
+        potential = self.fno(
+            normalized, anisotropy_gate=anisotropy_gate
+        ) * self.output_scale
         return potential.squeeze(0) if unbatched else potential

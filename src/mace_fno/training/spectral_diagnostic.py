@@ -136,11 +136,6 @@ def periodic_3d_response_diagnostic(
     r"""Measure scalar and tensor-aware low-:math:`k` response in periodic 3D."""
     if model.spatial_scheme != "3d":
         raise ValueError("periodic_3d_response_diagnostic requires the 3D scheme")
-    if model.long_range.volume_interlacing != 1:
-        raise ValueError(
-            "the 3D diagnostic requires volume_interlacing=1 because an "
-            "interlaced mesh has no unique deposited field"
-        )
     selected_indices = _validate_common(
         samples,
         sample_indices,
@@ -168,13 +163,17 @@ def periodic_3d_response_diagnostic(
         with torch.no_grad():
             for sample_index in selected_indices:
                 graph, _, _ = collate_samples([samples[sample_index]], device, dtype)
-                output = model(
-                    graph, training=False, compute_force=False, return_fields=True
-                )
-                density = output["density"][0]
+                output = model(graph, training=False, compute_force=False)
+                cells = graph["cell"].reshape(-1, 3, 3)
+                cell = cells[0]
+                density = model.long_range.assignment(
+                    graph["positions"],
+                    output["sources"],
+                    cells,
+                    batch=graph["batch"],
+                )[0]
                 if density.ndim != 4:
                     raise RuntimeError("the 3D path must return one unbatched density")
-                cell = graph["cell"].reshape(-1, 3, 3)[0]
                 volume = torch.linalg.det(cell).abs()
                 density_rms = density.square().mean().sqrt().clamp_min(
                     torch.finfo(dtype).eps

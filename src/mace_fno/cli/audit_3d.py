@@ -410,6 +410,7 @@ def main() -> None:
         "spectral_symmetry": checkpoint.get("spectral_symmetry", "none"),
         "spectral_groups": checkpoint.get("spectral_groups", 1),
         "volume_interlacing": checkpoint.get("volume_interlacing", 1),
+        "interlacing_training": checkpoint.get("interlacing_training", "full"),
         "sample_cache": str(cache_path),
         "samples": len(samples),
         "sample_indices": sample_indices,
@@ -522,7 +523,10 @@ def main() -> None:
                 maximum_residual_force_rmse <= 1.0e-4
             ),
         }
-        if checkpoint.get("spectral_symmetry", "none") == "eqgino":
+        if checkpoint.get("spectral_symmetry", "none") in {
+            "eqgino",
+            "cubic_adaptive",
+        }:
             float32 = checkpoint.get("dtype") == "float32"
             exact_checks["cubic_residual_energy_invariance"] = {
                 "observed": maximum_residual_energy_change,

@@ -142,6 +142,9 @@ def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]
                 "fno_volume_interlacing": int(
                     checkpoint.get("volume_interlacing", 1)
                 ),
+                "fno_interlacing_training": str(
+                    checkpoint.get("interlacing_training") or "full"
+                ),
                 "fno_spectral_symmetry": str(
                     checkpoint.get("spectral_symmetry") or "none"
                 ),

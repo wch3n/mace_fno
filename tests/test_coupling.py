@@ -557,6 +557,24 @@ class CouplingTests(unittest.TestCase):
             anisotropic_report["per_sample_response"][0]["physical_shells"], 3
         )
 
+        interlaced_model = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=1,
+            n_modes=(2, 2),
+            fno_architecture="linear",
+            spatial_scheme="3d",
+            z_grid_size=8,
+            fno_z_modes=2,
+            fno_volume_interlacing=2,
+            invariant_indices=(0, 2),
+            reference_cell=cubic_cell,
+        ).to(dtype=DTYPE)
+        interlaced_report = low_k_response_diagnostic(
+            interlaced_model, [sample]
+        )
+        self.assertEqual(interlaced_report["diagnostic_kind"], "periodic_3d")
+
     def test_3d_reference_cell_guard_includes_third_vector(self) -> None:
         data = _batch_data()
         model = MACEFNOResidual(
@@ -672,6 +690,25 @@ class CouplingTests(unittest.TestCase):
                 invariant_indices=(0, 2),
                 cell_mode="anisotropic",
             )
+
+        adaptive = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=2,
+            n_modes=(2, 2),
+            fno_hidden_channels=4,
+            spatial_scheme="3d",
+            z_grid_size=8,
+            fno_z_modes=2,
+            fno_spectral_symmetry="cubic_adaptive",
+            fno_spectral_groups=2,
+            invariant_indices=(0, 2),
+            cell_mode="anisotropic",
+        ).to(dtype=DTYPE)
+        adaptive_output = adaptive(
+            data, compute_force=False, compute_residual_force=True
+        )
+        self.assertTrue(torch.isfinite(adaptive_output["residual_forces"]).all())
 
     def test_eqgino_3d_coupling_requires_cubic_geometry(self) -> None:
         cubic_cell = 8.0 * torch.eye(3, dtype=DTYPE)
@@ -931,6 +968,7 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(parameters["fno_z_modes"], 3)
         self.assertEqual(parameters["fno_spectral_symmetry"], "eqgino")
         self.assertEqual(parameters["fno_spectral_groups"], 4)
+        self.assertEqual(parameters["fno_interlacing_training"], "full")
 
         checkpoint["cell_mode"] = "anisotropic"
         checkpoint["spectral_symmetry"] = "none"

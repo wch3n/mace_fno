@@ -137,6 +137,16 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--interlacing-training",
+        choices=("full", "random"),
+        default="full",
+        help=(
+            "With 3D interlacing, either average every mesh origin during "
+            "optimization or sample one origin per training batch; evaluation "
+            "always averages all origins"
+        ),
+    )
+    parser.add_argument(
         "--planar-symmetry",
         choices=("none", "c4", "d4"),
         default="none",
@@ -147,11 +157,11 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--spectral-symmetry",
-        choices=("none", "eqgino"),
+        choices=("none", "eqgino", "cubic_adaptive"),
         default="none",
         help=(
-            "For a cubic 3D mesh and cell, use EqGINO-style full-FFT radial "
-            "weight sharing to enforce signed-axis equivariance"
+            "Use EqGINO radial sharing for cubic cells, or a cubic-adaptive "
+            "EqGINO core plus a gated anisotropic branch for mixed cell shapes"
         ),
     )
     parser.add_argument(

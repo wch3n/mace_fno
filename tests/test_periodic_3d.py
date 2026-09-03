@@ -349,6 +349,62 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "different mesh origins"):
             interlaced(positions, charges, cell, return_fields=True)
 
+    def test_random_training_origin_uses_one_interlacing_replica(self) -> None:
+        cell = torch.diag(torch.tensor((8.0, 9.0, 10.0), dtype=DTYPE))
+        fractional = torch.tensor(
+            ((0.173, 0.217, 0.319), (0.683, 0.731, 0.627)), dtype=DTYPE
+        )
+        positions = fractional @ cell
+        charges = torch.tensor((1.0, -1.0), dtype=DTYPE)
+        common = dict(
+            grid_shape=(8, 8, 8),
+            channels=1,
+            n_modes=(2, 2, 2),
+            hidden_channels=4,
+            n_layers=1,
+        )
+        plain = LearnedParticleMeshLongRange3D(**common).to(dtype=DTYPE)
+        random_origin = LearnedParticleMeshLongRange3D(
+            **common,
+            volume_interlacing=2,
+            interlacing_training="random",
+        ).to(dtype=DTYPE)
+        random_origin.load_state_dict(plain.state_dict())
+
+        offsets = tuple(
+            iz * 0.5 * cell[2] / 8
+            + ix * 0.5 * cell[0] / 8
+            + iy * 0.5 * cell[1] / 8
+            for iz in range(2)
+            for ix in range(2)
+            for iy in range(2)
+        )
+        replica_energies = torch.stack(
+            [plain(positions + offset, charges, cell) for offset in offsets]
+        )
+        random_origin.train()
+        torch.manual_seed(123)
+        training_energy = random_origin(positions, charges, cell)
+        self.assertTrue(
+            bool(torch.isclose(training_energy, replica_energies, atol=2e-14).any())
+        )
+
+        random_origin.eval()
+        torch.testing.assert_close(
+            random_origin(positions, charges, cell),
+            replica_energies.mean(),
+            atol=3e-14,
+            rtol=3e-14,
+        )
+
+        density = plain.assignment(positions, charges, cell)
+        torch.testing.assert_close(
+            random_origin.energy_from_density(density, cell),
+            plain.energy_from_density(density, cell),
+            atol=3e-14,
+            rtol=3e-14,
+        )
+
 
 class EqGINOSpectralConv3DTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -450,6 +506,38 @@ class EqGINOSpectralConv3DTests(unittest.TestCase):
         layer = EqGINOSpectralConv3d(1, 1, (2, 2, 2))
         with self.assertRaisesRegex(ValueError, "cubic"):
             layer(torch.randn((1, 1, 8, 8, 10)))
+
+    def test_cubic_adaptive_operator_is_exact_on_cubic_cells(self) -> None:
+        model = FNOFieldOperator3d(
+            2,
+            (3, 3, 3),
+            hidden_channels=4,
+            n_layers=2,
+            cell_conditioning="anisotropic",
+            spectral_symmetry="cubic_adaptive",
+            spectral_groups=2,
+        ).to(dtype=DTYPE)
+        field = torch.randn((1, 2, 8, 8, 8), dtype=DTYPE)
+        cell = (8.0 * torch.eye(3, dtype=DTYPE)).unsqueeze(0)
+        reference = model(field, cell)
+        transformations = cubic_signed_permutation_matrices(
+            include_reflections=True, dtype=DTYPE
+        )
+        for index in (5, 17, 31, 44):
+            transformation = transformations[index]
+            transformed = transform_periodic_scalar_grid(field, transformation)
+            expected = transform_periodic_scalar_grid(reference, transformation)
+            with self.subTest(group_element=index):
+                torch.testing.assert_close(
+                    model(transformed, cell), expected, atol=3e-12, rtol=3e-12
+                )
+
+        noncubic = torch.diag(
+            torch.tensor((8.0, 9.0, 10.0), dtype=DTYPE)
+        ).unsqueeze(0)
+        output = model(field, noncubic)
+        self.assertEqual(output.shape, field.shape)
+        self.assertTrue(torch.isfinite(output).all())
 
 
 if __name__ == "__main__":

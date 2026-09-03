@@ -330,6 +330,7 @@ class MACEFNOResidual(nn.Module):
         z_center: str = "mean",
         fno_lateral_interlacing: int = 1,
         fno_volume_interlacing: int = 1,
+        fno_interlacing_training: str = "full",
         fno_z_kernel_size: int = 3,
         fno_z_mixing: str = "local",
         fno_planar_symmetry: str = "none",
@@ -363,14 +364,23 @@ class MACEFNOResidual(nn.Module):
             raise ValueError("fno_volume_interlacing applies only to the 3D scheme")
         if resolved_scheme != "2.5d" and fno_planar_symmetry != "none":
             raise ValueError("fno_planar_symmetry applies only to the 2.5D scheme")
-        if fno_spectral_symmetry not in {"none", "eqgino"}:
-            raise ValueError("fno_spectral_symmetry must be 'none' or 'eqgino'")
+        if fno_spectral_symmetry not in {
+            "none",
+            "eqgino",
+            "cubic_adaptive",
+        }:
+            raise ValueError(
+                "fno_spectral_symmetry must be 'none', 'eqgino', or "
+                "'cubic_adaptive'"
+            )
         if resolved_scheme != "3d" and fno_spectral_symmetry != "none":
             raise ValueError("fno_spectral_symmetry applies only to the 3D scheme")
         if fno_spectral_groups < 1:
             raise ValueError("fno_spectral_groups must be positive")
         if fno_spectral_symmetry == "none" and fno_spectral_groups != 1:
-            raise ValueError("fno_spectral_groups applies only to EqGINO symmetry")
+            raise ValueError(
+                "fno_spectral_groups applies only to EqGINO-based symmetry"
+            )
         if cell_mode not in {"fixed", "isotropic", "anisotropic"}:
             raise ValueError(
                 "cell_mode must be 'fixed', 'isotropic', or 'anisotropic'"
@@ -436,13 +446,15 @@ class MACEFNOResidual(nn.Module):
             z_modes = int(fno_z_modes) if fno_z_modes is not None else int(n_modes[0])
             if z_modes < 1:
                 raise ValueError("fno_z_modes must be positive")
-            if fno_spectral_symmetry == "eqgino":
+            if fno_spectral_symmetry in {"eqgino", "cubic_adaptive"}:
                 if not (
                     int(z_grid_size) == int(grid_shape[0]) == int(grid_shape[1])
                 ):
-                    raise ValueError("EqGINO symmetry requires a cubic 3D grid")
+                    raise ValueError("EqGINO-based symmetry requires a cubic 3D grid")
                 if not (z_modes == int(n_modes[0]) == int(n_modes[1])):
-                    raise ValueError("EqGINO symmetry requires equal modes on all axes")
+                    raise ValueError(
+                        "EqGINO-based symmetry requires equal modes on all axes"
+                    )
             self.long_range = LearnedParticleMeshLongRange3D(
                 (int(z_grid_size), *grid_shape),
                 channels,
@@ -457,6 +469,7 @@ class MACEFNOResidual(nn.Module):
                     cell_mode if cell_mode in {"isotropic", "anisotropic"} else "none"
                 ),
                 volume_interlacing=fno_volume_interlacing,
+                interlacing_training=fno_interlacing_training,
                 check_neutrality=False,
             )
             self.spatial_scheme = "3d"

@@ -12,6 +12,7 @@ from .fno_2d import (
     SpectralConv2d,
 )
 from .fno_3d import (
+    CubicAdaptiveSpectralConv3d,
     EqGINOSpectralConv3d,
     FNO3d,
     FNOBlock3d,
@@ -43,6 +44,7 @@ SpectralConv2p5D = SpectralConv2p5d
 SpectralConv3D = SpectralConv3d
 
 __all__ = [
+    "CubicAdaptiveSpectralConv3d",
     "EqGINOSpectralConv3d",
     "FNO2d",
     "FNO2D",

@@ -32,8 +32,10 @@ coordinates and supplies the nonlinear operator with seven constant cell
 features: log of the volume length and the six independent entries of the
 volume-normalized lattice metric. These features distinguish cell size and
 shape while remaining invariant to rigid Cartesian rotation of the complete
-cell. We do not use cubic EqGINO weight sharing because most LLZO structures
-are noncubic.
+cell. The `cubic_adaptive` spectral option combines an EqGINO radial core with
+a conventional spectral branch multiplied by a cell-anisotropy gate. The gate
+is exactly zero for cubic cells, enforcing their signed-axis symmetries, while
+noncubic cells retain direction-dependent spectral weights.
 
 ## Data protocol
 
@@ -103,7 +105,13 @@ Useful overrides include:
 
 `RESTART_LATEST=1` resumes the most recent MACE checkpoint in each run root.
 The default FNO run uses float64, a 24x24x24 grid, four modes per direction,
-four latent channels, two Fourier layers, no interlacing, and 20,000 steps.
+four latent channels, two Fourier layers, and 20,000 steps. The original
+single-grid operator remains the default for backward compatibility. A
+symmetry-controlled run should set `SPECTRAL_SYMMETRY=cubic_adaptive` and
+`VOLUME_INTERLACING=2`. `INTERLACING_TRAINING=random` samples one of the eight
+mesh origins per optimization batch while validation and inference average all
+eight; this provides mesh-origin augmentation without an eightfold training
+cost.
 Float64 is intentionally conservative for the finite-difference force audit;
 `MODEL_DTYPE=float32` is available for a faster exploratory run.
 
