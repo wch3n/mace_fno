@@ -1,0 +1,344 @@
+# MACE-FNO quick-start tutorial
+
+This tutorial shows how to train a conservative FNO correction on top of an
+existing local MACE model, check that the correction behaves correctly, and use
+the combined model in ASE. Generated data, caches, and checkpoints should be
+kept outside the Git checkout.
+
+The workflow is:
+
+```text
+labeled XYZ -> frozen MACE -> latent atomic sources -> mesh -> FNO -> residual energy
+                       |                                      |
+                       +---------- remains fixed              +-- optimized
+```
+
+The combined prediction is
+
+\[
+E = E_{\mathrm{MACE}} + \Delta E_{\mathrm{FNO}},
+\qquad
+\mathbf F_i = -\frac{\partial E}{\partial \mathbf R_i}.
+\]
+
+MACE supplies the baseline energy and local descriptors. Its weights remain
+fixed during residual training. Only the latent-source head and FNO are
+optimized. Forces are obtained by differentiating the complete energy, so the
+result is conservative by construction.
+
+## 1. Install the package
+
+Clone the repository, create an environment, and install the package with the
+optional MACE dependency:
+
+```bash
+git clone https://github.com/wch3n/mace_fno.git
+cd mace_fno
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -e '.[mace]'
+```
+
+Install a CUDA-enabled PyTorch build appropriate for the local system before
+the last command if GPU support is required. Confirm the installation with:
+
+```bash
+mace-fno-train --help
+python3 -c "import torch; print(torch.cuda.is_available())"
+```
+
+## 2. Prepare the inputs
+
+Two inputs are required:
+
+1. a trained local MACE checkpoint;
+2. extended-XYZ files containing reference total energies and atomic forces.
+
+Use separate training, validation, and test files. For molecular-dynamics data,
+split complete trajectories or contiguous trajectory blocks rather than
+randomly separating neighboring frames.
+
+The energy must be an `Atoms.info` value or an ASE calculator result. Forces
+must be an `Atoms.arrays` value or calculator result. For example, custom labels
+can be written as:
+
+```python
+import numpy as np
+from ase.io import write
+
+# `structures`, `energies`, and `forces` come from the reference calculations.
+for atoms, energy, force in zip(structures, energies, forces, strict=True):
+    atoms.info["REF_energy"] = float(energy)          # eV per structure
+    atoms.arrays["REF_forces"] = np.asarray(force)   # eV/angstrom, shape (N, 3)
+
+write("train.xyz", structures, format="extxyz")
+```
+
+The following check catches common label and periodicity problems before a GPU
+job is submitted:
+
+```python
+from ase.io import read
+from mace_fno.training import reference_energy, reference_forces
+
+for filename in ("train.xyz", "validation.xyz", "test.xyz"):
+    frames = read(filename, index=":")
+    assert frames, f"no structures in {filename}"
+    for atoms in frames:
+        energy = reference_energy(atoms, "REF_energy")
+        forces = reference_forces(atoms, "REF_forces")
+        assert forces.shape == (len(atoms), 3)
+    print(filename, len(frames), "structures", "pbc=", frames[0].pbc)
+```
+
+Choose the geometry and cell treatment from the physical system:
+
+| System | Spatial scheme | Cell mode |
+|---|---|---|
+| Fixed-cell bulk | `3d` | `fixed` |
+| Cubic bulk at different volumes | `3d` | `isotropic` |
+| Bulk with different cell lengths or shapes | `3d` | `anisotropic` |
+| Surface or slab, periodic in-plane | `2.5d` | `fixed` |
+
+The 3D scheme requires periodicity along all three directions. The slab scheme
+requires periodicity in x and y and treats z as a finite, nonperiodic response
+direction.
+
+## 3. Measure the frozen-MACE baseline
+
+Evaluate the local model before training a correction:
+
+```bash
+mace-fno-evaluate-mace \
+  --model /absolute/path/to/local_mace.model \
+  --train-file /absolute/path/to/train.xyz \
+  --test-file /absolute/path/to/test.xyz \
+  --energy-key REF_energy \
+  --forces-key REF_forces \
+  --device cuda \
+  --output /absolute/path/to/run/mace_baseline.json
+```
+
+This establishes whether the residual problem is meaningful. The output also
+reports constant energy-offset controls; a useful FNO should improve more than
+a trivial fitted offset and should improve forces as well as energies.
+
+## 4. Run a small 3D smoke test
+
+Set paths to a directory outside the repository:
+
+```bash
+export MACE_MODEL=/absolute/path/to/local_mace.model
+export DATA_ROOT=/absolute/path/to/data
+export RUN_ROOT=/absolute/path/to/mace_fno_run
+mkdir -p "$RUN_ROOT/cache"
+```
+
+For heterogeneous bulk cells, a short metric-aware EqGINO run is:
+
+```bash
+mace-fno-train \
+  --mace-model "$MACE_MODEL" \
+  --train-file "$DATA_ROOT/train.xyz" \
+  --validation-file "$DATA_ROOT/validation.xyz" \
+  --test-file "$DATA_ROOT/test.xyz" \
+  --energy-key REF_energy \
+  --forces-key REF_forces \
+  --train-cache "$RUN_ROOT/cache/train.pt" \
+  --validation-cache "$RUN_ROOT/cache/validation.pt" \
+  --test-cache "$RUN_ROOT/cache/test.pt" \
+  --spatial-scheme 3d \
+  --cell-mode anisotropic \
+  --grid 24 \
+  --z-grid 24 \
+  --modes 4 \
+  --z-modes 4 \
+  --channels 4 \
+  --fno-hidden-channels 16 \
+  --fno-layers 2 \
+  --spectral-symmetry metric_eqgino \
+  --metric-hidden-channels 16 \
+  --output-initialization-scale 0.1 \
+  --learning-rate 3e-4 \
+  --lr-scheduler plateau \
+  --energy-weight 1 \
+  --force-weight 1 \
+  --energy-scale 0.01 \
+  --force-scale 0.10 \
+  --batch-size 2 \
+  --evaluation-batch-size 4 \
+  --steps 200 \
+  --eval-interval 50 \
+  --evaluation-scope validation-test \
+  --seed 17 \
+  --dtype float32 \
+  --device cuda \
+  --checkpoint "$RUN_ROOT/mace_fno_3d.pt"
+```
+
+Two hundred steps only verify that data loading, batching, differentiation, and
+checkpoint writing work. They are not expected to produce a converged model.
+For a serious fit, use the validation curve to choose the training length; the
+current benchmarks typically use about 20,000 steps and at least three random
+seeds. Train the checkpoint with `--dtype float64` when preparing the final
+conservative-force finite-difference audit; float32 is useful for quick
+development runs. Replace `--device cuda` by `--device cpu` when no GPU is
+available.
+
+`energy_scale` and `force_scale` normalize the two errors in the loss. Replace
+the illustrative values above by approximate frozen-MACE validation RMSEs in
+eV/atom and eV/angstrom. This makes equal energy and force weights easier to
+interpret.
+
+The main resolution parameters are:
+
+- `grid` and `z-grid`: mesh points along each direction;
+- `modes` and `z-modes`: retained Fourier modes; small values emphasize the
+  longest wavelengths;
+- `channels`: number of latent source fields;
+- `fno-hidden-channels`: internal nonlinear field width;
+- `metric-hidden-channels`: width of the radial network that maps physical
+  \(\lvert\mathbf k\rvert^2\) to spectral channel-mixing weights.
+
+Increase these parameters only after the small run succeeds. Grid density,
+mode count, and channel width should be checked by convergence tests on the
+validation set. Every retained mode count must satisfy
+`2 * modes <= grid`. Once the single-origin model is stable,
+`--volume-interlacing 2 --interlacing-training random` can reduce the 3D
+particle-mesh egg-box error without evaluating all eight origins at every
+training step; validation and inference still average all origins.
+
+## 5. Adapt the command to a slab
+
+For a surface or adsorption system, replace the 3D geometry block by:
+
+```bash
+  --spatial-scheme 2.5d \
+  --cell-mode fixed \
+  --grid 24 \
+  --modes 4 \
+  --z-grid 16 \
+  --z-extent 22.0 \
+  --z-center mean \
+  --z-mixing global \
+  --lateral-interlacing 1
+```
+
+Also remove `--z-modes`, `--spectral-symmetry`, and
+`--metric-hidden-channels` from the 3D command. The slab operator Fourier
+transforms only the periodic x-y plane and retains an explicit finite z
+direction. `z_extent` must contain every atom in every configuration.
+
+Many electronic-structure files mark the vacuum direction as periodic even
+though the learned response should be nonperiodic along z. Add
+`--allow-periodic-z` explicitly in that case. For a square in-plane cell,
+`--planar-symmetry c4` or `d4` can enforce the corresponding discrete planar
+symmetry.
+
+## 6. Evaluate the trained correction
+
+The checkpoint records the cache paths used during training, so the held-out
+sets can be evaluated with:
+
+```bash
+mace-fno-evaluate \
+  --checkpoint "$RUN_ROOT/mace_fno_3d.pt" \
+  --splits validation test \
+  --batch-size 4 \
+  --device cuda \
+  --output "$RUN_ROOT/evaluation.json"
+```
+
+Compare the `frozen_mace` and `mace_fno` sections. Report energy RMSE in
+eV/atom and force RMSE in eV/angstrom, and repeat the fit with multiple seeds.
+
+## 7. Run the physics audits
+
+For a periodic 3D checkpoint:
+
+```bash
+mace-fno-audit-3d \
+  --checkpoint "$RUN_ROOT/mace_fno_3d.pt" \
+  --samples 8 \
+  --fd-components 12 \
+  --strict \
+  --device cuda \
+  --output "$RUN_ROOT/audit.json"
+```
+
+For a slab checkpoint, use `mace-fno-audit-2p5d` with the same pattern. These
+audits check source neutrality, periodic translations, conservative forces by
+finite differences, and the relevant energy/force symmetries.
+
+The learned long-wavelength response can be examined separately:
+
+```bash
+mace-fno-audit-spectral \
+  --checkpoint "$RUN_ROOT/mace_fno_3d.pt" \
+  --samples 4 \
+  --max-mode 2 \
+  --fit-shells 3 \
+  --device cuda \
+  --output "$RUN_ROOT/spectral_response.json"
+```
+
+The spectral result is a diagnostic, not a training target. Agreement with a
+\(1/k^2\) trend indicates an electrostatic-like low-wavevector component, but
+does not make the latent fields physical charge densities.
+
+## 8. Use the combined model in ASE
+
+The residual checkpoint stores only the learned correction, not a second copy
+of the frozen MACE weights. Keep both files when moving or sharing a model:
+
+```python
+from ase.io import read
+from mace_fno import MACEFNOCalculator
+
+atoms = read("structure.xyz")
+atoms.calc = MACEFNOCalculator(
+    "mace_fno_3d.pt",
+    mace_model_path="local_mace.model",  # overrides the path saved at training
+    device="cuda",
+)
+
+energy = atoms.get_potential_energy()
+forces = atoms.get_forces()
+
+print("total energy:", energy, "eV")
+print("MACE energy:", atoms.calc.results["mace_energy"], "eV")
+print("FNO correction:", atoms.calc.results["residual_energy"], "eV")
+print("force array:", forces.shape)
+```
+
+The ASE calculator validates periodicity and cell compatibility. It currently
+provides energy and forces, but not stress.
+
+## 9. Common problems
+
+- **Missing labels:** confirm that `--energy-key` and `--forces-key` match the
+  extended-XYZ fields exactly.
+- **Cell mismatch:** use `fixed` only for one cell, `isotropic` for uniformly
+  scaled cubes, and `anisotropic` for general 3D cells.
+- **Slab outside the z window:** increase `z_extent` or inspect the centering
+  convention.
+- **Out of GPU memory:** reduce `batch-size` first, then grid or channel width.
+- **Stale caches:** add `--rebuild-cache` after changing data or preprocessing.
+- **Good energies but worse forces:** verify label units, loss scales, and the
+  finite-difference audit before increasing model size.
+- **Moved checkpoint:** pass `mace_model_path` to the ASE calculator and keep
+  the recorded sample caches available when using the evaluation commands.
+
+## Complete benchmark workflows
+
+The maintained benchmarks provide cluster-ready examples with explicit data
+provenance and validation:
+
+- [Au2-MgO](benchmarks/au_mgo/README.md): 2D slab FNO;
+- [Water-SCAN](benchmarks/water_scan_qnep/README.md): periodic 3D water;
+- [LLZO](benchmarks/llzo_qnep/README.md): heterogeneous bulk cells with
+  metric-aware EqGINO.
+
+Their launchers keep all generated files outside the source tree through
+`MACE_FNO_WORK_ROOT`.

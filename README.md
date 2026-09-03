@@ -6,6 +6,9 @@ baseline energy. A neutral latent source head deposits descriptor-dependent
 fields onto a periodic mesh, and an FNO maps those fields to a global response.
 The resulting scalar residual energy is differentiated to obtain forces.
 
+New users can start with the [MACE-FNO quick-start tutorial](TUTORIAL.md),
+which covers data preparation, residual training, audits, and ASE inference.
+
 Implemented geometries are:
 
 - planar projection, periodic along the first two cell vectors;
@@ -49,9 +52,9 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
 The reusable commands are installed as `mace-fno-train`,
-`mace-fno-evaluate-mace`, `mace-fno-audit-2p5d`, `mace-fno-audit-3d`, and
-`mace-fno-audit-spectral`. The benchmark jobs invoke the same modules directly
-so they also work from an editable checkout.
+`mace-fno-evaluate-mace`, `mace-fno-evaluate`, `mace-fno-audit-2p5d`,
+`mace-fno-audit-3d`, and `mace-fno-audit-spectral`. The benchmark jobs invoke
+the same modules directly so they also work from an editable checkout.
 
 ## Repository layout
 
