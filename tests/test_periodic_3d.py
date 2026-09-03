@@ -10,6 +10,7 @@ from mace_fno import (
     FNOFieldOperator3d,
     LearnedParticleMeshLongRange3D,
     LinearFNO3d,
+    MetricEqGINOSpectralConv3d,
     PeriodicParticleMesh3D,
     cubic_signed_permutation_matrices,
 )
@@ -538,6 +539,143 @@ class EqGINOSpectralConv3DTests(unittest.TestCase):
         output = model(field, noncubic)
         self.assertEqual(output.shape, field.shape)
         self.assertTrue(torch.isfinite(output).all())
+
+
+class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
+    def setUp(self) -> None:
+        torch.manual_seed(103)
+        self.cells = torch.stack(
+            (
+                torch.diag(torch.tensor((8.0, 9.0, 10.0), dtype=DTYPE)),
+                torch.tensor(
+                    ((8.2, 0.1, 0.0), (0.4, 9.1, 0.2), (0.0, -0.3, 10.4)),
+                    dtype=DTYPE,
+                ),
+            )
+        )
+
+    def test_heterogeneous_cells_shape_gradients_and_independent_batches(self) -> None:
+        layer = MetricEqGINOSpectralConv3d(
+            4,
+            4,
+            (2, 3, 2),
+            groups=2,
+            radial_hidden_channels=5,
+        ).to(dtype=DTYPE)
+        field = torch.randn(
+            (2, 4, 8, 10, 12), dtype=DTYPE, requires_grad=True
+        )
+        output = layer(field, self.cells)
+        expected = torch.cat(
+            [
+                layer(field[index : index + 1], self.cells[index])
+                for index in range(2)
+            ],
+            dim=0,
+        )
+        self.assertEqual(output.shape, field.shape)
+        self.assertFalse(output.is_complex())
+        torch.testing.assert_close(output, expected, atol=3e-13, rtol=3e-13)
+
+        output.square().mean().backward()
+        self.assertIsNotNone(field.grad)
+        self.assertTrue(torch.isfinite(field.grad).all())
+        parameter_gradients = [
+            parameter.grad for parameter in layer.radial_network.parameters()
+        ]
+        self.assertTrue(all(gradient is not None for gradient in parameter_gradients))
+        self.assertTrue(
+            all(torch.isfinite(gradient).all() for gradient in parameter_gradients)
+        )
+
+    def test_physical_wavevectors_use_reciprocal_cell_metric(self) -> None:
+        layer = MetricEqGINOSpectralConv3d(1, 1, (2, 2, 2)).to(dtype=DTYPE)
+        squared = layer._physical_squared_wavevectors(self.cells[:1])
+        expected_x = (2.0 * torch.pi / self.cells[0, 0, 0]).square()
+        expected_y = (2.0 * torch.pi / self.cells[0, 1, 1]).square()
+        expected_z = (2.0 * torch.pi / self.cells[0, 2, 2]).square()
+        torch.testing.assert_close(squared[0, 0, 1, 0], expected_x)
+        torch.testing.assert_close(squared[0, 0, 0, 1], expected_y)
+        torch.testing.assert_close(squared[0, 1, 0, 0], expected_z)
+        self.assertNotEqual(squared[0, 0, 1, 0], squared[0, 0, 0, 1])
+
+    def test_rigid_cartesian_cell_rotation_leaves_operator_unchanged(self) -> None:
+        layer = MetricEqGINOSpectralConv3d(
+            2, 2, (3, 3, 3), groups=2
+        ).to(dtype=DTYPE)
+        field = torch.randn((2, 2, 8, 8, 8), dtype=DTYPE)
+        rotation, _ = torch.linalg.qr(torch.randn((3, 3), dtype=DTYPE))
+        rotation = rotation * torch.linalg.det(rotation)
+        reference = layer(field, self.cells)
+        rotated = layer(field, self.cells @ rotation)
+        torch.testing.assert_close(rotated, reference, atol=2e-12, rtol=2e-12)
+
+    def test_cubic_signed_axis_equivariance_is_exact(self) -> None:
+        model = FNO3d(
+            2,
+            2,
+            (3, 3, 3),
+            hidden_channels=4,
+            n_layers=2,
+            spectral_symmetry="metric_eqgino",
+            spectral_groups=2,
+        ).to(dtype=DTYPE)
+        field = torch.randn((1, 2, 8, 8, 8), dtype=DTYPE)
+        cell = (8.0 * torch.eye(3, dtype=DTYPE)).unsqueeze(0)
+        reference = model(field, cell=cell)
+        transformations = cubic_signed_permutation_matrices(
+            include_reflections=True, dtype=DTYPE
+        )
+        for index in (5, 17, 31, 44):
+            transformation = transformations[index]
+            transformed = transform_periodic_scalar_grid(field, transformation)
+            expected = transform_periodic_scalar_grid(reference, transformation)
+            with self.subTest(group_element=index):
+                torch.testing.assert_close(
+                    model(transformed, cell=cell), expected, atol=3e-12, rtol=3e-12
+                )
+
+    def test_particle_mesh_energy_and_force_rotate_for_triclinic_cell(self) -> None:
+        cell = self.cells[1]
+        fractional = torch.tensor(
+            ((0.17, 0.21, 0.31), (0.68, 0.73, 0.62), (0.41, 0.36, 0.84)),
+            dtype=DTYPE,
+        )
+        charges = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
+        model = LearnedParticleMeshLongRange3D(
+            (8, 8, 8),
+            channels=1,
+            n_modes=(3, 3, 3),
+            hidden_channels=4,
+            n_layers=2,
+            spectral_symmetry="metric_eqgino",
+            metric_hidden_channels=7,
+        ).to(dtype=DTYPE)
+
+        positions = (fractional @ cell).requires_grad_(True)
+        energy = model(positions, charges, cell)
+        force = -torch.autograd.grad(energy, positions)[0]
+        rotation, _ = torch.linalg.qr(torch.randn((3, 3), dtype=DTYPE))
+        rotation = rotation * torch.linalg.det(rotation)
+        rotated_cell = cell @ rotation
+        rotated_positions = (fractional @ rotated_cell).requires_grad_(True)
+        rotated_energy = model(rotated_positions, charges, rotated_cell)
+        rotated_force = -torch.autograd.grad(rotated_energy, rotated_positions)[0]
+
+        torch.testing.assert_close(rotated_energy, energy, atol=2e-12, rtol=2e-12)
+        torch.testing.assert_close(
+            rotated_force, force @ rotation, atol=2e-11, rtol=2e-11
+        )
+
+    def test_metric_operator_requires_valid_cells(self) -> None:
+        layer = MetricEqGINOSpectralConv3d(1, 1, (2, 2, 2)).to(dtype=DTYPE)
+        field = torch.randn((1, 1, 8, 8, 8), dtype=DTYPE)
+        with self.assertRaisesRegex(ValueError, "cell must have shape"):
+            layer(field, self.cells)
+        singular = self.cells[0].clone()
+        singular[2] = singular[1]
+        with self.assertRaisesRegex(ValueError, "finite and nonsingular"):
+            layer(field, singular)
 
 
 if __name__ == "__main__":

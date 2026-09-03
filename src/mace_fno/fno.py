@@ -18,6 +18,7 @@ from .fno_3d import (
     FNOBlock3d,
     FNOFieldOperator3d,
     LinearFNO3d,
+    MetricEqGINOSpectralConv3d,
     SpectralConv3d,
 )
 from .fno_slab import (
@@ -65,6 +66,7 @@ __all__ = [
     "LinearFNO2p5D",
     "LinearFNO3d",
     "LinearFNO3D",
+    "MetricEqGINOSpectralConv3d",
     "PlanarSpectralConv2p5d",
     "PlanarSpectralConv2p5D",
     "SpectralConv2d",

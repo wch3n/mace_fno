@@ -127,6 +127,14 @@ spectral channel-mixing weights across equal integer reciprocal-radius shells.
 `--cell-mode isotropic`, which accepts positive uniform scalings of a cubic
 reference cell and conditions the nonlinear operator on cell length.
 
+For noncubic or heterogeneous cells, `--spectral-symmetry metric_eqgino`
+evaluates a small radial network at the physical reciprocal magnitude
+`|2*pi*A^-1*n|^2` of every retained mode. This preserves an isotropic operator
+under rigid Cartesian rotation without incorrectly equating integer modes that
+have different wavelengths in an anisotropic cell. The radial-network width is
+controlled by `--metric-hidden-channels`. Use `--cell-mode anisotropic` when
+cell sizes or shapes vary within the dataset.
+
 `--volume-interlacing 2` averages eight half-grid origins. Interlacing is
 conservative but more expensive, and returned mesh fields are undefined
 because the replicas have different origins.

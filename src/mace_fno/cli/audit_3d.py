@@ -424,6 +424,7 @@ def main() -> None:
         "checkpoint": str(args.checkpoint),
         "spectral_symmetry": checkpoint.get("spectral_symmetry", "none"),
         "spectral_groups": checkpoint.get("spectral_groups", 1),
+        "metric_hidden_channels": checkpoint.get("metric_hidden_channels", 16),
         "volume_interlacing": checkpoint.get("volume_interlacing", 1),
         "interlacing_training": checkpoint.get("interlacing_training", "full"),
         "sample_cache": str(cache_path),
@@ -541,6 +542,7 @@ def main() -> None:
         if checkpoint.get("spectral_symmetry", "none") in {
             "eqgino",
             "cubic_adaptive",
+            "metric_eqgino",
         }:
             float32 = checkpoint.get("dtype") == "float32"
             exact_checks["cubic_residual_energy_invariance"] = {

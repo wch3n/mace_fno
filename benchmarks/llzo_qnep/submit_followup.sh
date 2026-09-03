@@ -16,6 +16,9 @@ SPLIT_SEED=${SPLIT_SEED:-17}
 FNO_SEEDS=${FNO_SEEDS:-"17 29 41"}
 MODEL_DTYPE=${MODEL_DTYPE:-float64}
 GPU_PARTITION=${GPU_PARTITION:-debug-gpu}
+SPECTRAL_SYMMETRY=${SPECTRAL_SYMMETRY:-cubic_adaptive}
+SPECTRAL_GROUPS=${SPECTRAL_GROUPS:-1}
+METRIC_HIDDEN_CHANNELS=${METRIC_HIDDEN_CHANNELS:-16}
 MACE_ONE_ROOT=${MACE_ONE_ROOT:-${EXPERIMENT_ROOT}/mace-nl0}
 MACE_TWO_ROOT=${MACE_TWO_ROOT:-${EXPERIMENT_ROOT}/mace-nl1}
 JOB_WORK_ROOT=${JOB_WORK_ROOT:-${EXPERIMENT_ROOT}/work}
@@ -87,7 +90,7 @@ for seed in "${seed_values[@]}"; do
     spectral_result="${REPORT_ROOT}/mace-fno-spectral-seed${seed}.json"
 
     fno_job=$(sbatch "${gpu_sbatch[@]}" --dependency="afterok:${mace_one_job}" \
-        --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},DATA_ROOT=${DATA_ROOT},RUN_ROOT=${fno_root},CACHE_ROOT=${fno_root}/cache,MACE_MODEL=${MACE_ONE_MODEL},CHECKPOINT=${checkpoint},JOB_WORK_ROOT=${JOB_WORK_ROOT}/fno-seed${seed},FNO_SEED=${seed},MODEL_DTYPE=${MODEL_DTYPE},VOLUME_INTERLACING=2,INTERLACING_TRAINING=random,SPECTRAL_SYMMETRY=cubic_adaptive,SPECTRAL_GROUPS=1" \
+        --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},DATA_ROOT=${DATA_ROOT},RUN_ROOT=${fno_root},CACHE_ROOT=${fno_root}/cache,MACE_MODEL=${MACE_ONE_MODEL},CHECKPOINT=${checkpoint},JOB_WORK_ROOT=${JOB_WORK_ROOT}/fno-seed${seed},FNO_SEED=${seed},MODEL_DTYPE=${MODEL_DTYPE},VOLUME_INTERLACING=2,INTERLACING_TRAINING=random,SPECTRAL_SYMMETRY=${SPECTRAL_SYMMETRY},SPECTRAL_GROUPS=${SPECTRAL_GROUPS},METRIC_HIDDEN_CHANNELS=${METRIC_HIDDEN_CHANNELS}" \
         "${PROJECT_ROOT}/benchmarks/llzo_qnep/train_fno_3d.slurm")
     fno_eval_job=$(sbatch "${gpu_sbatch[@]}" --dependency="afterok:${fno_job}" \
         --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${checkpoint},RESULT_PATH=${fno_result},JOB_WORK_ROOT=${JOB_WORK_ROOT}/fno-eval-seed${seed},MODEL_DTYPE=${MODEL_DTYPE}" \
@@ -111,6 +114,7 @@ summary_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${dependency_li
 
 printf 'Experiment root:       %s\n' "${EXPERIMENT_ROOT}"
 printf 'Blocked data:          %s\n' "${DATA_ROOT}"
+printf 'Spectral operator:     %s\n' "${SPECTRAL_SYMMETRY}"
 printf 'MACE nl0 train/eval:   %s %s\n' "${mace_one_job}" "${baseline_one_job}"
 printf 'MACE nl1 train/eval:   %s %s\n' "${mace_two_job}" "${baseline_two_job}"
 printf 'Multi-seed summary:    %s\n' "${summary_job}"

@@ -31,6 +31,7 @@ FNO_HIDDEN_CHANNELS=${FNO_HIDDEN_CHANNELS:-16}
 FNO_LAYERS=${FNO_LAYERS:-2}
 SPECTRAL_SYMMETRY=${SPECTRAL_SYMMETRY:-eqgino}
 SPECTRAL_GROUPS=${SPECTRAL_GROUPS:-4}
+METRIC_HIDDEN_CHANNELS=${METRIC_HIDDEN_CHANNELS:-16}
 VOLUME_INTERLACING=${VOLUME_INTERLACING:-1}
 BATCH_SIZE=${BATCH_SIZE:-2}
 EVALUATION_BATCH_SIZE=${EVALUATION_BATCH_SIZE:-8}
@@ -111,6 +112,7 @@ python3 -u -m mace_fno.cli.train_residual \
     --architecture nonlinear \
     --spectral-symmetry "${SPECTRAL_SYMMETRY}" \
     --spectral-groups "${SPECTRAL_GROUPS}" \
+    --metric-hidden-channels "${METRIC_HIDDEN_CHANNELS}" \
     --volume-interlacing "${VOLUME_INTERLACING}" \
     --steps "${STEPS}" \
     --learning-rate "${LEARNING_RATE}" \

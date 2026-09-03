@@ -37,6 +37,14 @@ a conventional spectral branch multiplied by a cell-anisotropy gate. The gate
 is exactly zero for cubic cells, enforcing their signed-axis symmetries, while
 noncubic cells retain direction-dependent spectral weights.
 
+The alternative `metric_eqgino` option generates each retained spectral
+weight from the physical reciprocal magnitude
+`|2*pi*A^-1*n|^2`. It is an isotropic, rigid-rotation-invariant operator for
+arbitrary nonsingular cell shapes and supports heterogeneous batches. Unlike
+`cubic_adaptive`, it does not add an unconstrained direction-dependent branch;
+the two choices should therefore be compared empirically on the blocked LLZO
+split.
+
 ## Data protocol
 
 The Zenodo record provides one structure file rather than an official test
@@ -114,6 +122,15 @@ Useful overrides include:
     PRETRAINED_MACE_NL0=/path/to/nl0.model \
     PRETRAINED_MACE_NL1=/path/to/nl1.model \
         bash benchmarks/llzo_qnep/submit.sh
+    SPECTRAL_SYMMETRY=metric_eqgino METRIC_HIDDEN_CHANNELS=16 \
+        bash benchmarks/llzo_qnep/submit.sh
+
+The three-seed blocked follow-up accepts the same operator override, allowing a
+matched comparison against the default `cubic_adaptive` run:
+
+    RUN_ID=llzo-block20-metric-f64 \
+    SPECTRAL_SYMMETRY=metric_eqgino METRIC_HIDDEN_CHANNELS=16 \
+        bash benchmarks/llzo_qnep/submit_followup.sh
 
 `RESTART_LATEST=1` resumes the most recent MACE checkpoint in each run root.
 The default FNO run uses float64, a 24x24x24 grid, four modes per direction,

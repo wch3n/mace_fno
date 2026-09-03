@@ -157,11 +157,12 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--spectral-symmetry",
-        choices=("none", "eqgino", "cubic_adaptive"),
+        choices=("none", "eqgino", "cubic_adaptive", "metric_eqgino"),
         default="none",
         help=(
             "Use EqGINO radial sharing for cubic cells, or a cubic-adaptive "
-            "EqGINO core plus a gated anisotropic branch for mixed cell shapes"
+            "EqGINO core plus a gated anisotropic branch for mixed cell shapes, "
+            "or physical reciprocal-metric radial weights for arbitrary cells"
         ),
     )
     parser.add_argument(
@@ -172,6 +173,12 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "Block-diagonal channel groups in the EqGINO spectral contraction; "
             "one retains dense channel mixing"
         ),
+    )
+    parser.add_argument(
+        "--metric-hidden-channels",
+        type=int,
+        default=16,
+        help="Hidden width of the physical-|k| radial network in metric EqGINO",
     )
     parser.add_argument(
         "--z-kernel-size",

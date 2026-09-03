@@ -38,6 +38,7 @@ class PublicAPITests(unittest.TestCase):
         self.assertEqual(args.spatial_scheme, "auto")
         self.assertEqual(args.cell_mode, "fixed")
         self.assertEqual(args.interlacing_training, "full")
+        self.assertEqual(args.metric_hidden_channels, 16)
         self.assertEqual(args.batch_size, 1)
         self.assertEqual(args.spectral_diagnostic_samples, 0)
         self.assertEqual(args.spectral_diagnostic_max_mode, 1)
@@ -77,6 +78,22 @@ class PublicAPITests(unittest.TestCase):
             ]
         )
         self.assertEqual(args.cell_mode, "anisotropic")
+
+    def test_metric_eqgino_arguments_can_be_selected(self) -> None:
+        args = parse_arguments(
+            [
+                "--mace-model",
+                "model.pt",
+                "--train-file",
+                "train.xyz",
+                "--spectral-symmetry",
+                "metric_eqgino",
+                "--metric-hidden-channels",
+                "12",
+            ]
+        )
+        self.assertEqual(args.spectral_symmetry, "metric_eqgino")
+        self.assertEqual(args.metric_hidden_channels, 12)
 
 
 if __name__ == "__main__":

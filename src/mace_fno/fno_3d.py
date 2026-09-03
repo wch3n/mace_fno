@@ -234,6 +234,176 @@ class EqGINOSpectralConv3d(nn.Module):
         return torch.fft.ifftn(output_k, dim=(-3, -2, -1)).real
 
 
+class MetricEqGINOSpectralConv3d(nn.Module):
+    """Cell-metric-aware isotropic convolution for periodic scalar fields.
+
+    Unlike :class:`EqGINOSpectralConv3d`, which shares weights on integer
+    reciprocal-grid shells and therefore assumes a cubic cell, this layer
+    evaluates a small radial network at the physical wavevector magnitude
+
+    ``|k_n|^2 = |2 pi A^{-1} n|^2``.
+
+    Here ``A`` follows ASE's row-vector cell convention and ``n`` is ordered
+    consistently with the field's ``(z, x, y)`` mesh.  Dependence on ``|k|^2``
+    makes the learned multiplier real and even, preserves Hermitian symmetry,
+    and is invariant when the complete cell is rigidly rotated.  The radial
+    network is evaluated only on retained modes, so its cost is small relative
+    to the full-grid FFT.
+    """
+
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        n_modes: tuple[int, int, int],
+        *,
+        groups: int = 1,
+        radial_hidden_channels: int = 16,
+    ) -> None:
+        super().__init__()
+        if in_channels < 1 or out_channels < 1:
+            raise ValueError("in_channels and out_channels must be positive")
+        if len(n_modes) != 3 or min(n_modes) < 1:
+            raise ValueError("n_modes must contain three positive integers")
+        if groups < 1:
+            raise ValueError("groups must be positive")
+        if in_channels % groups or out_channels % groups:
+            raise ValueError("in_channels and out_channels must be divisible by groups")
+        if radial_hidden_channels < 1:
+            raise ValueError("radial_hidden_channels must be positive")
+
+        self.in_channels = int(in_channels)
+        self.out_channels = int(out_channels)
+        self.n_modes = tuple(int(mode) for mode in n_modes)
+        self.groups = int(groups)
+        self.radial_hidden_channels = int(radial_hidden_channels)
+        self.in_channels_per_group = self.in_channels // self.groups
+        self.out_channels_per_group = self.out_channels // self.groups
+
+        signed_axes = tuple(
+            torch.cat((torch.arange(mode), torch.arange(-mode + 1, 0)))
+            for mode in self.n_modes
+        )
+        mode_z, mode_x, mode_y = torch.meshgrid(*signed_axes, indexing="ij")
+        mode_xyz = torch.stack((mode_x, mode_y, mode_z), dim=-1)
+        self.register_buffer("mode_xyz", mode_xyz, persistent=True)
+
+        matrix_size = (
+            self.groups
+            * self.in_channels_per_group
+            * self.out_channels_per_group
+        )
+        self.radial_network = nn.Sequential(
+            nn.Linear(1, self.radial_hidden_channels),
+            nn.SiLU(),
+            nn.Linear(self.radial_hidden_channels, matrix_size),
+        )
+        scale = 1.0 / math.sqrt(
+            self.in_channels_per_group * self.out_channels_per_group
+        )
+        final = self.radial_network[-1]
+        nn.init.normal_(
+            final.weight,
+            std=scale / math.sqrt(self.radial_hidden_channels),
+        )
+        nn.init.normal_(final.bias, std=scale)
+
+    def _physical_squared_wavevectors(self, cells: Tensor) -> Tensor:
+        """Return retained ``|k|^2`` values with shape ``(batch, z, x, y)``."""
+        modes = self.mode_xyz.to(device=cells.device, dtype=cells.dtype)
+        flat_modes = modes.reshape(-1, 3).transpose(0, 1)
+        right_hand_side = flat_modes.unsqueeze(0).expand(cells.shape[0], -1, -1)
+        wavevectors = (
+            2.0
+            * math.pi
+            * torch.linalg.solve(cells, right_hand_side).transpose(1, 2)
+        )
+        squared = wavevectors.square().sum(dim=-1)
+        return squared.reshape(cells.shape[0], *modes.shape[:-1])
+
+    def forward(self, field: Tensor, cell: Tensor) -> Tensor:
+        if field.ndim != 5 or field.shape[1] != self.in_channels:
+            raise ValueError(
+                f"field must have shape (batch, {self.in_channels}, nz, nx, ny); "
+                f"received {tuple(field.shape)}"
+            )
+        if cell.ndim == 2 and cell.shape == (3, 3) and field.shape[0] == 1:
+            cells = cell.unsqueeze(0)
+        elif cell.ndim == 3 and cell.shape == (field.shape[0], 3, 3):
+            cells = cell
+        else:
+            raise ValueError("cell must have shape (3, 3) or (batch, 3, 3)")
+        if not torch.is_floating_point(cells):
+            raise TypeError("cell must be a floating-point tensor")
+        if cells.device != field.device or cells.dtype != field.dtype:
+            raise ValueError("field and cell must use the same device and dtype")
+        determinants = torch.linalg.det(cells)
+        valid = torch.isfinite(cells).all(dim=(-2, -1)) & torch.isfinite(determinants)
+        valid = valid & (determinants.abs() > torch.finfo(cells.dtype).eps)
+        if not bool(valid.all().detach().cpu()):
+            raise ValueError("every metric-aware cell must be finite and nonsingular")
+
+        nz, nx, ny = field.shape[-3:]
+        modes_z, modes_x, modes_y = self.n_modes
+        if 2 * modes_z > nz or 2 * modes_x > nx or 2 * modes_y > ny:
+            raise ValueError(
+                f"n_modes={self.n_modes} is incompatible with grid {(nz, nx, ny)}; "
+                "require twice every retained mode count to fit its grid axis"
+            )
+        retained_indices = tuple(
+            torch.cat(
+                (
+                    torch.arange(mode, device=field.device),
+                    torch.arange(size - mode + 1, size, device=field.device),
+                )
+            )
+            for mode, size in zip(self.n_modes, (nz, nx, ny), strict=True)
+        )
+        indices_z, indices_x, indices_y = retained_indices
+
+        field_k = torch.fft.fftn(field, dim=(-3, -2, -1))
+        retained = field_k[
+            :,
+            :,
+            indices_z[:, None, None],
+            indices_x[None, :, None],
+            indices_y[None, None, :],
+        ]
+        retained = retained.reshape(
+            field.shape[0],
+            self.groups,
+            self.in_channels_per_group,
+            *retained.shape[-3:],
+        )
+
+        squared_wavevectors = self._physical_squared_wavevectors(cells)
+        radial_coordinate = torch.log1p(squared_wavevectors).unsqueeze(-1)
+        weights = self.radial_network(radial_coordinate)
+        weights = weights.reshape(
+            field.shape[0],
+            *squared_wavevectors.shape[-3:],
+            self.groups,
+            self.in_channels_per_group,
+            self.out_channels_per_group,
+        ).permute(0, 4, 5, 6, 1, 2, 3)
+        transformed = torch.complex(
+            torch.einsum("bgizxy,bgiozxy->bgozxy", retained.real, weights),
+            torch.einsum("bgizxy,bgiozxy->bgozxy", retained.imag, weights),
+        ).reshape(field.shape[0], self.out_channels, *retained.shape[-3:])
+
+        output_k = field_k.new_zeros(
+            (field.shape[0], self.out_channels, nz, nx, ny)
+        )
+        output_k[
+            :,
+            :,
+            indices_z[:, None, None],
+            indices_x[None, :, None],
+            indices_y[None, None, :],
+        ] = transformed
+        return torch.fft.ifftn(output_k, dim=(-3, -2, -1)).real
+
+
 class CubicAdaptiveSpectralConv3d(nn.Module):
     """Cubic-equivariant core plus a cell-anisotropic spectral correction.
 
@@ -274,6 +444,7 @@ def _spectral_conv3d(
     *,
     spectral_symmetry: str,
     spectral_groups: int,
+    metric_hidden_channels: int,
 ) -> nn.Module:
     if spectral_symmetry == "none":
         if spectral_groups != 1:
@@ -287,8 +458,17 @@ def _spectral_conv3d(
         return CubicAdaptiveSpectralConv3d(
             in_channels, out_channels, n_modes, groups=spectral_groups
         )
+    if spectral_symmetry == "metric_eqgino":
+        return MetricEqGINOSpectralConv3d(
+            in_channels,
+            out_channels,
+            n_modes,
+            groups=spectral_groups,
+            radial_hidden_channels=metric_hidden_channels,
+        )
     raise ValueError(
-        "spectral_symmetry must be 'none', 'eqgino', or 'cubic_adaptive'"
+        "spectral_symmetry must be 'none', 'eqgino', 'cubic_adaptive', or "
+        "'metric_eqgino'"
     )
 
 
@@ -302,6 +482,7 @@ class FNOBlock3d(nn.Module):
         *,
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
     ) -> None:
         super().__init__()
         self.spectral = _spectral_conv3d(
@@ -310,15 +491,23 @@ class FNOBlock3d(nn.Module):
             n_modes,
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
+            metric_hidden_channels=metric_hidden_channels,
         )
         self.spectral_symmetry = spectral_symmetry
         self.local = nn.Conv3d(channels, channels, kernel_size=1, bias=False)
 
     def forward(
-        self, field: Tensor, anisotropy_gate: Tensor | None = None
+        self,
+        field: Tensor,
+        anisotropy_gate: Tensor | None = None,
+        cell: Tensor | None = None,
     ) -> Tensor:
         if self.spectral_symmetry == "cubic_adaptive":
             spectral = self.spectral(field, anisotropy_gate)
+        elif self.spectral_symmetry == "metric_eqgino":
+            if cell is None:
+                raise ValueError("metric-aware EqGINO requires cell")
+            spectral = self.spectral(field, cell)
         else:
             spectral = self.spectral(field)
         return F.gelu(spectral + self.local(field))
@@ -335,6 +524,7 @@ class LinearFNO3d(nn.Module):
         *,
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
     ) -> None:
         super().__init__()
         self.in_channels = int(in_channels)
@@ -345,11 +535,15 @@ class LinearFNO3d(nn.Module):
             n_modes,
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
+            metric_hidden_channels=metric_hidden_channels,
         )
         self.spectral_symmetry = spectral_symmetry
 
     def forward(
-        self, field: Tensor, anisotropy_gate: Tensor | None = None
+        self,
+        field: Tensor,
+        anisotropy_gate: Tensor | None = None,
+        cell: Tensor | None = None,
     ) -> Tensor:
         unbatched = field.ndim == 4
         field_batch = field.unsqueeze(0) if unbatched else field
@@ -361,6 +555,10 @@ class LinearFNO3d(nn.Module):
             )
         if self.spectral_symmetry == "cubic_adaptive":
             output = self.spectral(field_batch, anisotropy_gate)
+        elif self.spectral_symmetry == "metric_eqgino":
+            if cell is None:
+                raise ValueError("metric-aware EqGINO requires cell")
+            output = self.spectral(field_batch, cell)
         else:
             output = self.spectral(field_batch)
         return output.squeeze(0) if unbatched else output
@@ -380,6 +578,7 @@ class FNO3d(nn.Module):
         projection_channels: int | None = None,
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
     ) -> None:
         super().__init__()
         if min(in_channels, out_channels, hidden_channels, n_layers) < 1:
@@ -402,6 +601,7 @@ class FNO3d(nn.Module):
                 self.n_modes,
                 spectral_symmetry=self.spectral_symmetry,
                 spectral_groups=self.spectral_groups,
+                metric_hidden_channels=metric_hidden_channels,
             )
             for _ in range(n_layers)
         )
@@ -413,7 +613,10 @@ class FNO3d(nn.Module):
         )
 
     def forward(
-        self, field: Tensor, anisotropy_gate: Tensor | None = None
+        self,
+        field: Tensor,
+        anisotropy_gate: Tensor | None = None,
+        cell: Tensor | None = None,
     ) -> Tensor:
         unbatched = field.ndim == 4
         if unbatched:
@@ -427,7 +630,7 @@ class FNO3d(nn.Module):
 
         hidden = self.lifting(field)
         for block in self.blocks:
-            hidden = block(hidden, anisotropy_gate)
+            hidden = block(hidden, anisotropy_gate, cell)
         output = self.projection_output(F.gelu(self.projection_hidden(hidden)))
         return output.squeeze(0) if unbatched else output
 
@@ -459,6 +662,7 @@ class FNOFieldOperator3d(nn.Module):
         architecture: str = "nonlinear",
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
         cell_conditioning: str = "none",
     ) -> None:
         super().__init__()
@@ -474,6 +678,7 @@ class FNOFieldOperator3d(nn.Module):
         self.channels = int(channels)
         self.spectral_symmetry = spectral_symmetry
         self.spectral_groups = int(spectral_groups)
+        self.metric_hidden_channels = int(metric_hidden_channels)
         self.cell_conditioning = cell_conditioning
         conditioning_channels = {
             "none": 0,
@@ -488,6 +693,7 @@ class FNOFieldOperator3d(nn.Module):
                 n_modes,
                 spectral_symmetry=spectral_symmetry,
                 spectral_groups=spectral_groups,
+                metric_hidden_channels=metric_hidden_channels,
             )
         else:
             self.fno = FNO3d(
@@ -499,6 +705,7 @@ class FNOFieldOperator3d(nn.Module):
                 projection_channels=projection_channels,
                 spectral_symmetry=spectral_symmetry,
                 spectral_groups=spectral_groups,
+                metric_hidden_channels=metric_hidden_channels,
             )
         self.register_buffer("input_scale", torch.ones(1, channels, 1, 1, 1))
         self.register_buffer("output_scale", torch.ones(1, channels, 1, 1, 1))
@@ -606,6 +813,6 @@ class FNOFieldOperator3d(nn.Module):
                 cubic, torch.zeros_like(anisotropy_gate), anisotropy_gate
             )
         potential = self.fno(
-            normalized, anisotropy_gate=anisotropy_gate
+            normalized, anisotropy_gate=anisotropy_gate, cell=cells
         ) * self.output_scale
         return potential.squeeze(0) if unbatched else potential

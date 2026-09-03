@@ -710,6 +710,29 @@ class CouplingTests(unittest.TestCase):
         )
         self.assertTrue(torch.isfinite(adaptive_output["residual_forces"]).all())
 
+        metric = MACEFNOResidual(
+            _FakeMACE(),
+            (8, 8),
+            channels=2,
+            n_modes=(2, 2),
+            fno_hidden_channels=4,
+            spatial_scheme="3d",
+            z_grid_size=8,
+            fno_z_modes=2,
+            fno_spectral_symmetry="metric_eqgino",
+            fno_spectral_groups=2,
+            fno_metric_hidden_channels=5,
+            invariant_indices=(0, 2),
+            cell_mode="anisotropic",
+        ).to(dtype=DTYPE)
+        metric_output = metric(
+            data, compute_force=False, compute_residual_force=True
+        )
+        self.assertTrue(torch.isfinite(metric_output["residual_forces"]).all())
+        self.assertEqual(
+            metric.long_range.field_operator.metric_hidden_channels, 5
+        )
+
     def test_eqgino_3d_coupling_requires_cubic_geometry(self) -> None:
         cubic_cell = 8.0 * torch.eye(3, dtype=DTYPE)
         model = MACEFNOResidual(
@@ -956,6 +979,7 @@ class CouplingTests(unittest.TestCase):
             "volume_interlacing": 1,
             "spectral_symmetry": "eqgino",
             "spectral_groups": 4,
+            "metric_hidden_channels": 12,
             "channels": 2,
             "source_hidden_channels": 8,
             "fno_hidden_channels": 6,
@@ -968,6 +992,7 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(parameters["fno_z_modes"], 3)
         self.assertEqual(parameters["fno_spectral_symmetry"], "eqgino")
         self.assertEqual(parameters["fno_spectral_groups"], 4)
+        self.assertEqual(parameters["fno_metric_hidden_channels"], 12)
         self.assertEqual(parameters["fno_interlacing_training"], "full")
 
         checkpoint["cell_mode"] = "anisotropic"
@@ -975,6 +1000,62 @@ class CouplingTests(unittest.TestCase):
         checkpoint["spectral_groups"] = 1
         parameters = checkpoint_model_parameters(checkpoint)
         self.assertEqual(parameters["cell_mode"], "anisotropic")
+
+        checkpoint.pop("metric_hidden_channels")
+        parameters = checkpoint_model_parameters(checkpoint)
+        self.assertEqual(parameters["fno_metric_hidden_channels"], 16)
+
+    def test_metric_eqgino_checkpoint_reconstructs_model(self) -> None:
+        reference_cell = _batch_data()["cell"][0]
+        original = MACEFNOResidual(
+            _FakeMACE(with_irreps=True),
+            (8, 8),
+            channels=2,
+            n_modes=(2, 2),
+            source_hidden_channels=7,
+            fno_hidden_channels=4,
+            fno_layers=1,
+            spatial_scheme="3d",
+            z_grid_size=8,
+            fno_z_modes=2,
+            fno_spectral_symmetry="metric_eqgino",
+            fno_spectral_groups=2,
+            fno_metric_hidden_channels=5,
+            reference_cell=reference_cell,
+            cell_mode="anisotropic",
+        ).to(dtype=DTYPE)
+        checkpoint = {
+            "residual_state_dict": residual_state_dict(original),
+            "grid_shape": (8, 8),
+            "n_modes": (2, 2, 2),
+            "spatial_scheme": "3d",
+            "cell_mode": "anisotropic",
+            "z_grid_size": 8,
+            "volume_interlacing": 1,
+            "spectral_symmetry": "metric_eqgino",
+            "spectral_groups": 2,
+            "metric_hidden_channels": 5,
+            "channels": 2,
+            "source_hidden_channels": 7,
+            "fno_hidden_channels": 4,
+            "fno_layers": 1,
+            "architecture": "nonlinear",
+            "reference_cell": reference_cell,
+            "dtype": "float64",
+        }
+        restored = build_mace_fno_model(
+            checkpoint, _FakeMACE(with_irreps=True), dtype=DTYPE
+        )
+        self.assertEqual(
+            restored.long_range.field_operator.spectral_symmetry,
+            "metric_eqgino",
+        )
+        self.assertEqual(
+            restored.long_range.field_operator.metric_hidden_channels,
+            5,
+        )
+        for key, expected in checkpoint["residual_state_dict"].items():
+            torch.testing.assert_close(residual_state_dict(restored)[key], expected)
 
     def test_legacy_artifact_model_path_follows_relocated_checkpoint(self) -> None:
         with TemporaryDirectory() as directory:

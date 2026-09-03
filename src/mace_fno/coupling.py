@@ -336,6 +336,7 @@ class MACEFNOResidual(nn.Module):
         fno_planar_symmetry: str = "none",
         fno_spectral_symmetry: str = "none",
         fno_spectral_groups: int = 1,
+        fno_metric_hidden_channels: int = 16,
         invariant_indices: Sequence[int] | None = None,
         reference_cell: Tensor | None = None,
         cell_tolerance: float = 1.0e-6,
@@ -368,15 +369,18 @@ class MACEFNOResidual(nn.Module):
             "none",
             "eqgino",
             "cubic_adaptive",
+            "metric_eqgino",
         }:
             raise ValueError(
-                "fno_spectral_symmetry must be 'none', 'eqgino', or "
-                "'cubic_adaptive'"
+                "fno_spectral_symmetry must be 'none', 'eqgino', "
+                "'cubic_adaptive', or 'metric_eqgino'"
             )
         if resolved_scheme != "3d" and fno_spectral_symmetry != "none":
             raise ValueError("fno_spectral_symmetry applies only to the 3D scheme")
         if fno_spectral_groups < 1:
             raise ValueError("fno_spectral_groups must be positive")
+        if fno_metric_hidden_channels < 1:
+            raise ValueError("fno_metric_hidden_channels must be positive")
         if fno_spectral_symmetry == "none" and fno_spectral_groups != 1:
             raise ValueError(
                 "fno_spectral_groups applies only to EqGINO-based symmetry"
@@ -465,6 +469,7 @@ class MACEFNOResidual(nn.Module):
                 architecture=fno_architecture,
                 spectral_symmetry=fno_spectral_symmetry,
                 spectral_groups=fno_spectral_groups,
+                metric_hidden_channels=fno_metric_hidden_channels,
                 cell_conditioning=(
                     cell_mode if cell_mode in {"isotropic", "anisotropic"} else "none"
                 ),

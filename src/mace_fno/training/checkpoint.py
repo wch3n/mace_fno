@@ -149,6 +149,9 @@ def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]
                     checkpoint.get("spectral_symmetry") or "none"
                 ),
                 "fno_spectral_groups": int(checkpoint.get("spectral_groups", 1)),
+                "fno_metric_hidden_channels": int(
+                    checkpoint.get("metric_hidden_channels", 16)
+                ),
             }
         )
     return parameters

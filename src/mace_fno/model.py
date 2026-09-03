@@ -515,6 +515,7 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
         architecture: str = "nonlinear",
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
         cell_conditioning: str = "none",
         volume_interlacing: int = 1,
         interlacing_training: str = "full",
@@ -530,6 +531,7 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
             architecture=architecture,
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
+            metric_hidden_channels=metric_hidden_channels,
             cell_conditioning=cell_conditioning,
         )
         super().__init__(

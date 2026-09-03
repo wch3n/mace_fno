@@ -168,6 +168,8 @@ def main() -> None:
     resolved_z_modes = args.z_modes or args.modes
     if args.spectral_groups < 1:
         raise ValueError("spectral_groups must be positive")
+    if args.metric_hidden_channels < 1:
+        raise ValueError("metric_hidden_channels must be positive")
     if args.spectral_symmetry == "none" and args.spectral_groups != 1:
         raise ValueError("--spectral-groups applies only with EqGINO-based symmetry")
     if args.interlacing_training == "random" and args.volume_interlacing != 2:
@@ -224,6 +226,11 @@ def main() -> None:
                 raise ValueError("EqGINO-based symmetry requires z_grid == grid")
             if resolved_z_modes != args.modes:
                 raise ValueError("EqGINO-based symmetry requires z_modes == modes")
+        if args.spectral_symmetry in {
+            "eqgino",
+            "cubic_adaptive",
+            "metric_eqgino",
+        }:
             grouped_channels = (
                 args.channels
                 if args.architecture == "linear"
@@ -481,6 +488,7 @@ def main() -> None:
         fno_planar_symmetry=args.planar_symmetry,
         fno_spectral_symmetry=args.spectral_symmetry,
         fno_spectral_groups=args.spectral_groups,
+        fno_metric_hidden_channels=args.metric_hidden_channels,
         reference_cell=reference_cell,
         cell_mode=args.cell_mode,
     ).to(device=device, dtype=dtype)
@@ -949,6 +957,9 @@ def main() -> None:
                 ),
                 "spectral_groups": (
                     args.spectral_groups if spatial_scheme == "3d" else 1
+                ),
+                "metric_hidden_channels": (
+                    args.metric_hidden_channels if spatial_scheme == "3d" else 16
                 ),
                 "z_kernel_size": (
                     args.z_kernel_size if spatial_scheme == "2.5d" else None
