@@ -10,7 +10,6 @@ from mace_fno import (
     transform_in_cell_axis_basis,
 )
 
-
 DTYPE = torch.float64
 
 

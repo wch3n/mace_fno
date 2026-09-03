@@ -20,7 +20,6 @@ from mace_fno.spectral_response import (
     wavevector_norm,
 )
 
-
 DTYPE = torch.float64
 
 

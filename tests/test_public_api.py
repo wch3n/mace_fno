@@ -7,8 +7,8 @@ from contextlib import redirect_stderr
 import mace_fno
 from mace_fno import (
     FNO2D,
-    FNO2d,
     FNO3D,
+    FNO2d,
     FNO3d,
     FNOFieldOperator2D,
     FNOFieldOperator3D,

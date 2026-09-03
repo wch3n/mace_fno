@@ -7,7 +7,6 @@ import torch
 from mace_fno.geometry import mesh_cell_area
 from mace_fno.particle_mesh import PeriodicParticleMesh2D
 
-
 DTYPE = torch.float64
 
 

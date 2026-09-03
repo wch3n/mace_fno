@@ -10,9 +10,9 @@ from .coupling import (
 )
 from .fno import (
     FNO2D,
+    FNO3D,
     FNO2d,
     FNO2p5D,
-    FNO3D,
     FNO3d,
     FNOFieldOperator,
     FNOFieldOperator2D,
@@ -72,12 +72,12 @@ from .spectral_response import (
     wavevector,
     wavevector_norm,
 )
-from .synthetic import generate_planar_coulomb_fields
 from .symmetry import (
     cubic_signed_permutation_matrices,
     is_cubic_cell,
     transform_in_cell_axis_basis,
 )
+from .synthetic import generate_planar_coulomb_fields
 
 __all__ = [
     "FNO2D",

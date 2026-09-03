@@ -11,7 +11,6 @@ import numpy as np
 import torch
 from ase.io import read
 
-
 CACHE_FORMAT_VERSION = 2
 
 

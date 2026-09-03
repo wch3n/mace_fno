@@ -7,7 +7,6 @@ import torch
 from mace_fno import ParticleMeshLongRange, direct_planar_coulomb_energy
 from mace_fno.spectral import PlanarCoulombOperator
 
-
 DTYPE = torch.float64
 
 

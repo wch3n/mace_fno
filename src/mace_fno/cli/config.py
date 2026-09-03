@@ -120,7 +120,7 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         "--z-center",
         choices=("mean", "cell"),
         default="mean",
-        help="Centre the finite z window on each graph's mean height or cell centre",
+        help="Center the finite z window on each graph's mean height or cell center",
     )
     parser.add_argument(
         "--lateral-interlacing",

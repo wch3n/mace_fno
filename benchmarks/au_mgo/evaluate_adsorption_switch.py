@@ -23,7 +23,6 @@ from ase.constraints import FixAtoms
 from ase.io import read, write
 from ase.optimize import FIRE
 
-
 STATE_DEFINITIONS = (
     ("1-undoped", "undoped", "non-wetting"),
     ("3-undoped", "undoped", "wetting"),

@@ -10,8 +10,8 @@ from .checkpoint import (
     load_mace_fno_components,
     load_mace_fno_model,
     load_residual_state_dict,
-    resolve_checkpoint_model_path,
     residual_state_dict,
+    resolve_checkpoint_model_path,
 )
 from .data import (
     CACHE_FORMAT_VERSION,
@@ -43,8 +43,8 @@ from .runtime import choose_device, elapsed_since
 from .spectral_diagnostic import (
     amplitude_convergence_diagnostic,
     low_k_response_diagnostic,
-    planar_2d_response_diagnostic,
     periodic_3d_response_diagnostic,
+    planar_2d_response_diagnostic,
     slab_2p5d_response_diagnostic,
     summarize_amplitude_convergence,
 )

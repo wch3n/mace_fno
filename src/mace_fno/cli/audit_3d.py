@@ -343,13 +343,13 @@ def main() -> None:
 
     cubic_report = None
     if is_cubic(first_cell):
-        centre = 0.5 * first_cell.sum(dim=0)
+        center = 0.5 * first_cell.sum(dim=0)
         transformations = cubic_transformations(dtype, device)
         transformed_graphs = []
         for transform in transformations.values():
             graph = clone_graph(first_sample["data"], device, dtype)
-            graph["positions"] = centre + signed_axis_transform(
-                graph["positions"] - centre, first_cell, transform
+            graph["positions"] = center + signed_axis_transform(
+                graph["positions"] - center, first_cell, transform
             )
             graph["shifts"] = signed_axis_transform(
                 graph["shifts"], first_cell, transform

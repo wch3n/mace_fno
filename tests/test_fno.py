@@ -11,7 +11,6 @@ from mace_fno import (
     LinearFNO2d,
 )
 
-
 DTYPE = torch.float64
 
 

@@ -33,3 +33,10 @@ mace-fno-audit-spectral = "mace_fno.cli.audit_spectral:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]

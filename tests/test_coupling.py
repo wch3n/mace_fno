@@ -22,8 +22,8 @@ from mace_fno.training import (
     ensure_frozen_residual_targets,
     infer_checkpoint_z_mixing,
     low_k_response_diagnostic,
-    resolve_checkpoint_model_path,
     residual_state_dict,
+    resolve_checkpoint_model_path,
 )
 
 DTYPE = torch.float64

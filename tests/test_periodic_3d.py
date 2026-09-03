@@ -14,7 +14,6 @@ from mace_fno import (
     cubic_signed_permutation_matrices,
 )
 
-
 DTYPE = torch.float64
 
 

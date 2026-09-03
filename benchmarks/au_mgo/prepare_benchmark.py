@@ -9,7 +9,6 @@ import os
 import shutil
 from pathlib import Path
 
-
 FILES = {
     "data-benchmark/train-Au-MgO-Al.xyz": (
         "data/train-Au-MgO-Al.xyz",

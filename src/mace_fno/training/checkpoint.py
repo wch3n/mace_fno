@@ -16,7 +16,6 @@ import torch
 
 from ..coupling import MACEFNOResidual
 
-
 CHECKPOINT_FORMAT_VERSION = 1
 
 

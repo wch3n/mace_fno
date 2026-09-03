@@ -236,9 +236,9 @@ def main() -> None:
         ((first_length - second_length).abs() <= 1.0e-6 * first_length)
         & (orthogonality <= 1.0e-6 * first_length * second_length)
     ):
-        centre = 0.5 * (c4_cell[0] + c4_cell[1])
-        c4_graph["positions"] = centre + rotate_c4(
-            c4_graph["positions"] - centre, c4_cell
+        center = 0.5 * (c4_cell[0] + c4_cell[1])
+        c4_graph["positions"] = center + rotate_c4(
+            c4_graph["positions"] - center, c4_cell
         )
         c4_graph["shifts"] = rotate_c4(c4_graph["shifts"], c4_cell)
         c4_output = model(
@@ -270,8 +270,8 @@ def main() -> None:
             ),
         }
         reflection_graph = clone_graph(samples[0]["data"], device, dtype)
-        reflection_graph["positions"] = centre + reflect_first_axis(
-            reflection_graph["positions"] - centre, c4_cell
+        reflection_graph["positions"] = center + reflect_first_axis(
+            reflection_graph["positions"] - center, c4_cell
         )
         reflection_graph["shifts"] = reflect_first_axis(
             reflection_graph["shifts"], c4_cell

@@ -5,8 +5,6 @@ from __future__ import annotations
 import torch
 from torch import Tensor, nn
 
-from .geometry import fractional_coordinates, mesh_cell_area
-
 
 def _cubic_bspline_weights(t: Tensor) -> Tensor:
     """Cardinal cubic B-spline weights for offsets ``(-1, 0, 1, 2)``."""
@@ -19,12 +17,12 @@ def _cubic_bspline_weights(t: Tensor) -> Tensor:
 
 
 class PeriodicParticleMesh2D(nn.Module):
-    """Deposit atom-centred scalar features onto a periodic 2D density mesh.
+    """Deposit atom-centered scalar features onto a periodic 2D density mesh.
 
     Positions use Cartesian coordinates and cells use ASE's row-vector
     convention. The returned tensor has shape ``(channels, nx, ny)`` and is a
     density: integrating it with the mesh-cell area recovers the sum of the
-    atom-centred input values.
+    atom-centered input values.
     """
 
     def __init__(self, grid_shape: tuple[int, int]) -> None:
@@ -126,14 +124,14 @@ class PeriodicParticleMesh2D(nn.Module):
 
 
 class PeriodicParticleMesh3D(nn.Module):
-    """Deposit atom-centred features on a fully periodic three-dimensional mesh.
+    """Deposit atom-centered features on a fully periodic three-dimensional mesh.
 
     Cartesian positions are converted to fractional coordinates using the full
     triclinic cell and wrapped along all three lattice directions.  The mesh
     layout is ``(channels, nz, nx, ny)`` (or batch first), matching the tensor
     convention used by the 2.5D model while making z periodic.  Integrating the
     returned density with voxel volume ``|det(cell)|/(nz*nx*ny)`` recovers the
-    sum of each atom-centred input channel.
+    sum of each atom-centered input channel.
     """
 
     def __init__(self, grid_shape: tuple[int, int, int]) -> None:
@@ -259,14 +257,14 @@ class SlabParticleMesh2p5D(nn.Module):
     window is accumulated into the boundary voxel, which conserves deposited
     values without introducing periodic coupling between the two surfaces.
 
-    With ``z_center='mean'`` (the default), each graph is centred on its mean
+    With ``z_center='mean'`` (the default), each graph is centered on its mean
     atomic height. This makes the field invariant to rigid translations normal
-    to the surface. ``z_center='cell'`` instead uses the projected centre of the
+    to the surface. ``z_center='cell'`` instead uses the projected center of the
     third cell vector and is useful when an externally fixed z origin matters.
 
     The returned density has shape ``(channels, nz, nx, ny)`` when unbatched or
     ``(batch, channels, nz, nx, ny)`` when batched. Integrating it with voxel
-    volume ``area*z_extent/(nz*nx*ny)`` recovers the atom-centred input values.
+    volume ``area*z_extent/(nz*nx*ny)`` recovers the atom-centered input values.
     """
 
     def __init__(
@@ -362,10 +360,10 @@ class SlabParticleMesh2p5D(nn.Module):
             counts = heights.new_zeros(num_graphs).index_add(
                 0, batch, heights.new_ones(heights.shape[0])
             )
-            centres = height_sums / counts
+            centers = height_sums / counts
         else:
-            centres = 0.5 * (cells[:, 2] * unit_normals).sum(dim=1)
-        relative_heights = heights - centres.index_select(0, batch)
+            centers = 0.5 * (cells[:, 2] * unit_normals).sum(dim=1)
+        relative_heights = heights - centers.index_select(0, batch)
         half_extent = 0.5 * self.z_extent
         tolerance = 16.0 * torch.finfo(positions.dtype).eps * max(
             self.z_extent, 1.0
