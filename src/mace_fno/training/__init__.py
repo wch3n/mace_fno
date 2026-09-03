@@ -47,7 +47,15 @@ from .initialization import (
     initialize_scaled_residual_output,
     initialize_zero_residual,
 )
+from .monitor import SpectralMonitor
 from .runtime import choose_device, elapsed_since
+from .setup import (
+    PreparedData,
+    build_training_model,
+    cache_frozen_targets,
+    load_mace_calculator,
+    prepare_data,
+)
 from .spectral_diagnostic import (
     amplitude_convergence_diagnostic,
     low_k_response_diagnostic,
@@ -55,6 +63,12 @@ from .spectral_diagnostic import (
     planar_2d_response_diagnostic,
     slab_2p5d_response_diagnostic,
     summarize_amplitude_convergence,
+)
+from .trainer import (
+    OptimizationResult,
+    evaluate_frozen_baseline,
+    evaluate_selected_model,
+    optimize_residual,
 )
 
 __all__ = [
@@ -64,11 +78,15 @@ __all__ = [
     "DiagnosticConfig",
     "ModelConfig",
     "OptimizationConfig",
+    "OptimizationResult",
+    "PreparedData",
     "RuntimeConfig",
     "TrainingConfig",
     "amplitude_convergence_diagnostic",
     "batch_graphs",
     "build_mace_fno_model",
+    "build_training_model",
+    "cache_frozen_targets",
     "checkpoint_dtype",
     "checkpoint_model_parameters",
     "choose_device",
@@ -78,6 +96,8 @@ __all__ = [
     "elapsed_since",
     "ensure_frozen_residual_targets",
     "evaluate",
+    "evaluate_frozen_baseline",
+    "evaluate_selected_model",
     "finish_output_projection_warmup",
     "has_reference_labels",
     "initialize_scaled_residual_output",
@@ -86,13 +106,16 @@ __all__ = [
     "load_checkpoint_payload",
     "load_mace_fno_components",
     "load_mace_fno_model",
+    "load_mace_calculator",
     "load_or_create_samples",
     "load_residual_state_dict",
     "load_samples",
     "low_k_response_diagnostic",
+    "optimize_residual",
     "planar_2d_response_diagnostic",
     "periodic_3d_response_diagnostic",
     "print_metrics",
+    "prepare_data",
     "reference_energy",
     "reference_forces",
     "resolve_checkpoint_model_path",
@@ -101,6 +124,7 @@ __all__ = [
     "save_sample_cache",
     "slab_2p5d_response_diagnostic",
     "summarize_amplitude_convergence",
+    "SpectralMonitor",
     "split_samples",
     "validation_objective",
 ]
