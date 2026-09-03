@@ -45,6 +45,25 @@ def load_summary_module():
 SUMMARY = load_summary_module()
 
 
+def load_multiseed_summary_module():
+    script = (
+        Path(__file__).resolve().parents[1]
+        / "benchmarks"
+        / "llzo_qnep"
+        / "summarize_multiseed.py"
+    )
+    specification = importlib.util.spec_from_file_location(
+        "llzo_multiseed_summary", script
+    )
+    assert specification is not None and specification.loader is not None
+    module = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(module)
+    return module
+
+
+MULTISEED = load_multiseed_summary_module()
+
+
 class LLZOBenchmarkTests(unittest.TestCase):
     def test_classify_cell(self) -> None:
         self.assertEqual(PREPARE.classify_cell(np.diag((12.5, 12.5, 12.5))), "cubic")
@@ -226,6 +245,115 @@ class LLZOBenchmarkTests(unittest.TestCase):
             self.assertTrue(report["assessment"]["held_out_force_improved"])
             self.assertTrue(report["assessment"]["exact_audit_passed"])
             self.assertIn("MACE, one interaction + FNO", output_markdown.read_text())
+
+    def test_multiseed_summary_reports_sample_variation(self) -> None:
+        baseline_group = {
+            "energy_eV_per_atom": {"rmse": 0.010},
+            "forces_eV_per_A": {"rmse": 0.100},
+        }
+        mace_one = {"test": {"overall": baseline_group}}
+        mace_two = {
+            "test": {
+                "overall": {
+                    "energy_eV_per_atom": {"rmse": 0.006},
+                    "forces_eV_per_A": {"rmse": 0.060},
+                }
+            }
+        }
+        manifest = {
+            "split": {
+                "method": "deterministic contiguous source-order block split",
+                "seed": 17,
+                "block_size": 20,
+                "counts": {"train": 1578, "validation": 200, "test": 200},
+            }
+        }
+        audit = {
+            "promised_exact_checks": {
+                "force_additivity": {
+                    "observed": 1.0e-8,
+                    "threshold": 1.0e-5,
+                    "passed": True,
+                }
+            },
+            "rigid_translation_energy_max_mev_by_cell_axis": [0.1, 0.2, 0.3],
+            "cubic_signed_axis_transformations": {
+                "c4": {
+                    "residual_energy_change_mev": 1.0e-8,
+                    "residual_force_equivariance_rmse_mev_per_angstrom": 2.0e-8,
+                }
+            },
+        }
+        spectral = {
+            "low_k_dominant_eigenvalue_fit": {
+                "free_power_exponent_p": 2.1,
+                "free_log_r2": 0.95,
+                "coulomb_p2_log_r2": 0.94,
+            }
+        }
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixed = {
+                "manifest": manifest,
+                "mace-one": mace_one,
+                "mace-two": mace_two,
+            }
+            arguments = ["summarize_multiseed.py"]
+            for option, payload in fixed.items():
+                filename = root / f"{option}.json"
+                filename.write_text(json.dumps(payload))
+                arguments.extend((f"--{option}", str(filename)))
+            for index, seed in enumerate((17, 29, 41)):
+                value = 0.007 + index * 0.0002
+                fno = {
+                    "best_step": 1000 + index,
+                    "splits": {
+                        "test": {
+                            "mace_fno": {
+                                "energy_rmse": value,
+                                "force_rmse": 10.0 * value,
+                                "by_benchmark_group": {
+                                    "cubic": {
+                                        "energy_rmse": value,
+                                        "force_rmse": 10.0 * value,
+                                    }
+                                },
+                            }
+                        }
+                    },
+                }
+                files = []
+                for name, payload in (
+                    ("fno", fno),
+                    ("audit", audit),
+                    ("spectral", spectral),
+                ):
+                    filename = root / f"{name}-{seed}.json"
+                    filename.write_text(json.dumps(payload))
+                    files.append(filename)
+                arguments.extend(
+                    ("--run", str(seed), *(str(filename) for filename in files))
+                )
+            output_json = root / "summary-multiseed.json"
+            output_markdown = root / "summary-multiseed.md"
+            arguments.extend(
+                (
+                    "--output-json",
+                    str(output_json),
+                    "--output-markdown",
+                    str(output_markdown),
+                )
+            )
+            with patch.object(sys, "argv", arguments):
+                MULTISEED.main()
+            report = json.loads(output_json.read_text())
+            self.assertEqual(report["aggregate"]["energy_rmse"]["count"], 3)
+            self.assertGreater(
+                report["aggregate"]["energy_rmse"]["sample_std"], 0.0
+            )
+            self.assertTrue(report["assessment"]["all_seeds_improve_energy"])
+            self.assertIn("mean +/- s.d.", output_markdown.read_text())
 
 
 if __name__ == "__main__":

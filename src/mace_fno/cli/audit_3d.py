@@ -137,6 +137,21 @@ def main() -> None:
     sample_indices = torch.randperm(len(all_samples), generator=selection_generator)[
         : min(args.samples, len(all_samples))
     ].tolist()
+    # The strict cubic-equivariance audit must not disappear merely because the
+    # first randomly selected configuration belongs to a noncubic cell class.
+    cubic_index = next(
+        (
+            index
+            for index, sample in enumerate(all_samples)
+            if sample.get("benchmark_group") == "cubic"
+        ),
+        None,
+    )
+    if cubic_index is not None:
+        sample_indices = [cubic_index] + [
+            index for index in sample_indices if index != cubic_index
+        ]
+        sample_indices = sample_indices[: min(args.samples, len(all_samples))]
     samples = [all_samples[index] for index in sample_indices]
 
     corrected_energy_errors: list[float] = []

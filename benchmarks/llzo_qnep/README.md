@@ -85,6 +85,18 @@ From the repository root:
 
     bash benchmarks/llzo_qnep/submit.sh
 
+The controlled follow-up requested after the initial audit uses a blocked
+source-order split, the cubic-adaptive operator, mesh-origin augmentation,
+full interlaced validation, and FNO seeds 17, 29, and 41:
+
+    MACE_FNO_WORK_ROOT=$HOME/mace_fno_runs \
+        bash benchmarks/llzo_qnep/submit_followup.sh
+
+This launcher trains the two MACE baselines once, trains three FNO corrections
+against the same frozen one-interaction checkpoint, runs strict physics and
+spectral audits for every seed, and writes `summary-multiseed.md` only after all
+dependencies complete.
+
 The launcher creates a timestamped experiment under
 `$MACE_FNO_WORK_ROOT/llzo_qnep/runs/`. Data, logs, MACE checkpoints, FNO caches,
 trained models, and reports all remain outside the Git checkout. Because GPFS
