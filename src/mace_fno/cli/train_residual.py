@@ -24,6 +24,7 @@ from mace_fno.cli.yaml_config import (
 )
 from mace_fno.training import (
     CHECKPOINT_FORMAT_VERSION,
+    TrainingConfig,
     amplitude_convergence_diagnostic,
     choose_device,
     collate_samples,
@@ -130,195 +131,12 @@ def _write_low_k_history(
 def main() -> None:
     total_start = perf_counter()
     args = parse_arguments()
-    if args.steps < 1 or min(args.grid, args.modes, args.channels) < 1:
-        raise ValueError("steps, grid, modes, and channels must be positive")
-    if args.output_warmup_steps < 0 or args.output_warmup_steps >= args.steps:
-        raise ValueError("output_warmup_steps must satisfy 0 <= warm-up < steps")
-    if args.output_warmup_learning_rate < 0.0:
-        raise ValueError("output_warmup_learning_rate must be non-negative")
-    if args.output_initialization_scale < 0.0:
-        raise ValueError("output_initialization_scale must be non-negative")
-    if args.output_warmup_steps and args.architecture != "nonlinear":
-        raise ValueError("output-projection warm-up requires --architecture nonlinear")
-    if args.output_initialization_scale and args.architecture != "nonlinear":
-        raise ValueError(
-            "scaled output initialization requires --architecture nonlinear"
-        )
-    if args.output_initialization_scale and args.random_residual_initialization:
-        raise ValueError(
-            "--output-initialization-scale and --random-residual-initialization "
-            "are mutually exclusive"
-        )
-    if args.output_initialization_scale and args.output_warmup_steps:
-        raise ValueError(
-            "scaled output initialization and output-projection warm-up are "
-            "mutually exclusive"
-        )
-    if 2 * args.modes > args.grid:
-        raise ValueError("require 2*modes <= grid")
-    if args.z_grid < 0 or args.z_modes < 0:
-        raise ValueError("z_grid and z_modes must be non-negative")
-    spatial_scheme = args.spatial_scheme
-    if spatial_scheme == "auto":
-        spatial_scheme = "2.5d" if args.z_grid else "2d"
-    if args.cell_mode != "fixed" and spatial_scheme != "3d":
-        raise ValueError("variable --cell-mode requires --spatial-scheme 3d")
-    if args.cell_mode != "fixed" and args.architecture != "nonlinear":
-        raise ValueError("variable --cell-mode requires --architecture nonlinear")
-    resolved_z_modes = args.z_modes or args.modes
-    if args.spectral_groups < 1:
-        raise ValueError("spectral_groups must be positive")
-    if args.metric_hidden_channels < 1:
-        raise ValueError("metric_hidden_channels must be positive")
-    if args.spectral_symmetry == "none" and args.spectral_groups != 1:
-        raise ValueError("--spectral-groups applies only with metric-aware EqGINO")
-    if args.interlacing_training == "random" and args.volume_interlacing != 2:
-        raise ValueError(
-            "--interlacing-training random requires --volume-interlacing 2"
-        )
-    if spatial_scheme == "2d":
-        if args.z_grid:
-            raise ValueError("--z-grid is incompatible with --spatial-scheme 2d")
-        if args.z_extent is not None:
-            raise ValueError("--z-extent requires the 2.5D scheme")
-        if args.z_modes:
-            raise ValueError("--z-modes applies only to the 3D scheme")
-        if args.z_mixing != "local":
-            raise ValueError("--z-mixing global requires the 2.5D scheme")
-        if args.lateral_interlacing != 1:
-            raise ValueError("--lateral-interlacing applies only to the 2.5D scheme")
-        if args.volume_interlacing != 1:
-            raise ValueError("--volume-interlacing applies only to the 3D scheme")
-        if args.planar_symmetry != "none":
-            raise ValueError("--planar-symmetry applies only to the 2.5D scheme")
-        if args.spectral_symmetry != "none":
-            raise ValueError("--spectral-symmetry applies only to the 3D scheme")
-    elif spatial_scheme == "2.5d":
-        if args.z_grid < 4:
-            raise ValueError("the 2.5D scheme requires z_grid >= 4")
-        if args.z_extent is None or args.z_extent <= 0:
-            raise ValueError("the 2.5D scheme requires a positive --z-extent")
-        if args.z_modes:
-            raise ValueError("--z-modes applies only to the 3D scheme")
-        if args.spectral_symmetry != "none":
-            raise ValueError("--spectral-symmetry applies only to the 3D scheme")
-        if args.volume_interlacing != 1:
-            raise ValueError("--volume-interlacing applies only to the 3D scheme")
-        if args.z_mixing == "local" and (
-            args.z_kernel_size < 1 or args.z_kernel_size % 2 == 0
-        ):
-            raise ValueError("z_kernel_size must be a positive odd integer")
-    else:
-        if args.z_extent is not None:
-            raise ValueError("--z-extent is incompatible with the periodic 3D scheme")
-        if args.z_grid < 4:
-            raise ValueError("the 3D scheme requires z_grid >= 4")
-        if 2 * resolved_z_modes > args.z_grid:
-            raise ValueError("the 3D scheme requires 2*z_modes <= z_grid")
-        if args.z_mixing != "local":
-            raise ValueError("--z-mixing applies only to the 2.5D scheme")
-        if args.lateral_interlacing != 1:
-            raise ValueError("--lateral-interlacing applies only to the 2.5D scheme")
-        if args.planar_symmetry != "none":
-            raise ValueError("--planar-symmetry applies only to the 2.5D scheme")
-        if args.spectral_symmetry == "metric_eqgino":
-            grouped_channels = (
-                args.channels
-                if args.architecture == "linear"
-                else args.fno_hidden_channels
-            )
-            if grouped_channels % args.spectral_groups:
-                raise ValueError(
-                    "metric-aware EqGINO channels must be divisible by "
-                    "spectral_groups"
-                )
-    if args.spectral_diagnostic_samples < 0:
-        raise ValueError("spectral_diagnostic_samples must be non-negative")
-    spectral_diagnostic_enabled = args.spectral_diagnostic_samples > 0
-    if args.spectral_diagnostic_output is not None and not spectral_diagnostic_enabled:
-        raise ValueError(
-            "--spectral-diagnostic-output requires --spectral-diagnostic-samples"
-        )
-    if (
-        spectral_diagnostic_enabled
-        and args.spectral_diagnostic_output is None
-        and args.checkpoint is not None
-    ):
-        args.spectral_diagnostic_output = args.checkpoint.with_name(
-            f"{args.checkpoint.stem}_spectral_training.json"
-        )
-    if spectral_diagnostic_enabled:
-        if spatial_scheme not in {"3d", "2.5d", "2d"}:
-            raise ValueError("unsupported spatial scheme for the spectral diagnostic")
-        if spatial_scheme == "2.5d" and args.lateral_interlacing != 1:
-            raise ValueError(
-                "the 2.5D diagnostic requires --lateral-interlacing 1 because "
-                "the interlaced mesh has no unique deposited field"
-            )
-        if min(
-            args.spectral_diagnostic_max_mode,
-            args.spectral_diagnostic_fit_shells,
-            args.spectral_diagnostic_field_batch_size,
-        ) < 1:
-            raise ValueError(
-                "spectral diagnostic mode, fit-shell, and field-batch settings "
-                "must be positive"
-            )
-        if (
-            not np.isfinite(args.spectral_diagnostic_relative_amplitude)
-            or args.spectral_diagnostic_relative_amplitude <= 0.0
-        ):
-            raise ValueError(
-                "spectral_diagnostic_relative_amplitude must be positive"
-            )
-        if (
-            not np.isfinite(args.spectral_diagnostic_relative_span_tolerance)
-            or args.spectral_diagnostic_relative_span_tolerance < 0.0
-        ):
-            raise ValueError(
-                "spectral_diagnostic_relative_span_tolerance must be non-negative"
-            )
-        if args.spectral_diagnostic_depth == "deep":
-            amplitudes = args.spectral_diagnostic_amplitudes
-            if len(amplitudes) < 2 or any(
-                not np.isfinite(value) or value <= 0.0 for value in amplitudes
-            ):
-                raise ValueError(
-                    "deep spectral diagnostics require at least two positive "
-                    "amplitudes"
-                )
-            if len(set(amplitudes)) != len(amplitudes):
-                raise ValueError("spectral diagnostic amplitudes must be distinct")
-        diagnostic_grid_minimum = (
-            min(args.z_grid, args.grid) if spatial_scheme == "3d" else args.grid
-        )
-        if 2 * args.spectral_diagnostic_max_mode >= diagnostic_grid_minimum:
-            raise ValueError(
-                "spectral diagnostic max mode must remain below the mesh Nyquist limit"
-            )
-    if min(args.eval_interval, args.accumulation_steps, args.batch_size) < 1:
-        raise ValueError(
-            "eval_interval, accumulation_steps, and batch_size must be positive"
-        )
-    if not 0.0 < args.lr_decay_factor < 1.0:
-        raise ValueError("lr_decay_factor must be between zero and one")
-    if args.lr_patience_evals < 0 or args.early_stopping_patience_evals < 0:
-        raise ValueError(
-            "learning-rate and early-stopping patience must be non-negative"
-        )
-    if not 0.0 < args.minimum_learning_rate <= args.learning_rate:
-        raise ValueError(
-            "minimum_learning_rate must be positive and no larger than learning_rate"
-        )
-    if args.early_stopping_patience_evals and args.lr_scheduler != "plateau":
-        raise ValueError("early stopping requires --lr-scheduler plateau")
-    evaluation_batch_size = args.evaluation_batch_size or args.batch_size
-    if evaluation_batch_size < 1:
-        raise ValueError("evaluation_batch_size must be non-negative")
-    if args.validation_file is not None and args.validation_indices_file is not None:
-        raise ValueError(
-            "--validation-file and --validation-indices-file are mutually exclusive"
-        )
+    configuration = TrainingConfig.from_namespace(args)
+    spatial_scheme = configuration.model.spatial_scheme
+    resolved_z_modes = configuration.model.resolved_z_modes
+    evaluation_batch_size = configuration.optimization.evaluation_batch_size
+    spectral_diagnostic_enabled = configuration.diagnostic.enabled
+    spectral_diagnostic_output = configuration.diagnostic.output
 
     # Importing here keeps the base package usable without the optional MACE extra.
     from mace.calculators import MACECalculator
@@ -779,7 +597,7 @@ def main() -> None:
                 )
                 assert spectral_configuration is not None
                 _write_low_k_history(
-                    args.spectral_diagnostic_output,
+                    spectral_diagnostic_output,
                     configuration=spectral_configuration,
                     history=spectral_history,
                 )
@@ -901,7 +719,7 @@ def main() -> None:
             )
         assert spectral_configuration is not None
         _write_low_k_history(
-            args.spectral_diagnostic_output,
+            spectral_diagnostic_output,
             configuration=spectral_configuration,
             history=spectral_history,
         )
@@ -1027,8 +845,8 @@ def main() -> None:
                         "configuration": spectral_configuration,
                         "history": spectral_history,
                         "output": (
-                            str(args.spectral_diagnostic_output)
-                            if args.spectral_diagnostic_output is not None
+                            str(spectral_diagnostic_output)
+                            if spectral_diagnostic_output is not None
                             else None
                         ),
                     }

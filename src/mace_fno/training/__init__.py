@@ -13,6 +13,14 @@ from .checkpoint import (
     residual_state_dict,
     resolve_checkpoint_model_path,
 )
+from .configuration import (
+    DataConfig,
+    DiagnosticConfig,
+    ModelConfig,
+    OptimizationConfig,
+    RuntimeConfig,
+    TrainingConfig,
+)
 from .data import (
     CACHE_FORMAT_VERSION,
     batch_graphs,
@@ -52,6 +60,12 @@ from .spectral_diagnostic import (
 __all__ = [
     "CACHE_FORMAT_VERSION",
     "CHECKPOINT_FORMAT_VERSION",
+    "DataConfig",
+    "DiagnosticConfig",
+    "ModelConfig",
+    "OptimizationConfig",
+    "RuntimeConfig",
+    "TrainingConfig",
     "amplitude_convergence_diagnostic",
     "batch_graphs",
     "build_mace_fno_model",
