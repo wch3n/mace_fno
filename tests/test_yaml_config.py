@@ -134,6 +134,56 @@ class YAMLConfigurationTests(unittest.TestCase):
             self.assertEqual(reloaded["spatial_scheme"], "3d")
             self.assertTrue(Path(reloaded["mace_model"]).is_absolute())
 
+    def test_tracked_benchmark_configurations_parse(self) -> None:
+        repository = Path(__file__).resolve().parents[1]
+        cases = (
+            ("benchmarks/au_mgo/train_fno_2d.yaml", "2d", "fixed"),
+            ("benchmarks/au_mgo/train_fno_2p5d.yaml", "2.5d", "fixed"),
+            (
+                "benchmarks/water_scan_qnep/train_fno_3d.yaml",
+                "3d",
+                "isotropic",
+            ),
+            ("benchmarks/llzo_qnep/train_fno_3d.yaml", "3d", "anisotropic"),
+        )
+        for relative_path, spatial_scheme, cell_mode in cases:
+            with self.subTest(config=relative_path):
+                args = parse_arguments(
+                    [
+                        "--config",
+                        str(repository / relative_path),
+                        "--mace-model",
+                        "/runtime/local.model",
+                        "--train-file",
+                        "/runtime/train.xyz",
+                    ]
+                )
+                self.assertEqual(args.spatial_scheme, spatial_scheme)
+                self.assertEqual(args.cell_mode, cell_mode)
+
+    def test_tracked_benchmark_configurations_parse(self) -> None:
+        repository = Path(__file__).resolve().parents[1]
+        cases = (
+            ("benchmarks/au_mgo/train_fno_2d.yaml", "2d", "fixed"),
+            ("benchmarks/au_mgo/train_fno_2p5d.yaml", "2.5d", "fixed"),
+            ("benchmarks/water_scan_qnep/train_fno_3d.yaml", "3d", "isotropic"),
+            ("benchmarks/llzo_qnep/train_fno_3d.yaml", "3d", "anisotropic"),
+        )
+        for relative_path, spatial_scheme, cell_mode in cases:
+            with self.subTest(config=relative_path):
+                args = parse_arguments(
+                    [
+                        "--config",
+                        str(repository / relative_path),
+                        "--mace-model",
+                        "/runtime/local.model",
+                        "--train-file",
+                        "/runtime/train.xyz",
+                    ]
+                )
+                self.assertEqual(args.spatial_scheme, spatial_scheme)
+                self.assertEqual(args.cell_mode, cell_mode)
+
 
 if __name__ == "__main__":
     unittest.main()

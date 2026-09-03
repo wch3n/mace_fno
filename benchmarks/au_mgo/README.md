@@ -36,6 +36,12 @@ sbatch benchmarks/au_mgo/train_fno_2d.slurm
 sbatch benchmarks/au_mgo/train_fno_2p5d.slurm
 ```
 
+The FNO launchers read their defaults from
+[`train_fno_2d.yaml`](train_fno_2d.yaml) and
+[`train_fno_2p5d.yaml`](train_fno_2p5d.yaml). Runtime paths, the seed, dtype,
+and checkpoint are supplied by the Slurm wrappers. Set `FNO_CONFIG` to a copied
+and edited YAML file to define a new run without modifying the repository.
+
 For convergence studies, the 2D FNO slab launcher
 (`train_fno_2p5d.slurm`) exposes `GRID`, `MODES`, `Z_GRID`, `CHANNELS`,
 `SOURCE_HIDDEN_CHANNELS`, `FNO_HIDDEN_CHANNELS`, and `FNO_LAYERS` as

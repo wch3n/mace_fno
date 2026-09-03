@@ -316,6 +316,10 @@ The spectral result is a diagnostic, not a training target. Agreement with a
 \(1/k^2\) trend indicates an electrostatic-like low-wavevector component, but
 does not make the latent fields physical charge densities.
 
+When a checkpoint and in-training spectral diagnostics are configured, the
+trainer writes the history automatically beside the checkpoint as
+`<checkpoint-stem>_spectral_training.json`.
+
 ## 8. Use the combined model in ASE
 
 The residual checkpoint stores only the learned correction, not a second copy
@@ -368,6 +372,10 @@ provenance and validation:
 - [Water-SCAN](benchmarks/water_scan_qnep/README.md): periodic 3D water;
 - [LLZO](benchmarks/llzo_qnep/README.md): heterogeneous bulk cells with
   metric-aware EqGINO.
+
+Each benchmark keeps its default FNO architecture and optimization settings in
+a tracked `train_fno_*.yaml` file. Its Slurm launcher supplies runtime paths
+and accepts an alternative configuration through `FNO_CONFIG`.
 
 Their launchers keep all generated files outside the source tree through
 `MACE_FNO_WORK_ROOT`.

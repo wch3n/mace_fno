@@ -17,8 +17,10 @@ LOG_ROOT=${LOG_ROOT:-${EXPERIMENT_ROOT}/logs}
 FNO_SEED=${FNO_SEED:-17}
 MODEL_DTYPE=${MODEL_DTYPE:-float32}
 CHECKPOINT=${CHECKPOINT:-${FNO_RUN_ROOT}/water_scan_fno_3d_seed${FNO_SEED}_${MODEL_DTYPE}.pt}
+FNO_CONFIG=${FNO_CONFIG:-${PROJECT_ROOT}/benchmarks/water_scan_qnep/train_fno_3d.yaml}
 
 mkdir -p "${EXPERIMENT_ROOT}" "${JOB_WORK_ROOT}" "${LOG_ROOT}"
+test -s "${FNO_CONFIG}"
 cd "${JOB_WORK_ROOT}"
 python3 "${PROJECT_ROOT}/benchmarks/water_scan_qnep/prepare_dataset.py" \
     --data-root "${SOURCE_DATA_ROOT}" \
@@ -47,7 +49,7 @@ baseline_job=$(sbatch "${common_sbatch[@]}" "${dependency[@]}" \
     --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},DATA_ROOT=${DATA_ROOT},MACE_MODEL=${MACE_MODEL},RESULT_PATH=${EXPERIMENT_ROOT}/baseline.json,JOB_WORK_ROOT=${JOB_WORK_ROOT}" \
     "${PROJECT_ROOT}/benchmarks/water_scan_qnep/evaluate_mace.slurm")
 fno_job=$(sbatch "${common_sbatch[@]}" "${dependency[@]}" \
-    --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},DATA_ROOT=${DATA_ROOT},RUN_ROOT=${FNO_RUN_ROOT},MACE_MODEL=${MACE_MODEL},CHECKPOINT=${CHECKPOINT},JOB_WORK_ROOT=${JOB_WORK_ROOT},FNO_SEED=${FNO_SEED},MODEL_DTYPE=${MODEL_DTYPE}" \
+    --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},DATA_ROOT=${DATA_ROOT},RUN_ROOT=${FNO_RUN_ROOT},MACE_MODEL=${MACE_MODEL},CHECKPOINT=${CHECKPOINT},JOB_WORK_ROOT=${JOB_WORK_ROOT},FNO_CONFIG=${FNO_CONFIG},FNO_SEED=${FNO_SEED},MODEL_DTYPE=${MODEL_DTYPE}" \
     "${PROJECT_ROOT}/benchmarks/water_scan_qnep/train_fno_3d.slurm")
 audit_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
     --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${CHECKPOINT},JOB_WORK_ROOT=${JOB_WORK_ROOT},FNO_SEED=${FNO_SEED},MODEL_DTYPE=${MODEL_DTYPE}" \
@@ -57,6 +59,7 @@ spectral_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
     "${PROJECT_ROOT}/benchmarks/water_scan_qnep/audit_spectral.slurm")
 
 printf 'Experiment root:    %s\n' "${EXPERIMENT_ROOT}"
+printf 'FNO configuration:  %s\n' "${FNO_CONFIG}"
 printf 'MACE training:      %s\n' "${mace_job}"
 printf 'MACE validation:    %s\n' "${baseline_job}"
 printf 'MACE+FNO training:  %s\n' "${fno_job}"

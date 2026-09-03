@@ -47,6 +47,10 @@ job selects the explicit isotropic cell mode. That mode:
 The fixed-cell mode remains the default for all existing jobs and checkpoints.
 The Water-SCAN job uses no volume interlacing by default, which keeps the
 20,000-step run tractable.
+Its reproducible FNO defaults are stored in
+[`train_fno_3d.yaml`](train_fno_3d.yaml); the Slurm wrapper supplies runtime
+paths, seed, dtype, and explicit environment overrides. Set `FNO_CONFIG` to a
+copied and edited YAML file for a distinct configuration.
 
 ## Running
 
@@ -89,11 +93,11 @@ dimensionless influence when the energy and force weights are both one.
 The Water-SCAN training job also records a validation-only low-wavevector
 diagnostic at every ordinary validation check. It uses four fixed validation
 snapshots and the first three *physical* 3D reciprocal shells, but does **not**
-add a spectral loss. The resulting
-`water_scan_fno_3d_seed17_<dtype>_spectral_training.json` records the fitted
-free exponent and the fixed-
-\(1/k^2\) log-space \(R^2\) alongside the validation objective. It is
-appropriate only for the fully periodic 3D FNO with one mesh origin.
+add a spectral loss. The checkpoint stores the diagnostic history, including
+the fitted free exponent and fixed-\(1/k^2\) log-space \(R^2\), alongside the
+selected model. The trainer also writes the same history to the adjacent
+`water_scan_fno_3d_seed17_<dtype>_spectral_training.json`. It is appropriate
+only for the fully periodic 3D FNO with one mesh origin.
 
 For non-cubic bulk data the same implementation additionally fits individual
 physical reciprocal vectors to

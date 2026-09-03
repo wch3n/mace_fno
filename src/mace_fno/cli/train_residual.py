@@ -239,6 +239,14 @@ def main() -> None:
         raise ValueError(
             "--spectral-diagnostic-output requires --spectral-diagnostic-samples"
         )
+    if (
+        spectral_diagnostic_enabled
+        and args.spectral_diagnostic_output is None
+        and args.checkpoint is not None
+    ):
+        args.spectral_diagnostic_output = args.checkpoint.with_name(
+            f"{args.checkpoint.stem}_spectral_training.json"
+        )
     if spectral_diagnostic_enabled:
         if spatial_scheme not in {"3d", "2.5d", "2d"}:
             raise ValueError("unsupported spatial scheme for the spectral diagnostic")

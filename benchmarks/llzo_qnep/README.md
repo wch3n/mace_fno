@@ -106,6 +106,11 @@ be placed in the home filesystem:
     MACE_FNO_WORK_ROOT=$HOME/mace_fno_runs \
         bash benchmarks/llzo_qnep/submit.sh
 
+The default FNO architecture and optimization settings are versioned in
+[`train_fno_3d.yaml`](train_fno_3d.yaml). The Slurm wrapper adds runtime paths,
+seed, dtype, and any explicit environment-variable overrides. A distinct
+configuration can be selected with `FNO_CONFIG=/path/to/copied_config.yaml`.
+
 Useful overrides include:
 
     RUN_ID=llzo-f64 STEPS=40000 bash benchmarks/llzo_qnep/submit.sh

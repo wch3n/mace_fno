@@ -63,6 +63,7 @@ the same modules directly so they also work from an editable checkout.
 - `src/mace_fno/`: model, particle-mesh, checkpoint, ASE, and training code;
 - `benchmarks/au_mgo/`: complete Au2-MgO preparation, training, and audit workflow;
 - `benchmarks/water_scan_qnep/`: complete Water-SCAN preparation, training, and audit workflow;
+- `benchmarks/llzo_qnep/`: heterogeneous-cell LLZO training and audit workflow;
 - `tests/`: numerical, symmetry, checkpoint, diagnostic, and ASE tests.
 
 There are deliberately no separate top-level `jobs/` or `examples/`
@@ -75,19 +76,30 @@ The MACE weights remain fixed, but descriptor derivatives with respect to atom
 positions remain in the autograd graph. Detaching or evaluating the MACE
 descriptors under `torch.no_grad()` would omit part of the residual force.
 
-A generic fixed-cell run is:
+A generic fixed-cell `train.yaml` is:
+
+```yaml
+mace_model: /path/to/frozen.model
+
+data:
+  train_file: /path/to/train.xyz
+  test_file: /path/to/test.xyz
+  energy_key: REF_energy
+  forces_key: REF_forces
+  train_cache: /path/to/run/cache/train.pt
+  test_cache: /path/to/run/cache/test.pt
+
+model:
+  spatial_scheme: 2d
+  cell_mode: fixed
+
+checkpoint: /path/to/run/model.pt
+```
+
+Run it with:
 
 ```bash
-source benchmarks/runtime_paths.sh
-mace-fno-train \
-  --mace-model /path/to/frozen.model \
-  --train-file train.xyz \
-  --test-file test.xyz \
-  --energy-key REF_energy \
-  --forces-key REF_forces \
-  --train-cache "$MACE_FNO_WORK_ROOT/cache/train.pt" \
-  --test-cache "$MACE_FNO_WORK_ROOT/cache/test.pt" \
-  --checkpoint "$MACE_FNO_WORK_ROOT/model.pt"
+mace-fno-train --config train.yaml
 ```
 
 The saved checkpoint contains the learned residual state and reconstruction
@@ -95,14 +107,15 @@ metadata, but does not duplicate the frozen MACE weights.
 
 ### 2D FNO for slabs
 
-Select the slab representation with, for example:
+Select the slab representation in YAML with, for example:
 
-```bash
-  --spatial-scheme 2.5d \
-  --z-grid 16 \
-  --z-extent 22.0 \
-  --z-center mean \
-  --z-mixing global
+```yaml
+model:
+  spatial_scheme: 2.5d
+  z_grid: 16
+  z_extent: 22.0
+  z_center: mean
+  z_mixing: global
 ```
 
 The mesh layout is `(channels, nz, nx, ny)`. Only x/y are Fourier transformed;
@@ -119,13 +132,14 @@ enforces in-plane discrete energy invariance and force covariance.
 
 Select bulk 3D with:
 
-```bash
-  --spatial-scheme 3d \
-  --grid 24 \
-  --z-grid 24 \
-  --modes 4 \
-  --z-modes 4 \
-  --spectral-symmetry metric_eqgino
+```yaml
+model:
+  spatial_scheme: 3d
+  grid: 24
+  z_grid: 24
+  modes: 4
+  z_modes: 4
+  spectral_symmetry: metric_eqgino
 ```
 
 `--spectral-symmetry metric_eqgino` evaluates a small radial network at the

@@ -1,0 +1,53 @@
+# Runtime paths, seed, dtype, and checkpoint are supplied by the Slurm wrapper.
+data:
+  energy_key: energy
+  forces_key: forces
+  num_atoms: 384
+
+model:
+  spatial_scheme: 3d
+  cell_mode: isotropic
+  grid: 24
+  z_grid: 24
+  modes: 4
+  z_modes: 4
+  channels: 4
+  source_hidden_channels: 64
+  fno_hidden_channels: 16
+  fno_layers: 2
+  architecture: nonlinear
+  spectral_symmetry: metric_eqgino
+  spectral_groups: 4
+  metric_hidden_channels: 16
+  volume_interlacing: 1
+
+training:
+  steps: 20000
+  learning_rate: 3.0e-4
+  output_initialization_scale: 0.1
+  lr_scheduler: plateau
+  lr_decay_factor: 0.5
+  lr_patience_evals: 4
+  minimum_learning_rate: 1.0e-6
+  early_stopping_patience_evals: 0
+  energy_weight: 1.0
+  force_weight: 1.0
+  energy_scale: 0.01
+  force_scale: 0.10
+  validation_fraction: 0.10
+  eval_interval: 500
+  batch_size: 2
+  evaluation_batch_size: 8
+  accumulation_steps: 1
+  evaluation_scope: validation-test
+
+diagnostics:
+  spectral_diagnostic_samples: 4
+  spectral_diagnostic_max_mode: 1
+  spectral_diagnostic_fit_shells: 3
+  spectral_diagnostic_relative_amplitude: 0.05
+  spectral_diagnostic_field_batch_size: 32
+  spectral_diagnostic_depth: fast
+
+runtime:
+  device: cuda

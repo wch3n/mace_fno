@@ -22,6 +22,7 @@ REPORT_ROOT=${REPORT_ROOT:-${EXPERIMENT_ROOT}/reports}
 FNO_SEED=${FNO_SEED:-17}
 MODEL_DTYPE=${MODEL_DTYPE:-float64}
 CHECKPOINT=${CHECKPOINT:-${FNO_RUN_ROOT}/llzo_fno_3d_seed${FNO_SEED}_${MODEL_DTYPE}.pt}
+FNO_CONFIG=${FNO_CONFIG:-${PROJECT_ROOT}/benchmarks/llzo_qnep/train_fno_3d.yaml}
 MACE_ONE_RESULT=${MACE_ONE_RESULT:-${REPORT_ROOT}/mace-nl0.json}
 MACE_TWO_RESULT=${MACE_TWO_RESULT:-${REPORT_ROOT}/mace-nl1.json}
 FNO_RESULT=${FNO_RESULT:-${REPORT_ROOT}/mace-fno.json}
@@ -44,6 +45,7 @@ case "${RUN_PUBLISHED_MODELS}" in
 esac
 
 mkdir -p "${EXPERIMENT_ROOT}" "${JOB_WORK_ROOT}" "${LOG_ROOT}" "${REPORT_ROOT}"
+test -s "${FNO_CONFIG}"
 prepare_args=(
     --data-root "${SOURCE_DATA_ROOT}"
     --download
@@ -110,7 +112,7 @@ baseline_two_job=$(sbatch "${common_sbatch[@]}" "${mace_two_dependency[@]}" \
     "${PROJECT_ROOT}/benchmarks/llzo_qnep/evaluate_mace.slurm")
 
 fno_job=$(sbatch "${common_sbatch[@]}" "${mace_one_dependency[@]}" \
-    --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},DATA_ROOT=${DATA_ROOT},RUN_ROOT=${FNO_RUN_ROOT},MACE_MODEL=${MACE_ONE_MODEL},CHECKPOINT=${CHECKPOINT},JOB_WORK_ROOT=${JOB_WORK_ROOT}/fno,FNO_SEED=${FNO_SEED},MODEL_DTYPE=${MODEL_DTYPE}" \
+    --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},DATA_ROOT=${DATA_ROOT},RUN_ROOT=${FNO_RUN_ROOT},MACE_MODEL=${MACE_ONE_MODEL},CHECKPOINT=${CHECKPOINT},JOB_WORK_ROOT=${JOB_WORK_ROOT}/fno,FNO_CONFIG=${FNO_CONFIG},FNO_SEED=${FNO_SEED},MODEL_DTYPE=${MODEL_DTYPE}" \
     "${PROJECT_ROOT}/benchmarks/llzo_qnep/train_fno_3d.slurm")
 fno_eval_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
     --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${CHECKPOINT},RESULT_PATH=${FNO_RESULT},JOB_WORK_ROOT=${JOB_WORK_ROOT}/fno-eval,MODEL_DTYPE=${MODEL_DTYPE}" \
@@ -145,6 +147,7 @@ summary_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${dependency_li
     "${PROJECT_ROOT}/benchmarks/llzo_qnep/summarize.slurm")
 
 printf 'Experiment root:       %s\n' "${EXPERIMENT_ROOT}"
+printf 'FNO configuration:     %s\n' "${FNO_CONFIG}"
 printf 'MACE nl0 training:     %s\n' "${mace_one_job}"
 printf 'MACE nl1 training:     %s\n' "${mace_two_job}"
 printf 'MACE nl0 evaluation:   %s\n' "${baseline_one_job}"
