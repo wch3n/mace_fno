@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import io
 import unittest
+from contextlib import redirect_stderr
 
+import mace_fno
 from mace_fno import (
     FNO2D,
     FNO2d,
@@ -94,6 +97,24 @@ class PublicAPITests(unittest.TestCase):
         )
         self.assertEqual(args.spectral_symmetry, "metric_eqgino")
         self.assertEqual(args.metric_hidden_channels, 12)
+
+    def test_legacy_eqgino_api_and_cli_options_are_removed(self) -> None:
+        self.assertFalse(hasattr(mace_fno, "EqGINOSpectralConv3d"))
+        self.assertFalse(hasattr(mace_fno, "CubicAdaptiveSpectralConv3d"))
+        for legacy in ("eqgino", "cubic_adaptive"):
+            with self.subTest(spectral_symmetry=legacy):
+                with redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit):
+                        parse_arguments(
+                            [
+                                "--mace-model",
+                                "model.pt",
+                                "--train-file",
+                                "train.xyz",
+                                "--spectral-symmetry",
+                                legacy,
+                            ]
+                        )
 
 
 if __name__ == "__main__":

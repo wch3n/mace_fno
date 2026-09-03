@@ -161,17 +161,13 @@ def main() -> None:
         raise ValueError("variable --cell-mode requires --spatial-scheme 3d")
     if args.cell_mode != "fixed" and args.architecture != "nonlinear":
         raise ValueError("variable --cell-mode requires --architecture nonlinear")
-    if args.cell_mode == "anisotropic" and args.spectral_symmetry == "eqgino":
-        raise ValueError(
-            "--cell-mode anisotropic is incompatible with --spectral-symmetry eqgino"
-        )
     resolved_z_modes = args.z_modes or args.modes
     if args.spectral_groups < 1:
         raise ValueError("spectral_groups must be positive")
     if args.metric_hidden_channels < 1:
         raise ValueError("metric_hidden_channels must be positive")
     if args.spectral_symmetry == "none" and args.spectral_groups != 1:
-        raise ValueError("--spectral-groups applies only with EqGINO-based symmetry")
+        raise ValueError("--spectral-groups applies only with metric-aware EqGINO")
     if args.interlacing_training == "random" and args.volume_interlacing != 2:
         raise ValueError(
             "--interlacing-training random requires --volume-interlacing 2"
@@ -221,16 +217,7 @@ def main() -> None:
             raise ValueError("--lateral-interlacing applies only to the 2.5D scheme")
         if args.planar_symmetry != "none":
             raise ValueError("--planar-symmetry applies only to the 2.5D scheme")
-        if args.spectral_symmetry in {"eqgino", "cubic_adaptive"}:
-            if args.z_grid != args.grid:
-                raise ValueError("EqGINO-based symmetry requires z_grid == grid")
-            if resolved_z_modes != args.modes:
-                raise ValueError("EqGINO-based symmetry requires z_modes == modes")
-        if args.spectral_symmetry in {
-            "eqgino",
-            "cubic_adaptive",
-            "metric_eqgino",
-        }:
+        if args.spectral_symmetry == "metric_eqgino":
             grouped_channels = (
                 args.channels
                 if args.architecture == "linear"
@@ -238,7 +225,8 @@ def main() -> None:
             )
             if grouped_channels % args.spectral_groups:
                 raise ValueError(
-                    "EqGINO spectral channels must be divisible by spectral_groups"
+                    "metric-aware EqGINO channels must be divisible by "
+                    "spectral_groups"
                 )
     if args.spectral_diagnostic_samples < 0:
         raise ValueError("spectral_diagnostic_samples must be non-negative")

@@ -20,7 +20,7 @@ PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." &
 source "${PROJECT_ROOT}/benchmarks/runtime_paths.sh"
 FNO_SEED=${FNO_SEED:-17}
 MODEL_DTYPE=${MODEL_DTYPE:-float32}
-CHECKPOINT=${CHECKPOINT:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/fno_3d_eqgino/water_scan_fno_3d_seed${FNO_SEED}_${MODEL_DTYPE}.pt}
+CHECKPOINT=${CHECKPOINT:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/fno_3d_metric_eqgino/water_scan_fno_3d_seed${FNO_SEED}_${MODEL_DTYPE}.pt}
 AUDIT_SAMPLES=${AUDIT_SAMPLES:-8}
 AUDIT_FD_STEP=${AUDIT_FD_STEP:-1.0e-4}
 AUDIT_FD_COMPONENTS=${AUDIT_FD_COMPONENTS:-12}

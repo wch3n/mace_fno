@@ -35,13 +35,14 @@ message-passing interaction. This corresponds to the nl-0 naming used by the
 liquid-water LES setup and creates a meaningful residual-learning test.
 
 The residual job freezes this MACE checkpoint and trains a nonlinear 3D
-EqGINO/FNO correction. The data use different cubic volumes, so the job selects
-the explicit isotropic cell mode. That mode:
+metric-aware EqGINO correction. The data use different cubic volumes, so the
+job selects the explicit isotropic cell mode. That mode:
 
 - accepts only positive uniform scalings of the reference cubic cell;
 - deposits each structure using its own cell and voxel volume;
 - supplies log(cubic cell length in A) as a spatially constant operator input;
-- preserves the existing translation and signed-axis EqGINO symmetries.
+- preserves translation and rigid-rotation symmetry through physical
+  reciprocal-space magnitudes.
 
 The fixed-cell mode remains the default for all existing jobs and checkpoints.
 The Water-SCAN job uses no volume interlacing by default, which keeps the
@@ -61,7 +62,7 @@ name.
 
 To reuse an existing frozen MACE model and run a longer residual optimization:
 
-    RUN_ID=eqgino-60k-s17-f64 \
+    RUN_ID=metric-eqgino-60k-s17-f64 \
     PRETRAINED_MACE_MODEL=/path/to/water-SCAN-r4p5-nl0_stagetwo.model \
     STEPS=60000 MODEL_DTYPE=float64 \
       bash benchmarks/water_scan_qnep/submit.sh
@@ -120,7 +121,7 @@ The strict audit then checks:
 - conservative forces against finite differences;
 - continuous and mesh-step translation behavior;
 - full-lattice periodicity;
-- cubic signed-axis invariance/covariance for EqGINO.
+- cubic signed-axis invariance/covariance for metric-aware EqGINO.
 
 A useful result requires held-out force and energy improvement over frozen
 MACE, not merely a lower training residual. Compare with the constant-offset

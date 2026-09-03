@@ -11,14 +11,17 @@ Implemented geometries are:
 - planar projection, periodic along the first two cell vectors;
 - 2D FNO for slabs, Fourier transformed in-plane with an explicit nonperiodic
   z axis (configuration value `2.5d`);
-- fully periodic 3D, including an EqGINO-style cubic spectral contraction.
+- fully periodic 3D, including a metric-aware EqGINO spectral contraction for
+  arbitrary nonsingular cells.
 
 The benchmark surface is intentionally narrow. Only the systems assessed with
 complete reproducible workflows are retained:
 
 1. [Au2-MgO](benchmarks/au_mgo/README.md), comparing planar projection and the
    slab-resolved 2D FNO correction;
-2. [Water-SCAN](benchmarks/water_scan_qnep/README.md), testing periodic 3D FNO.
+2. [Water-SCAN](benchmarks/water_scan_qnep/README.md), testing periodic 3D FNO;
+3. [LLZO](benchmarks/llzo_qnep/README.md), testing metric-aware 3D FNO on
+   heterogeneous cubic, tetragonal, and orthorhombic cells.
 
 Generated data, MACE models, graph caches, FNO checkpoints, and audit reports
 are not versioned. Benchmark workflows write them beneath
@@ -83,9 +86,7 @@ mace-fno-train \
 ```
 
 The saved checkpoint contains the learned residual state and reconstruction
-metadata, but does not duplicate the frozen MACE weights. Old planar, slab
-(`2.5d`), and 3D checkpoint formats are reconstructed through one compatibility
-loader.
+metadata, but does not duplicate the frozen MACE weights.
 
 ### 2D FNO for slabs
 
@@ -118,22 +119,21 @@ Select bulk 3D with:
   --grid 24 \
   --z-grid 24 \
   --modes 4 \
-  --z-modes 4
+  --z-modes 4 \
+  --spectral-symmetry metric_eqgino
 ```
 
-For cubic cells and grids, add `--spectral-symmetry eqgino` to share real
-spectral channel-mixing weights across equal integer reciprocal-radius shells.
-`--spectral-groups` controls block-diagonal channel grouping. Water-SCAN uses
-`--cell-mode isotropic`, which accepts positive uniform scalings of a cubic
-reference cell and conditions the nonlinear operator on cell length.
-
-For noncubic or heterogeneous cells, `--spectral-symmetry metric_eqgino`
-evaluates a small radial network at the physical reciprocal magnitude
+`--spectral-symmetry metric_eqgino` evaluates a small radial network at the
+physical reciprocal magnitude
 `|2*pi*A^-1*n|^2` of every retained mode. This preserves an isotropic operator
 under rigid Cartesian rotation without incorrectly equating integer modes that
 have different wavelengths in an anisotropic cell. The radial-network width is
-controlled by `--metric-hidden-channels`. Use `--cell-mode anisotropic` when
-cell sizes or shapes vary within the dataset.
+controlled by `--metric-hidden-channels`, while `--spectral-groups` controls
+block-diagonal channel grouping. Water-SCAN uses `--cell-mode isotropic`, which
+accepts positive uniform scalings of a cubic reference cell and conditions the
+nonlinear operator on cell length. Use `--cell-mode anisotropic` when cell sizes
+or shapes vary within the dataset. The unconstrained 3D FNO remains available
+with `--spectral-symmetry none` as an ablation.
 
 `--volume-interlacing 2` averages eight half-grid origins. Interlacing is
 conservative but more expensive, and returned mesh fields are undefined
@@ -190,7 +190,8 @@ inference.
   evidence, not proof that the residual is exclusively electrostatic.
 - Batches share one mesh shape. Heterogeneous physical cells require explicit
   cell conditioning or shape-bucketed batches.
-- EqGINO enforces the cubic signed-axis group, not arbitrary rotations or
-  general lattice-basis transformations.
+- Metric-aware EqGINO is invariant to rigid Cartesian cell rotations but uses
+  an isotropic radial response; it does not yet learn a general anisotropic
+  dielectric tensor.
 - The current ASE adapter provides energy and forces, but not stress or a
   production LAMMPS deployment.

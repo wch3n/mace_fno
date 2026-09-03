@@ -675,41 +675,6 @@ class CouplingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "nonsingular"):
             model(invalid, compute_force=False)
 
-        with self.assertRaisesRegex(ValueError, "incompatible with cubic EqGINO"):
-            MACEFNOResidual(
-                _FakeMACE(),
-                (8, 8),
-                channels=2,
-                n_modes=(2, 2),
-                fno_hidden_channels=4,
-                spatial_scheme="3d",
-                z_grid_size=8,
-                fno_z_modes=2,
-                fno_spectral_symmetry="eqgino",
-                fno_spectral_groups=2,
-                invariant_indices=(0, 2),
-                cell_mode="anisotropic",
-            )
-
-        adaptive = MACEFNOResidual(
-            _FakeMACE(),
-            (8, 8),
-            channels=2,
-            n_modes=(2, 2),
-            fno_hidden_channels=4,
-            spatial_scheme="3d",
-            z_grid_size=8,
-            fno_z_modes=2,
-            fno_spectral_symmetry="cubic_adaptive",
-            fno_spectral_groups=2,
-            invariant_indices=(0, 2),
-            cell_mode="anisotropic",
-        ).to(dtype=DTYPE)
-        adaptive_output = adaptive(
-            data, compute_force=False, compute_residual_force=True
-        )
-        self.assertTrue(torch.isfinite(adaptive_output["residual_forces"]).all())
-
         metric = MACEFNOResidual(
             _FakeMACE(),
             (8, 8),
@@ -732,57 +697,6 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(
             metric.long_range.field_operator.metric_hidden_channels, 5
         )
-
-    def test_eqgino_3d_coupling_requires_cubic_geometry(self) -> None:
-        cubic_cell = 8.0 * torch.eye(3, dtype=DTYPE)
-        model = MACEFNOResidual(
-            _FakeMACE(),
-            (8, 8),
-            channels=2,
-            n_modes=(2, 2),
-            source_hidden_channels=8,
-            fno_hidden_channels=4,
-            fno_layers=1,
-            spatial_scheme="3d",
-            z_grid_size=8,
-            fno_z_modes=2,
-            fno_spectral_symmetry="eqgino",
-            fno_spectral_groups=2,
-            invariant_indices=(0, 2),
-            reference_cell=cubic_cell,
-        ).to(dtype=DTYPE)
-        self.assertEqual(
-            model.long_range.field_operator.spectral_symmetry, "eqgino"
-        )
-        self.assertEqual(model.long_range.field_operator.spectral_groups, 2)
-
-        with self.assertRaisesRegex(ValueError, "cubic reference_cell"):
-            MACEFNOResidual(
-                _FakeMACE(),
-                (8, 8),
-                channels=1,
-                n_modes=(2, 2),
-                spatial_scheme="3d",
-                z_grid_size=8,
-                fno_spectral_symmetry="eqgino",
-                invariant_indices=(0, 2),
-                reference_cell=torch.diag(
-                    torch.tensor((8.0, 8.0, 9.0), dtype=DTYPE)
-                ),
-            )
-
-        unreferenced = MACEFNOResidual(
-            _FakeMACE(),
-            (8, 8),
-            channels=1,
-            n_modes=(2, 2),
-            spatial_scheme="3d",
-            z_grid_size=8,
-            fno_spectral_symmetry="eqgino",
-            invariant_indices=(0, 2),
-        ).to(dtype=DTYPE)
-        with self.assertRaisesRegex(ValueError, "cubic cells"):
-            unreferenced(_batch_data(), compute_force=False)
 
     def test_reported_force_is_energy_gradient(self) -> None:
         data = _batch_data()
@@ -977,7 +891,7 @@ class CouplingTests(unittest.TestCase):
             "cell_mode": "isotropic",
             "z_grid_size": 10,
             "volume_interlacing": 1,
-            "spectral_symmetry": "eqgino",
+            "spectral_symmetry": "metric_eqgino",
             "spectral_groups": 4,
             "metric_hidden_channels": 12,
             "channels": 2,
@@ -990,7 +904,7 @@ class CouplingTests(unittest.TestCase):
         parameters = checkpoint_model_parameters(checkpoint)
         self.assertEqual(parameters["n_modes"], (4, 5))
         self.assertEqual(parameters["fno_z_modes"], 3)
-        self.assertEqual(parameters["fno_spectral_symmetry"], "eqgino")
+        self.assertEqual(parameters["fno_spectral_symmetry"], "metric_eqgino")
         self.assertEqual(parameters["fno_spectral_groups"], 4)
         self.assertEqual(parameters["fno_metric_hidden_channels"], 12)
         self.assertEqual(parameters["fno_interlacing_training"], "full")

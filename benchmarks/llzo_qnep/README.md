@@ -32,18 +32,10 @@ coordinates and supplies the nonlinear operator with seven constant cell
 features: log of the volume length and the six independent entries of the
 volume-normalized lattice metric. These features distinguish cell size and
 shape while remaining invariant to rigid Cartesian rotation of the complete
-cell. The `cubic_adaptive` spectral option combines an EqGINO radial core with
-a conventional spectral branch multiplied by a cell-anisotropy gate. The gate
-is exactly zero for cubic cells, enforcing their signed-axis symmetries, while
-noncubic cells retain direction-dependent spectral weights.
-
-The alternative `metric_eqgino` option generates each retained spectral
-weight from the physical reciprocal magnitude
+cell. The `metric_eqgino` operator generates each retained spectral weight from
+the physical reciprocal magnitude
 `|2*pi*A^-1*n|^2`. It is an isotropic, rigid-rotation-invariant operator for
-arbitrary nonsingular cell shapes and supports heterogeneous batches. Unlike
-`cubic_adaptive`, it does not add an unconstrained direction-dependent branch;
-the two choices should therefore be compared empirically on the blocked LLZO
-split.
+arbitrary nonsingular cell shapes and supports heterogeneous batches.
 
 ## Data protocol
 
@@ -93,9 +85,9 @@ From the repository root:
 
     bash benchmarks/llzo_qnep/submit.sh
 
-The controlled follow-up requested after the initial audit uses a blocked
-source-order split, the cubic-adaptive operator, mesh-origin augmentation,
-full interlaced validation, and FNO seeds 17, 29, and 41:
+The controlled follow-up uses a blocked source-order split, metric-aware
+EqGINO, mesh-origin augmentation, full interlaced validation, and FNO seeds 17,
+29, and 41:
 
     MACE_FNO_WORK_ROOT=$HOME/mace_fno_runs \
         bash benchmarks/llzo_qnep/submit_followup.sh
@@ -122,22 +114,18 @@ Useful overrides include:
     PRETRAINED_MACE_NL0=/path/to/nl0.model \
     PRETRAINED_MACE_NL1=/path/to/nl1.model \
         bash benchmarks/llzo_qnep/submit.sh
-    SPECTRAL_SYMMETRY=metric_eqgino METRIC_HIDDEN_CHANNELS=16 \
-        bash benchmarks/llzo_qnep/submit.sh
+    METRIC_HIDDEN_CHANNELS=16 bash benchmarks/llzo_qnep/submit.sh
 
-The three-seed blocked follow-up accepts the same operator override, allowing a
-matched comparison against the default `cubic_adaptive` run:
+The three-seed blocked follow-up uses the same metric-aware operator:
 
     RUN_ID=llzo-block20-metric-f64 \
-    SPECTRAL_SYMMETRY=metric_eqgino METRIC_HIDDEN_CHANNELS=16 \
+    METRIC_HIDDEN_CHANNELS=16 \
         bash benchmarks/llzo_qnep/submit_followup.sh
 
 `RESTART_LATEST=1` resumes the most recent MACE checkpoint in each run root.
 The default FNO run uses float64, a 24x24x24 grid, four modes per direction,
-four latent channels, two Fourier layers, and 20,000 steps. The original
-single-grid operator remains the default for backward compatibility. A
-symmetry-controlled run should set `SPECTRAL_SYMMETRY=cubic_adaptive` and
-`VOLUME_INTERLACING=2`. `INTERLACING_TRAINING=random` samples one of the eight
+four latent channels, two Fourier layers, and 20,000 steps. Metric-aware
+EqGINO is the default. `INTERLACING_TRAINING=random` samples one of the eight
 mesh origins per optimization batch while validation and inference average all
 eight; this provides mesh-origin augmentation without an eightfold training
 cost.

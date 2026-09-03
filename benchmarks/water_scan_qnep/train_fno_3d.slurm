@@ -19,7 +19,7 @@ ulimit -s unlimited
 PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 source "${PROJECT_ROOT}/benchmarks/runtime_paths.sh"
 DATA_ROOT=${DATA_ROOT:-${PROJECT_ROOT}/data/water_scan_qnep/prepared}
-RUN_ROOT=${RUN_ROOT:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/fno_3d_eqgino}
+RUN_ROOT=${RUN_ROOT:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/fno_3d_metric_eqgino}
 MACE_MODEL=${MACE_MODEL:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/mace_r4p5_nl0_e100_s2e50/models/water-SCAN-r4p5-nl0_stagetwo.model}
 CACHE_ROOT=${CACHE_ROOT:-${RUN_ROOT}/cache}
 MODEL_DTYPE=${MODEL_DTYPE:-float32}
@@ -29,7 +29,7 @@ MODES=${MODES:-4}
 CHANNELS=${CHANNELS:-4}
 FNO_HIDDEN_CHANNELS=${FNO_HIDDEN_CHANNELS:-16}
 FNO_LAYERS=${FNO_LAYERS:-2}
-SPECTRAL_SYMMETRY=${SPECTRAL_SYMMETRY:-eqgino}
+SPECTRAL_SYMMETRY=${SPECTRAL_SYMMETRY:-metric_eqgino}
 SPECTRAL_GROUPS=${SPECTRAL_GROUPS:-4}
 METRIC_HIDDEN_CHANNELS=${METRIC_HIDDEN_CHANNELS:-16}
 VOLUME_INTERLACING=${VOLUME_INTERLACING:-1}
@@ -86,8 +86,8 @@ if (( SPECTRAL_DIAGNOSTIC_SAMPLES > 0 )); then
 fi
 
 # The cells are aligned cubes with varying lengths. Isotropic conditioning
-# supplies log(cell length) to the nonlinear EqGINO operator. Interlacing is
-# intentionally disabled by default for throughput.
+# supplies log(cell length) to the nonlinear metric-aware EqGINO operator.
+# Interlacing is intentionally disabled by default for throughput.
 python3 -u -m mace_fno.cli.train_residual \
     --mace-model "${MACE_MODEL}" \
     --train-file "${DATA_ROOT}/train.xyz" \

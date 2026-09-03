@@ -31,7 +31,7 @@ FNO_HIDDEN_CHANNELS=${FNO_HIDDEN_CHANNELS:-16}
 FNO_LAYERS=${FNO_LAYERS:-2}
 VOLUME_INTERLACING=${VOLUME_INTERLACING:-1}
 INTERLACING_TRAINING=${INTERLACING_TRAINING:-full}
-SPECTRAL_SYMMETRY=${SPECTRAL_SYMMETRY:-none}
+SPECTRAL_SYMMETRY=${SPECTRAL_SYMMETRY:-metric_eqgino}
 SPECTRAL_GROUPS=${SPECTRAL_GROUPS:-1}
 METRIC_HIDDEN_CHANNELS=${METRIC_HIDDEN_CHANNELS:-16}
 BATCH_SIZE=${BATCH_SIZE:-4}
@@ -88,8 +88,7 @@ fi
 
 # LLZO contains variable orthorhombic, tetragonal, and cubic cells. The
 # anisotropic mode supplies log(volume length) and the normalized lattice
-# metric. The optional cubic-adaptive operator has an EqGINO core that is exact
-# for cubic cells and a gated conventional branch for noncubic response.
+# metric, while metric-aware EqGINO evaluates weights at physical wavevectors.
 python3 -u -m mace_fno.cli.train_residual \
     --mace-model "${MACE_MODEL}" \
     --train-file "${DATA_ROOT}/train.xyz" \

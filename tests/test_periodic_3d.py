@@ -5,7 +5,6 @@ import unittest
 import torch
 
 from mace_fno import (
-    EqGINOSpectralConv3d,
     FNO3d,
     FNOFieldOperator3d,
     LearnedParticleMeshLongRange3D,
@@ -407,140 +406,6 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         )
 
 
-class EqGINOSpectralConv3DTests(unittest.TestCase):
-    def setUp(self) -> None:
-        torch.manual_seed(91)
-
-    def test_radial_parameterization_and_grouped_gradients(self) -> None:
-        layer = EqGINOSpectralConv3d(
-            4, 4, (3, 3, 3), groups=2
-        ).to(dtype=DTYPE)
-        self.assertEqual(layer.n_radial_shells, 10)
-        self.assertEqual(layer.radial_weight.shape, (2, 2, 2, 10))
-        field = torch.randn((2, 4, 8, 8, 8), dtype=DTYPE, requires_grad=True)
-        output = layer(field)
-        self.assertEqual(output.shape, field.shape)
-        self.assertFalse(output.is_complex())
-        output.square().mean().backward()
-        self.assertIsNotNone(field.grad)
-        self.assertIsNotNone(layer.radial_weight.grad)
-        self.assertTrue(torch.isfinite(field.grad).all())
-        self.assertTrue(torch.isfinite(layer.radial_weight.grad).all())
-
-    def test_exact_equivariance_for_all_cubic_signed_permutations(self) -> None:
-        model = FNO3d(
-            2,
-            3,
-            (3, 3, 3),
-            hidden_channels=4,
-            n_layers=2,
-            spectral_symmetry="eqgino",
-            spectral_groups=2,
-        ).to(dtype=DTYPE)
-        field = torch.randn((1, 2, 8, 8, 8), dtype=DTYPE)
-        reference = model(field)
-        transformations = cubic_signed_permutation_matrices(
-            include_reflections=True, dtype=DTYPE
-        )
-        for index, transformation in enumerate(transformations):
-            with self.subTest(group_element=index):
-                transformed_input = transform_periodic_scalar_grid(
-                    field, transformation
-                )
-                expected = transform_periodic_scalar_grid(
-                    reference, transformation
-                )
-                torch.testing.assert_close(
-                    model(transformed_input), expected, atol=2e-12, rtol=2e-12
-                )
-
-    def test_particle_mesh_energy_invariance_and_force_covariance(self) -> None:
-        cell = 8.0 * torch.eye(3, dtype=DTYPE)
-        fractional = torch.tensor(
-            (
-                (0.173, 0.217, 0.319),
-                (0.683, 0.731, 0.627),
-                (0.413, 0.367, 0.841),
-            ),
-            dtype=DTYPE,
-        )
-        charges = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
-        model = LearnedParticleMeshLongRange3D(
-            (8, 8, 8),
-            channels=1,
-            n_modes=(3, 3, 3),
-            hidden_channels=4,
-            n_layers=2,
-            spectral_symmetry="eqgino",
-            spectral_groups=2,
-            volume_interlacing=2,
-        ).to(dtype=DTYPE)
-
-        positions = (fractional @ cell).requires_grad_(True)
-        energy = model(positions, charges, cell)
-        force = -torch.autograd.grad(energy, positions)[0]
-        transformations = cubic_signed_permutation_matrices(
-            include_reflections=True, dtype=DTYPE
-        )
-        for index in (5, 17, 31, 44):
-            transformation = transformations[index]
-            rotated_fractional = torch.einsum(
-                "ij,nj->ni", transformation, fractional
-            ).remainder(1.0)
-            rotated_positions = (rotated_fractional @ cell).requires_grad_(True)
-            rotated_energy = model(rotated_positions, charges, cell)
-            rotated_force = -torch.autograd.grad(
-                rotated_energy, rotated_positions
-            )[0]
-            expected_force = torch.einsum("ij,nj->ni", transformation, force)
-            with self.subTest(group_element=index):
-                torch.testing.assert_close(
-                    rotated_energy, energy, atol=2e-12, rtol=2e-12
-                )
-                torch.testing.assert_close(
-                    rotated_force, expected_force, atol=2e-11, rtol=2e-11
-                )
-
-    def test_rejects_anisotropic_modes_and_grid(self) -> None:
-        with self.assertRaisesRegex(ValueError, "equal modes"):
-            EqGINOSpectralConv3d(1, 1, (2, 3, 3))
-        layer = EqGINOSpectralConv3d(1, 1, (2, 2, 2))
-        with self.assertRaisesRegex(ValueError, "cubic"):
-            layer(torch.randn((1, 1, 8, 8, 10)))
-
-    def test_cubic_adaptive_operator_is_exact_on_cubic_cells(self) -> None:
-        model = FNOFieldOperator3d(
-            2,
-            (3, 3, 3),
-            hidden_channels=4,
-            n_layers=2,
-            cell_conditioning="anisotropic",
-            spectral_symmetry="cubic_adaptive",
-            spectral_groups=2,
-        ).to(dtype=DTYPE)
-        field = torch.randn((1, 2, 8, 8, 8), dtype=DTYPE)
-        cell = (8.0 * torch.eye(3, dtype=DTYPE)).unsqueeze(0)
-        reference = model(field, cell)
-        transformations = cubic_signed_permutation_matrices(
-            include_reflections=True, dtype=DTYPE
-        )
-        for index in (5, 17, 31, 44):
-            transformation = transformations[index]
-            transformed = transform_periodic_scalar_grid(field, transformation)
-            expected = transform_periodic_scalar_grid(reference, transformation)
-            with self.subTest(group_element=index):
-                torch.testing.assert_close(
-                    model(transformed, cell), expected, atol=3e-12, rtol=3e-12
-                )
-
-        noncubic = torch.diag(
-            torch.tensor((8.0, 9.0, 10.0), dtype=DTYPE)
-        ).unsqueeze(0)
-        output = model(field, noncubic)
-        self.assertEqual(output.shape, field.shape)
-        self.assertTrue(torch.isfinite(output).all())
-
-
 class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
     def setUp(self) -> None:
         torch.manual_seed(103)
@@ -553,6 +418,14 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
                 ),
             )
         )
+
+    def test_legacy_eqgino_options_are_rejected(self) -> None:
+        for legacy in ("eqgino", "cubic_adaptive"):
+            with self.subTest(spectral_symmetry=legacy):
+                with self.assertRaisesRegex(
+                    ValueError, "must be 'none' or 'metric_eqgino'"
+                ):
+                    FNO3d(1, 1, (2, 2, 2), spectral_symmetry=legacy)
 
     def test_heterogeneous_cells_shape_gradients_and_independent_batches(self) -> None:
         layer = MetricEqGINOSpectralConv3d(
@@ -626,8 +499,7 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
         transformations = cubic_signed_permutation_matrices(
             include_reflections=True, dtype=DTYPE
         )
-        for index in (5, 17, 31, 44):
-            transformation = transformations[index]
+        for index, transformation in enumerate(transformations):
             transformed = transform_periodic_scalar_grid(field, transformation)
             expected = transform_periodic_scalar_grid(reference, transformation)
             with self.subTest(group_element=index):

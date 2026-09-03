@@ -365,15 +365,9 @@ class MACEFNOResidual(nn.Module):
             raise ValueError("fno_volume_interlacing applies only to the 3D scheme")
         if resolved_scheme != "2.5d" and fno_planar_symmetry != "none":
             raise ValueError("fno_planar_symmetry applies only to the 2.5D scheme")
-        if fno_spectral_symmetry not in {
-            "none",
-            "eqgino",
-            "cubic_adaptive",
-            "metric_eqgino",
-        }:
+        if fno_spectral_symmetry not in {"none", "metric_eqgino"}:
             raise ValueError(
-                "fno_spectral_symmetry must be 'none', 'eqgino', "
-                "'cubic_adaptive', or 'metric_eqgino'"
+                "fno_spectral_symmetry must be 'none' or 'metric_eqgino'"
             )
         if resolved_scheme != "3d" and fno_spectral_symmetry != "none":
             raise ValueError("fno_spectral_symmetry applies only to the 3D scheme")
@@ -383,7 +377,7 @@ class MACEFNOResidual(nn.Module):
             raise ValueError("fno_metric_hidden_channels must be positive")
         if fno_spectral_symmetry == "none" and fno_spectral_groups != 1:
             raise ValueError(
-                "fno_spectral_groups applies only to EqGINO-based symmetry"
+                "fno_spectral_groups applies only to metric-aware EqGINO"
             )
         if cell_mode not in {"fixed", "isotropic", "anisotropic"}:
             raise ValueError(
@@ -395,11 +389,6 @@ class MACEFNOResidual(nn.Module):
             )
         if cell_mode != "fixed" and fno_architecture != "nonlinear":
             raise ValueError("variable-cell mode requires a nonlinear FNO")
-        if cell_mode == "anisotropic" and fno_spectral_symmetry == "eqgino":
-            raise ValueError(
-                "anisotropic cell mode is incompatible with cubic EqGINO symmetry"
-            )
-
         if resolved_scheme == "2d":
             if z_grid_size is not None:
                 raise ValueError("z_grid_size is incompatible with spatial_scheme='2d'")
@@ -450,15 +439,6 @@ class MACEFNOResidual(nn.Module):
             z_modes = int(fno_z_modes) if fno_z_modes is not None else int(n_modes[0])
             if z_modes < 1:
                 raise ValueError("fno_z_modes must be positive")
-            if fno_spectral_symmetry in {"eqgino", "cubic_adaptive"}:
-                if not (
-                    int(z_grid_size) == int(grid_shape[0]) == int(grid_shape[1])
-                ):
-                    raise ValueError("EqGINO-based symmetry requires a cubic 3D grid")
-                if not (z_modes == int(n_modes[0]) == int(n_modes[1])):
-                    raise ValueError(
-                        "EqGINO-based symmetry requires equal modes on all axes"
-                    )
             self.long_range = LearnedParticleMeshLongRange3D(
                 (int(z_grid_size), *grid_shape),
                 channels,
@@ -482,21 +462,12 @@ class MACEFNOResidual(nn.Module):
             reference_cell = torch.empty(0)
         elif reference_cell.shape != (3, 3):
             raise ValueError("reference_cell must have shape (3, 3)")
-        if (
-            fno_spectral_symmetry == "eqgino"
-            and reference_cell.numel() != 0
-            and not is_cubic_cell(reference_cell)
-        ):
-            raise ValueError("EqGINO symmetry requires a cubic reference_cell")
         self.register_buffer("reference_cell", reference_cell.detach().clone())
         self.fno_spectral_symmetry = fno_spectral_symmetry
         self.cell_tolerance = float(cell_tolerance)
         self.cell_mode = cell_mode
 
     def _validate_cells(self, cells: Tensor) -> None:
-        if self.fno_spectral_symmetry == "eqgino":
-            if any(not is_cubic_cell(cell) for cell in cells):
-                raise ValueError("EqGINO symmetry requires cubic cells")
         if self.cell_mode == "anisotropic":
             determinants = torch.linalg.det(cells)
             valid = torch.isfinite(cells).all(dim=(-2, -1)) & torch.isfinite(

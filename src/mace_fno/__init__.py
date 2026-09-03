@@ -9,7 +9,6 @@ from .coupling import (
     mace_invariant_indices,
 )
 from .fno import (
-    CubicAdaptiveSpectralConv3d,
     FNO2D,
     FNO2d,
     FNO2p5D,
@@ -20,7 +19,6 @@ from .fno import (
     FNOFieldOperator2p5D,
     FNOFieldOperator3D,
     FNOFieldOperator3d,
-    EqGINOSpectralConv3d,
     GlobalZMixing,
     LinearFNO2D,
     LinearFNO2d,
@@ -82,7 +80,6 @@ from .symmetry import (
 )
 
 __all__ = [
-    "CubicAdaptiveSpectralConv3d",
     "FNO2D",
     "FNO2d",
     "FNO2p5D",
@@ -93,7 +90,6 @@ __all__ = [
     "FNOFieldOperator2p5D",
     "FNOFieldOperator3D",
     "FNOFieldOperator3d",
-    "EqGINOSpectralConv3d",
     "GlobalZMixing",
     "FrozenMACEFeatures",
     "LearnedParticleMeshLongRange",

@@ -44,7 +44,7 @@ def parse_arguments() -> argparse.Namespace:
         help=(
             "Fail if a promised exact invariant or energy-force consistency "
             "check is violated. Cubic symmetry is promoted from a diagnostic "
-            "to a strict check for native EqGINO checkpoints."
+            "to a strict check for metric-aware EqGINO checkpoints."
         ),
     )
     return parser.parse_args()
@@ -539,11 +539,7 @@ def main() -> None:
                 maximum_residual_force_rmse <= 1.0e-4
             ),
         }
-        if checkpoint.get("spectral_symmetry", "none") in {
-            "eqgino",
-            "cubic_adaptive",
-            "metric_eqgino",
-        }:
+        if checkpoint.get("spectral_symmetry", "none") == "metric_eqgino":
             float32 = checkpoint.get("dtype") == "float32"
             exact_checks["cubic_residual_energy_invariance"] = {
                 "observed": maximum_residual_energy_change,
