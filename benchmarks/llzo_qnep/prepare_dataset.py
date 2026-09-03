@@ -2,8 +2,10 @@
 """Download, audit, and split the published LLZO NEP/QNEP data.
 
 The Zenodo record supplies one 1,978-configuration file and no official
-train/test partition.  We therefore make a deterministic 80:10:10 split,
-stratified by cubic, tetragonal, and orthorhombic cell shape.
+train/test partition or trajectory identifiers.  The default reproduces the
+original deterministic 80:10:10 frame-level split stratified by cell shape.
+An optional source-order blocked split keeps contiguous groups of published
+frames together as a conservative surrogate for a trajectory-level holdout.
 """
 
 from __future__ import annotations
@@ -65,6 +67,25 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--validation-fraction", type=float, default=0.10)
     parser.add_argument("--test-fraction", type=float, default=0.10)
     parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument(
+        "--split-method",
+        choices=("frame-stratified", "source-blocked"),
+        default="frame-stratified",
+    )
+    parser.add_argument(
+        "--block-size",
+        type=int,
+        default=20,
+        help=(
+            "Number of contiguous source frames kept together by the "
+            "source-blocked split"
+        ),
+    )
+    parser.add_argument(
+        "--prepared-name",
+        default="prepared",
+        help="Output directory name below data-root",
+    )
     parser.add_argument("--force", action="store_true")
     return parser.parse_args()
 
@@ -298,6 +319,65 @@ def stratified_split_indices(
     }
 
 
+def source_blocked_split_indices(
+    groups: list[str],
+    validation_fraction: float,
+    test_fraction: float,
+    seed: int,
+    block_size: int,
+) -> dict[str, list[int]]:
+    """Split whole contiguous source-order blocks without frame leakage.
+
+    The source file does not identify trajectories.  Keeping fixed contiguous
+    blocks intact therefore provides a transparent, reproducible surrogate
+    without claiming knowledge that is absent from the published metadata.
+    """
+    if validation_fraction + test_fraction >= 1.0:
+        raise ValueError("validation_fraction + test_fraction must be below one")
+    if min(validation_fraction, test_fraction) <= 0.0:
+        raise ValueError("split fractions must be between zero and one")
+    if block_size < 2:
+        raise ValueError("block_size must be at least two")
+
+    blocks = [
+        list(range(start, min(start + block_size, len(groups))))
+        for start in range(0, len(groups), block_size)
+    ]
+    if len(blocks) < 3:
+        raise ValueError("source-blocked split requires at least three blocks")
+    n_validation = max(1, round(validation_fraction * len(blocks)))
+    n_test = max(1, round(test_fraction * len(blocks)))
+    if n_validation + n_test >= len(blocks):
+        raise ValueError("split leaves no training blocks")
+
+    generator = np.random.default_rng(seed)
+    order = generator.permutation(len(blocks)).tolist()
+    block_assignments = {
+        "validation": order[:n_validation],
+        "test": order[n_validation : n_validation + n_test],
+        "train": order[n_validation + n_test :],
+    }
+    split_indices = {
+        split: sorted(
+            index
+            for block_index in selected_blocks
+            for index in blocks[block_index]
+        )
+        for split, selected_blocks in block_assignments.items()
+    }
+
+    available_groups = set(groups)
+    for split, indices in split_indices.items():
+        represented = {groups[index] for index in indices}
+        missing = sorted(available_groups - represented)
+        if missing:
+            raise ValueError(
+                f"source-blocked {split} split omits cell classes {missing}; "
+                "choose another seed or a smaller block size"
+            )
+    return split_indices
+
+
 def label_split(
     structures: list[Any],
     groups: list[str],
@@ -316,6 +396,8 @@ def label_split(
 
 def main() -> None:
     args = parse_arguments()
+    if not args.prepared_name or Path(args.prepared_name).name != args.prepared_name:
+        raise ValueError("prepared-name must be one directory name")
     data_root = args.data_root.expanduser().resolve()
     provenance = ensure_files(
         data_root,
@@ -323,18 +405,27 @@ def main() -> None:
         include_models=args.download_published_models,
     )
     structures, groups, source_summary = audit_structures(data_root / SOURCE_FILE)
-    split_indices = stratified_split_indices(
-        groups,
-        args.validation_fraction,
-        args.test_fraction,
-        args.seed,
-    )
+    if args.split_method == "frame-stratified":
+        split_indices = stratified_split_indices(
+            groups,
+            args.validation_fraction,
+            args.test_fraction,
+            args.seed,
+        )
+    else:
+        split_indices = source_blocked_split_indices(
+            groups,
+            args.validation_fraction,
+            args.test_fraction,
+            args.seed,
+            args.block_size,
+        )
     prepared_structures = {
         split: label_split(structures, groups, indices, split)
         for split, indices in split_indices.items()
     }
 
-    prepared = data_root / "prepared"
+    prepared = data_root / args.prepared_name
     outputs = {
         split: prepared / f"{split}.xyz"
         for split in ("train", "validation", "test")
@@ -351,12 +442,16 @@ def main() -> None:
             )
         manifest = json.loads(manifest_file.read_text())
         expected = (
+            args.split_method,
+            args.block_size if args.split_method == "source-blocked" else None,
             args.seed,
             args.validation_fraction,
             args.test_fraction,
             split_indices,
         )
         observed = (
+            manifest["split"].get("method_key", "frame-stratified"),
+            manifest["split"].get("block_size"),
             manifest["split"]["seed"],
             manifest["split"]["validation_fraction"],
             manifest["split"]["test_fraction"],
@@ -387,7 +482,16 @@ def main() -> None:
             "audit": source_summary,
         },
         "split": {
-            "method": "cell-class-stratified deterministic split",
+            "method": (
+                "cell-class-stratified deterministic frame split"
+                if args.split_method == "frame-stratified"
+                else "deterministic contiguous source-order block split"
+            ),
+            "method_key": args.split_method,
+            "block_size": (
+                args.block_size if args.split_method == "source-blocked" else None
+            ),
+            "trajectory_identifiers_available": False,
             "seed": args.seed,
             "validation_fraction": args.validation_fraction,
             "test_fraction": args.test_fraction,

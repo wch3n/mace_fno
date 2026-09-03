@@ -9,7 +9,10 @@ source "${PROJECT_ROOT}/benchmarks/runtime_paths.sh"
 RUN_ID=${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}
 EXPERIMENT_ROOT=${EXPERIMENT_ROOT:-${MACE_FNO_WORK_ROOT}/llzo_qnep/runs/${RUN_ID}}
 SOURCE_DATA_ROOT=${SOURCE_DATA_ROOT:-${MACE_FNO_WORK_ROOT}/llzo_qnep/data}
-DATA_ROOT=${DATA_ROOT:-${SOURCE_DATA_ROOT}/prepared}
+SPLIT_METHOD=${SPLIT_METHOD:-frame-stratified}
+BLOCK_SIZE=${BLOCK_SIZE:-20}
+PREPARED_NAME=${PREPARED_NAME:-prepared}
+DATA_ROOT=${DATA_ROOT:-${SOURCE_DATA_ROOT}/${PREPARED_NAME}}
 MACE_ONE_ROOT=${MACE_ONE_ROOT:-${EXPERIMENT_ROOT}/mace-nl0}
 MACE_TWO_ROOT=${MACE_TWO_ROOT:-${EXPERIMENT_ROOT}/mace-nl1}
 FNO_RUN_ROOT=${FNO_RUN_ROOT:-${EXPERIMENT_ROOT}/fno}
@@ -44,6 +47,9 @@ mkdir -p "${EXPERIMENT_ROOT}" "${JOB_WORK_ROOT}" "${LOG_ROOT}" "${REPORT_ROOT}"
 prepare_args=(
     --data-root "${SOURCE_DATA_ROOT}"
     --download
+    --split-method "${SPLIT_METHOD}"
+    --block-size "${BLOCK_SIZE}"
+    --prepared-name "${PREPARED_NAME}"
 )
 if (( run_published )); then
     prepare_args+=(--download-published-models)

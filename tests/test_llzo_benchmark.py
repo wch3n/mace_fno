@@ -72,6 +72,61 @@ class LLZOBenchmarkTests(unittest.TestCase):
         self.assertEqual(len(selected), len(set(selected)))
         self.assertEqual(sorted(selected), list(range(len(groups))))
 
+    def test_source_blocked_split_keeps_whole_blocks_together(self) -> None:
+        groups = [
+            group
+            for _ in range(20)
+            for group in (
+                "cubic",
+                "tetragonal",
+                "orthorhombic",
+                "orthorhombic",
+                "orthorhombic",
+                "cubic",
+                "tetragonal",
+                "orthorhombic",
+                "orthorhombic",
+                "orthorhombic",
+            )
+        ]
+        split = PREPARE.source_blocked_split_indices(
+            groups,
+            validation_fraction=0.20,
+            test_fraction=0.20,
+            seed=17,
+            block_size=10,
+        )
+        repeated = PREPARE.source_blocked_split_indices(
+            groups,
+            validation_fraction=0.20,
+            test_fraction=0.20,
+            seed=17,
+            block_size=10,
+        )
+        self.assertEqual(split, repeated)
+        owner = {
+            index: name for name, indices in split.items() for index in indices
+        }
+        self.assertEqual(sorted(owner), list(range(len(groups))))
+        for start in range(0, len(groups), 10):
+            assignments = {
+                owner[index] for index in range(start, min(start + 10, len(groups)))
+            }
+            self.assertEqual(len(assignments), 1)
+        for indices in split.values():
+            self.assertEqual({groups[index] for index in indices}, set(groups))
+
+    def test_source_blocked_split_rejects_missing_cell_class(self) -> None:
+        groups = ["cubic"] * 90 + ["tetragonal"] * 10
+        with self.assertRaisesRegex(ValueError, "omits cell classes"):
+            PREPARE.source_blocked_split_indices(
+                groups,
+                validation_fraction=0.10,
+                test_fraction=0.10,
+                seed=1,
+                block_size=10,
+            )
+
     def test_summary_combines_metrics_and_audits(self) -> None:
         group = {
             "structures": 10,

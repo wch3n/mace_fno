@@ -38,10 +38,15 @@ are noncubic.
 ## Data protocol
 
 The Zenodo record provides one structure file rather than an official test
-split. The preparation script verifies the published byte count and MD5 digest,
-audits every structure and label, and makes a deterministic 80:10:10 split with
-seed 17. Sampling is stratified by cubic, tetragonal, and orthorhombic cell
-class. The resulting counts are:
+split, and it does not identify independent trajectories. The preparation
+script verifies the published byte count and MD5 digest, audits every structure
+and label, and supports two deterministic protocols. The default reproduces an
+80:10:10 frame-level split stratified by cubic, tetragonal, and orthorhombic
+cell class. The stricter `source-blocked` protocol assigns whole contiguous
+source-order blocks to one split. This is a transparent block-level surrogate
+for trajectory separation; it is not described as a true trajectory split.
+
+The default frame-level split with seed 17 contains:
 
 - 1,582 training structures;
 - 198 validation structures;
@@ -56,6 +61,14 @@ Alternatively, invoke the preparation script directly:
     python3 benchmarks/llzo_qnep/prepare_dataset.py \
         --data-root /path/outside/the/repository/llzo_qnep \
         --download
+
+Prepare the blocked protocol in a separate directory using:
+
+    python3 benchmarks/llzo_qnep/prepare_dataset.py \
+        --data-root /path/outside/the/repository/llzo_qnep \
+        --split-method source-blocked \
+        --block-size 20 \
+        --prepared-name prepared-block20
 
 The prepared XYZ files carry `source_index`, `benchmark_split`, and
 `benchmark_group` metadata. `split_manifest.json` records exact source indices,
