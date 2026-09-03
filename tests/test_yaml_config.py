@@ -141,6 +141,7 @@ class YAMLConfigurationTests(unittest.TestCase):
             ("benchmarks/au_mgo/train_fno_2p5d.yaml", "2.5d", "fixed"),
             ("benchmarks/water_scan_qnep/train_fno_3d.yaml", "3d", "isotropic"),
             ("benchmarks/llzo_qnep/train_fno_3d.yaml", "3d", "anisotropic"),
+            ("benchmarks/les_water/train_fno_3d.yaml", "3d", "fixed"),
         )
         for relative_path, spatial_scheme, cell_mode in cases:
             with self.subTest(config=relative_path):

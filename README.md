@@ -26,7 +26,9 @@ complete reproducible workflows are retained:
    slab-resolved 2D FNO correction;
 2. [Water-SCAN](benchmarks/water_scan_qnep/README.md), testing periodic 3D FNO;
 3. [LLZO](benchmarks/llzo_qnep/README.md), testing metric-aware 3D FNO on
-   heterogeneous cubic, tetragonal, and orthorhombic cells.
+   heterogeneous cubic, tetragonal, and orthorhombic cells;
+4. [LES liquid water](benchmarks/les_water/README.md), revisiting the fixed-cell
+   RPBE-D3 water benchmark with the current metric-aware EqGINO operator.
 
 Generated data, MACE models, graph caches, FNO checkpoints, and audit reports
 are not versioned. Benchmark workflows write them beneath
@@ -64,6 +66,7 @@ the same modules directly so they also work from an editable checkout.
 - `benchmarks/au_mgo/`: complete Au2-MgO preparation, training, and audit workflow;
 - `benchmarks/water_scan_qnep/`: complete Water-SCAN preparation, training, and audit workflow;
 - `benchmarks/llzo_qnep/`: heterogeneous-cell LLZO training and audit workflow;
+- `benchmarks/les_water/`: fixed-cell RPBE-D3 liquid-water EqGINO workflow;
 - `tests/`: numerical, symmetry, checkpoint, diagnostic, and ASE tests.
 
 There are deliberately no separate top-level `jobs/` or `examples/`
