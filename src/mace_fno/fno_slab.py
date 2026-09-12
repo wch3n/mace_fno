@@ -9,6 +9,7 @@ from torch import Tensor, nn
 from torch.nn import functional as F
 
 from .fno_2d import SpectralConv2D
+from .fno_slab_eqgino import MetricEqGINOSpectralConv2D
 
 
 class SlabSpectralConv2D(nn.Module):
@@ -161,11 +162,32 @@ class SlabFNOBlock2D(nn.Module):
         *,
         z_kernel_size: int = 3,
         z_mixing: str = "local",
+        spectral_symmetry: str = "none",
+        spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
     ) -> None:
         super().__init__()
         if z_mixing not in {"local", "global"}:
             raise ValueError("z_mixing must be 'local' or 'global'")
-        self.spectral = SlabPlanarSpectralConv2D(channels, channels, n_modes)
+        self.spectral_symmetry = spectral_symmetry
+        if spectral_symmetry == "metric_eqgino":
+            self.spectral = MetricEqGINOSpectralConv2D(
+                channels,
+                channels,
+                n_modes,
+                groups=spectral_groups,
+                radial_hidden_channels=metric_hidden_channels,
+                parameterization=metric_parameterization,
+                reference_length=metric_reference_length,
+            )
+        elif spectral_symmetry == "none":
+            if spectral_groups != 1:
+                raise ValueError("spectral_groups applies only to metric-aware EqGINO")
+            self.spectral = SlabPlanarSpectralConv2D(channels, channels, n_modes)
+        else:
+            raise ValueError("spectral_symmetry must be 'none' or 'metric_eqgino'")
         if z_mixing == "local":
             if z_kernel_size < 1 or z_kernel_size % 2 == 0:
                 raise ValueError("z_kernel_size must be a positive odd integer")
@@ -180,8 +202,14 @@ class SlabFNOBlock2D(nn.Module):
             self.z_mixing = GlobalZMixing(channels, n_z)
         self.local = nn.Conv3d(channels, channels, kernel_size=1, bias=False)
 
-    def forward(self, field: Tensor) -> Tensor:
-        return F.gelu(self.spectral(field) + self.z_mixing(field) + self.local(field))
+    def forward(self, field: Tensor, cell: Tensor | None = None) -> Tensor:
+        if self.spectral_symmetry == "metric_eqgino":
+            if cell is None:
+                raise ValueError("metric-aware slab EqGINO requires cell")
+            spectral = self.spectral(field, cell)
+        else:
+            spectral = self.spectral(field)
+        return F.gelu(spectral + self.z_mixing(field) + self.local(field))
 
 
 class LinearSlabFNO2D(nn.Module):
@@ -238,6 +266,11 @@ class SlabFNO2D(nn.Module):
         projection_channels: int | None = None,
         z_kernel_size: int = 3,
         z_mixing: str = "local",
+        spectral_symmetry: str = "none",
+        spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
     ) -> None:
         super().__init__()
         if min(in_channels, out_channels, n_z, hidden_channels, n_layers) < 1:
@@ -261,6 +294,11 @@ class SlabFNO2D(nn.Module):
                 self.n_modes,
                 z_kernel_size=z_kernel_size,
                 z_mixing=z_mixing,
+                spectral_symmetry=spectral_symmetry,
+                spectral_groups=spectral_groups,
+                metric_hidden_channels=metric_hidden_channels,
+                metric_parameterization=metric_parameterization,
+                metric_reference_length=metric_reference_length,
             )
             for _ in range(n_layers)
         )
@@ -271,7 +309,7 @@ class SlabFNO2D(nn.Module):
             projection_channels, self.out_channels, kernel_size=1, bias=False
         )
 
-    def forward(self, field: Tensor) -> Tensor:
+    def forward(self, field: Tensor, cell: Tensor | None = None) -> Tensor:
         unbatched = field.ndim == 4
         if unbatched:
             field = field.unsqueeze(0)
@@ -288,13 +326,20 @@ class SlabFNO2D(nn.Module):
 
         hidden = self.lifting(field)
         for block in self.blocks:
-            hidden = block(hidden)
+            hidden = block(hidden, cell)
         output = self.projection_output(F.gelu(self.projection_hidden(hidden)))
         return output.squeeze(0) if unbatched else output
 
 
 class SlabFNOFieldOperator2D(nn.Module):
-    """Normalized field-operator adapter for explicit finite z layers."""
+    """Normalized field-operator adapter for explicit finite z layers.
+
+    C4/D4 ensemble averaging requires a square physical in-plane cell and a
+    square lateral mesh. Alternatively, ``spectral_symmetry='metric_eqgino'``
+    uses intrinsic radial weights with no ensemble (nonlinear architecture
+    only). Pass ``cell`` for either path; one cell may be shared by all fields
+    or supplied per field in the batch. The metric path accepts nonsquare cells.
+    """
 
     def __init__(
         self,
@@ -309,6 +354,11 @@ class SlabFNOFieldOperator2D(nn.Module):
         z_mixing: str = "local",
         planar_symmetry: str = "none",
         architecture: str = "nonlinear",
+        spectral_symmetry: str = "none",
+        spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
     ) -> None:
         super().__init__()
         if architecture not in {"linear", "nonlinear"}:
@@ -317,6 +367,22 @@ class SlabFNOFieldOperator2D(nn.Module):
             raise ValueError("z_mixing must be 'local' or 'global'")
         if planar_symmetry not in {"none", "c4", "d4"}:
             raise ValueError("planar_symmetry must be 'none', 'c4', or 'd4'")
+        if spectral_symmetry not in {"none", "metric_eqgino"}:
+            raise ValueError("spectral_symmetry must be 'none' or 'metric_eqgino'")
+        if spectral_symmetry == "metric_eqgino":
+            if architecture != "nonlinear":
+                raise ValueError(
+                    "slab metric_eqgino currently requires architecture='nonlinear'"
+                )
+            if planar_symmetry != "none":
+                raise ValueError(
+                    "slab metric_eqgino requires planar_symmetry='none'; no ensemble is needed"
+                )
+        elif spectral_groups != 1:
+            raise ValueError("spectral_groups applies only to metric-aware EqGINO")
+        self.spectral_symmetry = spectral_symmetry
+        self.spectral_groups = int(spectral_groups)
+        self.metric_parameterization = metric_parameterization
         self.architecture = architecture
         self.channels = int(channels)
         self.n_z = int(n_z)
@@ -336,6 +402,11 @@ class SlabFNOFieldOperator2D(nn.Module):
                 projection_channels=projection_channels,
                 z_kernel_size=z_kernel_size,
                 z_mixing=z_mixing,
+                spectral_symmetry=spectral_symmetry,
+                spectral_groups=spectral_groups,
+                metric_hidden_channels=metric_hidden_channels,
+                metric_parameterization=metric_parameterization,
+                metric_reference_length=metric_reference_length,
             )
         self.register_buffer("input_scale", torch.ones(1, channels, 1, 1, 1))
         self.register_buffer("output_scale", torch.ones(1, channels, 1, 1, 1))
@@ -358,8 +429,40 @@ class SlabFNOFieldOperator2D(nn.Module):
         self.input_scale.copy_(input_rms.clamp_min(minimum_scale))
         self.output_scale.copy_(output_rms.clamp_min(minimum_scale))
 
+    @staticmethod
+    def _validate_symmetry_cell(cell: Tensor | None, batch_size: int) -> None:
+        if cell is None:
+            raise ValueError("C4/D4 planar symmetry requires a physical cell")
+        if cell.shape == (3, 3):
+            cells = cell.unsqueeze(0)
+        elif cell.shape == (batch_size, 3, 3):
+            cells = cell
+        else:
+            raise ValueError(
+                "C4/D4 cell must have shape (3, 3) or (batch, 3, 3), "
+                "matching the field batch"
+            )
+        if not torch.is_floating_point(cells):
+            raise TypeError("C4/D4 cell must be a floating-point tensor")
+        plane = cells[:, :2]
+        lengths = torch.linalg.vector_norm(plane, dim=-1)
+        product = lengths[:, 0] * lengths[:, 1]
+        dot = (plane[:, 0] * plane[:, 1]).sum(dim=-1)
+        tolerance = 1.0e-6
+        valid = torch.isfinite(cells).all(dim=(-2, -1))
+        valid = valid & torch.isfinite(product)
+        valid = valid & (lengths > torch.finfo(cells.dtype).eps).all(dim=-1)
+        valid = valid & (
+            (lengths[:, 0] - lengths[:, 1]).abs() <= tolerance * lengths.amax(dim=-1)
+        )
+        valid = valid & (dot.abs() <= tolerance * product)
+        if not bool(valid.all().detach().cpu()):
+            raise ValueError(
+                "C4/D4 planar symmetry requires a finite square in-plane cell "
+                "(orthogonal first two vectors of equal length) for every field"
+            )
+
     def forward(self, density: Tensor, cell: Tensor | None = None) -> Tensor:
-        del cell
         unbatched = density.ndim == 4
         density_batch = density.unsqueeze(0) if unbatched else density
         if (
@@ -375,6 +478,7 @@ class SlabFNOFieldOperator2D(nn.Module):
         if self.planar_symmetry in {"c4", "d4"}:
             if normalized.shape[-2] != normalized.shape[-1]:
                 raise ValueError("C4/D4 planar symmetry requires a square lateral grid")
+            self._validate_symmetry_cell(cell, density_batch.shape[0])
             group_size = 4 if self.planar_symmetry == "c4" else 8
 
             def transform(field: Tensor, index: int) -> Tensor:
@@ -407,6 +511,8 @@ class SlabFNOFieldOperator2D(nn.Module):
                     ],
                     dim=0,
                 ).mean(dim=0)
+        elif self.spectral_symmetry == "metric_eqgino":
+            potential = self.fno(normalized, cell)
         else:
             potential = self.fno(normalized)
         potential = potential * self.output_scale

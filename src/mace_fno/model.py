@@ -308,6 +308,11 @@ class LearnedSlabParticleMeshLongRange(SlabParticleMeshEnergy):
         n_layers: int = 4,
         projection_channels: int | None = None,
         architecture: str = "nonlinear",
+        spectral_symmetry: str = "none",
+        spectral_groups: int = 1,
+        metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
         check_neutrality: bool = True,
         neutrality_tolerance: float = 1.0e-10,
     ) -> None:
@@ -323,6 +328,11 @@ class LearnedSlabParticleMeshLongRange(SlabParticleMeshEnergy):
             z_mixing=z_mixing,
             planar_symmetry=planar_symmetry,
             architecture=architecture,
+            spectral_symmetry=spectral_symmetry,
+            spectral_groups=spectral_groups,
+            metric_hidden_channels=metric_hidden_channels,
+            metric_parameterization=metric_parameterization,
+            metric_reference_length=metric_reference_length,
         )
         super().__init__(
             grid_shape,
@@ -450,9 +460,7 @@ class ParticleMeshEnergy3D(nn.Module):
             ]
             if self.training and self.interlacing_training == "random":
                 selected = int(
-                    torch.randint(
-                        len(offsets), (1,), device=positions.device
-                    ).item()
+                    torch.randint(len(offsets), (1,), device=positions.device).item()
                 )
                 shifted_positions = positions + offsets[selected].index_select(
                     0, batch_indices
@@ -520,6 +528,8 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
         metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
         cell_conditioning: str = "none",
         volume_interlacing: int = 1,
         interlacing_training: str = "full",
@@ -536,6 +546,8 @@ class LearnedParticleMeshLongRange3D(ParticleMeshEnergy3D):
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
             metric_hidden_channels=metric_hidden_channels,
+            metric_parameterization=metric_parameterization,
+            metric_reference_length=metric_reference_length,
             cell_conditioning=cell_conditioning,
         )
         super().__init__(

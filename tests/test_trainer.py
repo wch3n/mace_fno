@@ -7,8 +7,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import torch
+from mace_fno_test_helpers import train_arguments
 
-from mace_fno.cli.config import parse_arguments
 from mace_fno.cli.yaml_config import resolved_configuration
 from mace_fno.training import (
     OptimizationResult,
@@ -108,19 +108,8 @@ def _sample(target: float = 0.5) -> dict[str, object]:
 
 
 class ResidualTrainerTests(unittest.TestCase):
-    def _arguments(self, *options: str):
-        return parse_arguments(
-            [
-                "--mace-model",
-                "model.pt",
-                "--train-file",
-                "train.xyz",
-                *options,
-            ]
-        )
-
     def test_optimizer_selects_and_restores_an_improved_residual(self) -> None:
-        arguments = self._arguments(
+        arguments = train_arguments(
             "--steps",
             "8",
             "--eval-interval",
@@ -170,7 +159,7 @@ class ResidualTrainerTests(unittest.TestCase):
         self.assertGreater(model.scale.item(), 0.0)
 
     def test_joint_optimizer_updates_mace_and_residual_parameter_groups(self) -> None:
-        arguments = self._arguments(
+        arguments = train_arguments(
             "--steps",
             "8",
             "--eval-interval",
@@ -220,7 +209,7 @@ class ResidualTrainerTests(unittest.TestCase):
     def test_checkpoint_writer_preserves_resolved_model_metadata(self) -> None:
         with TemporaryDirectory() as temporary_directory:
             checkpoint = Path(temporary_directory) / "residual.pt"
-            arguments = self._arguments(
+            arguments = train_arguments(
                 "--spatial-scheme",
                 "3d",
                 "--cell-mode",
@@ -284,11 +273,12 @@ class ResidualTrainerTests(unittest.TestCase):
             self.assertEqual(payload["cell_mode"], "anisotropic")
             self.assertEqual(payload["n_modes"], (6, 8, 8))
             self.assertEqual(payload["spectral_symmetry"], "metric_eqgino")
+            self.assertEqual(payload["metric_parameterization"], "shell_spline")
             self.assertEqual(payload["best_step"], 4)
             self.assertEqual(payload["training_configuration"], effective)
 
     def test_joint_checkpoint_payload_embeds_mace_state(self) -> None:
-        arguments = self._arguments(
+        arguments = train_arguments(
             "--mace-training",
             "joint",
             "--mace-learning-rate",

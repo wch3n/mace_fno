@@ -23,8 +23,13 @@ MODEL_DTYPE=${MODEL_DTYPE:-float64}
 CHECKPOINT=${CHECKPOINT:-${MACE_FNO_WORK_ROOT}/water_scan_qnep/fno_3d_metric_eqgino/water_scan_fno_3d_seed${FNO_SEED}_${MODEL_DTYPE}.pt}
 SPECTRUM_SAMPLES=${SPECTRUM_SAMPLES:-4}
 SPECTRUM_MAX_MODE=${SPECTRUM_MAX_MODE:-2}
+SPECTRUM_PROBE_PHASE=${SPECTRUM_PROBE_PHASE:-cosine}
+SPECTRUM_FIT_SHELLS=${SPECTRUM_FIT_SHELLS:-3}
 SPECTRUM_RELATIVE_AMPLITUDE=${SPECTRUM_RELATIVE_AMPLITUDE:-0.05}
+SPECTRUM_RELATIVE_AMPLITUDES=${SPECTRUM_RELATIVE_AMPLITUDES:-}
+SPECTRUM_RELATIVE_SPAN_TOLERANCE=${SPECTRUM_RELATIVE_SPAN_TOLERANCE:-0.05}
 SPECTRUM_BATCH_SIZE=${SPECTRUM_BATCH_SIZE:-32}
+SPECTRUM_SEED=${SPECTRUM_SEED:-947}
 SPECTRUM_OUTPUT=${SPECTRUM_OUTPUT:-${CHECKPOINT%.pt}_spectral_response.json}
 JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${SPECTRUM_OUTPUT}")/work}
 
@@ -40,11 +45,26 @@ export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
 export MPLCONFIGDIR="${TMPDIR:-/tmp}/mace-fno-spectrum-${SLURM_JOB_ID}"
 mkdir -p "${MPLCONFIGDIR}"
 
-python3 -u -m mace_fno.cli.audit_spectral \
-    --checkpoint "${CHECKPOINT}" \
-    --samples "${SPECTRUM_SAMPLES}" \
-    --max-mode "${SPECTRUM_MAX_MODE}" \
-    --relative-amplitude "${SPECTRUM_RELATIVE_AMPLITUDE}" \
-    --field-batch-size "${SPECTRUM_BATCH_SIZE}" \
-    --device cuda \
+spectral_args=(
+    --checkpoint "${CHECKPOINT}"
+    --samples "${SPECTRUM_SAMPLES}"
+    --max-mode "${SPECTRUM_MAX_MODE}"
+    --probe-phase "${SPECTRUM_PROBE_PHASE}"
+    --fit-shells "${SPECTRUM_FIT_SHELLS}"
+    --field-batch-size "${SPECTRUM_BATCH_SIZE}"
+    --seed "${SPECTRUM_SEED}"
+    --device cuda
     --output "${SPECTRUM_OUTPUT}"
+)
+
+if [[ -n "${SPECTRUM_RELATIVE_AMPLITUDES}" ]]; then
+    read -r -a relative_amplitudes <<< "${SPECTRUM_RELATIVE_AMPLITUDES}"
+    spectral_args+=(
+        --relative-amplitudes "${relative_amplitudes[@]}"
+        --relative-span-tolerance "${SPECTRUM_RELATIVE_SPAN_TOLERANCE}"
+    )
+else
+    spectral_args+=(--relative-amplitude "${SPECTRUM_RELATIVE_AMPLITUDE}")
+fi
+
+python3 -u -m mace_fno.cli.audit_spectral "${spectral_args[@]}"

@@ -166,8 +166,9 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         choices=("none", "metric_eqgino"),
         default="none",
         help=(
-            "Use physical reciprocal-metric EqGINO radial weights for arbitrary "
-            "periodic cells; 'none' retains the unconstrained 3D FNO"
+            "Use physical reciprocal-metric EqGINO radial weights in 3D or "
+            "nonlinear 2.5D (with planar-symmetry none); 'none' retains the "
+            "unconstrained Fourier weights"
         ),
     )
     parser.add_argument(
@@ -180,10 +181,19 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--metric-parameterization",
+        choices=("shell_spline", "radial_mlp"),
+        default="shell_spline",
+        help=(
+            "Metric EqGINO weights: independent reference-shell matrices with "
+            "cubic interpolation (default), or the previous shared radial MLP"
+        ),
+    )
+    parser.add_argument(
         "--metric-hidden-channels",
         type=int,
         default=16,
-        help="Hidden width of the physical-|k| radial network in metric EqGINO",
+        help="Hidden width used only with --metric-parameterization radial_mlp",
     )
     parser.add_argument(
         "--z-kernel-size",

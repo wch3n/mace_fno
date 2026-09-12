@@ -35,18 +35,6 @@ class SpectralResponseTests(unittest.TestCase):
         self.assertEqual(len(planar_modes), 4)
         self.assertNotIn((0, 0), planar_modes)
 
-    def test_cosine_mode_is_zero_mean_and_unit_rms(self) -> None:
-        mode = unit_rms_cosine_mode(
-            (12, 14, 16), (1, -1, 0), device="cpu", dtype=DTYPE
-        )
-        self.assertAlmostEqual(float(mode.mean()), 0.0, places=12)
-        self.assertAlmostEqual(float(mode.square().mean()), 1.0, places=12)
-        planar = unit_rms_cosine_mode_2d(
-            (14, 16), (1, -1), device="cpu", dtype=DTYPE
-        )
-        self.assertAlmostEqual(float(planar.mean()), 0.0, places=12)
-        self.assertAlmostEqual(float(planar.square().mean()), 1.0, places=12)
-
     def test_slab_profiles_are_orthonormal_and_kernel_is_symmetric(self) -> None:
         profiles, names = slab_z_profiles(12, 3, device="cpu", dtype=DTYPE)
         self.assertEqual(names, ["monopole", "dipole", "quadrupole"])

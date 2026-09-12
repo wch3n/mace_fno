@@ -18,7 +18,7 @@ model:
   architecture: nonlinear
   spectral_symmetry: metric_eqgino
   spectral_groups: 1
-  metric_hidden_channels: 16
+  metric_parameterization: shell_spline
   volume_interlacing: 1
   interlacing_training: full
 

@@ -253,9 +253,11 @@ class SlabParticleMesh(nn.Module):
 
     The first two cell vectors define the periodic plane. The surface-normal
     coordinate is the Cartesian projection on their unit normal; it is never
-    wrapped. Cubic B-spline support that crosses either end of the finite z
-    window is accumulated into the boundary voxel, which conserves deposited
-    values without introducing periodic coupling between the two surfaces.
+    wrapped. Lateral coordinates use the dual of the in-plane basis, independent
+    of any lateral component of the third cell vector. Cubic B-spline support
+    that crosses either end of the finite z window is accumulated into the
+    boundary voxel, which conserves deposited values without introducing
+    periodic coupling between the two surfaces.
 
     With ``z_center='mean'`` (the default), each graph is centered on its mean
     atomic height. This makes the field invariant to rigid translations normal
@@ -341,18 +343,31 @@ class SlabParticleMesh(nn.Module):
             raise ValueError("batch graph count must match the number of cells")
 
         nz, nx, ny = self.grid_shape
-        atom_cells = cells.index_select(0, batch)
-        fractional = torch.linalg.solve(
-            atom_cells.transpose(1, 2), positions.unsqueeze(-1)
-        ).squeeze(-1)[:, :2]
+        normals = torch.linalg.cross(cells[:, 0], cells[:, 1])
+        areas = torch.linalg.vector_norm(normals, dim=1)
+        valid_plane = torch.isfinite(cells[:, :2]).all(dim=(-2, -1))
+        valid_plane = valid_plane & torch.isfinite(areas)
+        valid_plane = valid_plane & (areas > torch.finfo(cells.dtype).eps)
+        if not bool(valid_plane.all().detach().cpu()):
+            raise ValueError("every in-plane cell must span a finite, non-zero area")
+        unit_normals = normals / areas[:, None]
+
+        # a* = (b x n)/area, b* = (n x a)/area, without the 2*pi factor.
+        # Using the full 3D inverse instead would shear x/y with atomic height
+        # whenever c has an in-plane component, even though z is nonperiodic.
+        dual_vectors = torch.stack(
+            (
+                torch.linalg.cross(cells[:, 1], unit_normals) / areas[:, None],
+                torch.linalg.cross(unit_normals, cells[:, 0]) / areas[:, None],
+            ),
+            dim=1,
+        )
+        fractional = torch.einsum(
+            "ni,nji->nj", positions, dual_vectors.index_select(0, batch)
+        )
         wrapped_xy = fractional - torch.floor(fractional)
         xy_coordinates = wrapped_xy * positions.new_tensor((nx, ny))
 
-        normals = torch.linalg.cross(cells[:, 0], cells[:, 1])
-        areas = torch.linalg.vector_norm(normals, dim=1)
-        if bool((areas <= torch.finfo(cells.dtype).eps).any().detach().cpu()):
-            raise ValueError("every in-plane cell must span a non-zero area")
-        unit_normals = normals / areas[:, None]
         atom_normals = unit_normals.index_select(0, batch)
         heights = (positions * atom_normals).sum(dim=1)
         if self.z_center == "mean":

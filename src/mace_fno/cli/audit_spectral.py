@@ -29,6 +29,12 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--samples", type=int, default=4)
     parser.add_argument("--max-mode", type=int, default=2)
     parser.add_argument(
+        "--probe-phase",
+        choices=("cosine", "sine"),
+        default="cosine",
+        help="real Fourier perturbation phase; does not change the checkpoint",
+    )
+    parser.add_argument(
         "--fit-shells",
         type=int,
         default=3,
@@ -85,6 +91,7 @@ def main() -> None:
         "fit_shells": args.fit_shells,
         "field_batch_size": args.field_batch_size,
         "z_profiles": args.z_profiles,
+        "probe_phase": args.probe_phase,
     }
     if args.relative_amplitudes is None:
         report = low_k_response_diagnostic(

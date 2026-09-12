@@ -315,6 +315,8 @@ def main() -> None:
         "z_mixing": infer_checkpoint_z_mixing(checkpoint),
         "lateral_interlacing": checkpoint.get("lateral_interlacing", 1),
         "planar_symmetry": checkpoint.get("planar_symmetry", "none"),
+        "spectral_symmetry": checkpoint.get("spectral_symmetry", "none"),
+        "metric_parameterization": checkpoint.get("metric_parameterization"),
         "subset_energy_rmse_mev_per_atom": 1000.0 * rms(energy_errors),
         "subset_force_rmse_mev_per_angstrom": 1000.0 * rms(force_errors),
         "subset_force_rmse_by_axis_mev_per_angstrom": [
@@ -362,7 +364,13 @@ def main() -> None:
                 > 1.0e-5
             ):
                 failures.append("C4 residual equivariance")
-        if checkpoint.get("planar_symmetry", "none") == "d4":
+        intrinsic_d4 = (
+            checkpoint.get("spectral_symmetry", "none") == "metric_eqgino"
+            and c4_report is not None
+            and checkpoint["grid_shape"][0] == checkpoint["grid_shape"][1]
+            and checkpoint["n_modes"][0] == checkpoint["n_modes"][1]
+        )
+        if checkpoint.get("planar_symmetry", "none") == "d4" or intrinsic_d4:
             if c4_report is None or reflection_report is None:
                 failures.append("D4 audit geometry")
             elif (

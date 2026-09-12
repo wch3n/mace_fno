@@ -452,9 +452,7 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
         output.square().mean().backward()
         self.assertIsNotNone(field.grad)
         self.assertTrue(torch.isfinite(field.grad).all())
-        parameter_gradients = [
-            parameter.grad for parameter in layer.radial_network.parameters()
-        ]
+        parameter_gradients = [parameter.grad for parameter in layer.parameters()]
         self.assertTrue(all(gradient is not None for gradient in parameter_gradients))
         self.assertTrue(
             all(torch.isfinite(gradient).all() for gradient in parameter_gradients)

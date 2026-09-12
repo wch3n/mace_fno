@@ -103,19 +103,20 @@ def training_checkpoint_payload(
         ),
         "spectral_symmetry": (
             model_config.spectral_symmetry
-            if model_config.spatial_scheme == "3d"
+            if model_config.spatial_scheme in {"2.5d", "3d"}
             else "none"
         ),
         "spectral_groups": (
             model_config.spectral_groups
-            if model_config.spatial_scheme == "3d"
+            if model_config.spatial_scheme in {"2.5d", "3d"}
             else 1
         ),
         "metric_hidden_channels": (
             model_config.metric_hidden_channels
-            if model_config.spatial_scheme == "3d"
+            if model_config.spatial_scheme in {"2.5d", "3d"}
             else 16
         ),
+        "metric_parameterization": model_config.metric_parameterization,
         "z_kernel_size": (
             model_config.z_kernel_size
             if model_config.spatial_scheme == "2.5d"
@@ -262,6 +263,19 @@ def _required(checkpoint: Mapping[str, Any], key: str) -> Any:
     return checkpoint[key]
 
 
+def infer_metric_parameterization(checkpoint: Mapping[str, Any]) -> str:
+    """Keep historical radial-MLP checkpoints unchanged; never resample silently."""
+    declared = checkpoint.get("metric_parameterization")
+    if declared is not None:
+        if declared not in {"shell_spline", "radial_mlp"}:
+            raise ValueError(f"unsupported metric_parameterization {declared!r}")
+        return str(declared)
+    state = checkpoint.get("residual_state_dict", {})
+    if any(".spectral.shell_spline.knots" in key for key in state):
+        return "shell_spline"
+    return "radial_mlp"
+
+
 def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]:
     """Translate checkpoint metadata into ``MACEFNOResidual`` arguments."""
     scheme = str(checkpoint.get("spatial_scheme", "2d")).lower()
@@ -281,9 +295,7 @@ def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]
         "grid_shape": grid_shape,
         "channels": int(_required(checkpoint, "channels")),
         "n_modes": modes[1:] if scheme == "3d" else modes,
-        "source_hidden_channels": int(
-            _required(checkpoint, "source_hidden_channels")
-        ),
+        "source_hidden_channels": int(_required(checkpoint, "source_hidden_channels")),
         "fno_hidden_channels": int(_required(checkpoint, "fno_hidden_channels")),
         "fno_layers": int(_required(checkpoint, "fno_layers")),
         "fno_architecture": str(_required(checkpoint, "architecture")),
@@ -303,9 +315,7 @@ def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]
                 ),
                 "fno_z_kernel_size": int(checkpoint.get("z_kernel_size") or 3),
                 "fno_z_mixing": infer_checkpoint_z_mixing(checkpoint),
-                "fno_planar_symmetry": str(
-                    checkpoint.get("planar_symmetry") or "none"
-                ),
+                "fno_planar_symmetry": str(checkpoint.get("planar_symmetry") or "none"),
             }
         )
     elif scheme == "3d":
@@ -313,18 +323,24 @@ def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]
             {
                 "z_grid_size": int(_required(checkpoint, "z_grid_size")),
                 "fno_z_modes": modes[0],
-                "fno_volume_interlacing": int(
-                    checkpoint.get("volume_interlacing", 1)
-                ),
+                "fno_volume_interlacing": int(checkpoint.get("volume_interlacing", 1)),
                 "fno_interlacing_training": str(
                     checkpoint.get("interlacing_training") or "full"
                 ),
+            }
+        )
+    if scheme in {"2.5d", "3d"}:
+        parameters.update(
+            {
                 "fno_spectral_symmetry": str(
                     checkpoint.get("spectral_symmetry") or "none"
                 ),
                 "fno_spectral_groups": int(checkpoint.get("spectral_groups", 1)),
                 "fno_metric_hidden_channels": int(
                     checkpoint.get("metric_hidden_channels", 16)
+                ),
+                "fno_metric_parameterization": infer_metric_parameterization(
+                    checkpoint
                 ),
             }
         )
@@ -465,10 +481,7 @@ def mace_state_dict(model: torch.nn.Module) -> dict[str, torch.Tensor]:
         mace_model = model.backbone.mace_model
     except AttributeError as error:
         raise TypeError("model does not expose backbone.mace_model") from error
-    return {
-        key: value.detach().cpu()
-        for key, value in mace_model.state_dict().items()
-    }
+    return {key: value.detach().cpu() for key, value in mace_model.state_dict().items()}
 
 
 def load_mace_state_dict(

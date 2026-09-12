@@ -8,6 +8,7 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
+from .radial import NaturalCubicSpline
 from .symmetry import is_cubic_cell
 
 
@@ -99,7 +100,7 @@ class SpectralConv3D(nn.Module):
 class MetricEqGINOSpectralConv3D(nn.Module):
     """Cell-metric-aware isotropic convolution for periodic scalar fields.
 
-    The layer evaluates a small radial network at the physical wavevector
+    The layer evaluates learned radial weights at the physical wavevector
     magnitude
 
     ``|k_n|^2 = |2 pi A^{-1} n|^2``.
@@ -107,9 +108,14 @@ class MetricEqGINOSpectralConv3D(nn.Module):
     Here ``A`` follows ASE's row-vector cell convention and ``n`` is ordered
     consistently with the field's ``(z, x, y)`` mesh.  Dependence on ``|k|^2``
     makes the learned multiplier real and even, preserves Hermitian symmetry,
-    and is invariant when the complete cell is rigidly rotated.  The radial
-    network is evaluated only on retained modes, so its cost is small relative
-    to the full-grid FFT.
+    and is invariant when the complete cell is rigidly rotated.
+
+    ``shell_spline`` learns independent matrices at the integer-radius shells
+    of a reference cube of side ``reference_length`` (angstrom). Natural cubic
+    interpolation in physical |k|^2, with tangent-linear extrapolation, recovers
+    the original shell operator at that cube. Anchors never follow the input
+    cell. ``radial_mlp`` retains the previous shared-network parameterization
+    for loading existing checkpoints and explicit comparisons.
     """
 
     def __init__(
@@ -120,6 +126,8 @@ class MetricEqGINOSpectralConv3D(nn.Module):
         *,
         groups: int = 1,
         radial_hidden_channels: int = 16,
+        parameterization: str = "shell_spline",
+        reference_length: float = 1.0,
     ) -> None:
         super().__init__()
         if in_channels < 1 or out_channels < 1:
@@ -132,11 +140,18 @@ class MetricEqGINOSpectralConv3D(nn.Module):
             raise ValueError("in_channels and out_channels must be divisible by groups")
         if radial_hidden_channels < 1:
             raise ValueError("radial_hidden_channels must be positive")
+        if parameterization not in {"shell_spline", "radial_mlp"}:
+            raise ValueError(
+                "metric parameterization must be 'shell_spline' or 'radial_mlp'"
+            )
+        if not math.isfinite(reference_length) or reference_length <= 0:
+            raise ValueError("metric reference_length must be finite and positive")
 
         self.in_channels = int(in_channels)
         self.out_channels = int(out_channels)
         self.n_modes = tuple(int(mode) for mode in n_modes)
         self.groups = int(groups)
+        self.parameterization = parameterization
         self.radial_hidden_channels = int(radial_hidden_channels)
         self.in_channels_per_group = self.in_channels // self.groups
         self.out_channels_per_group = self.out_channels // self.groups
@@ -150,24 +165,54 @@ class MetricEqGINOSpectralConv3D(nn.Module):
         self.register_buffer("mode_xyz", mode_xyz, persistent=True)
 
         matrix_size = (
-            self.groups
-            * self.in_channels_per_group
-            * self.out_channels_per_group
-        )
-        self.radial_network = nn.Sequential(
-            nn.Linear(1, self.radial_hidden_channels),
-            nn.SiLU(),
-            nn.Linear(self.radial_hidden_channels, matrix_size),
+            self.groups * self.in_channels_per_group * self.out_channels_per_group
         )
         scale = 1.0 / math.sqrt(
             self.in_channels_per_group * self.out_channels_per_group
         )
-        final = self.radial_network[-1]
-        nn.init.normal_(
-            final.weight,
-            std=scale / math.sqrt(self.radial_hidden_channels),
+        if parameterization == "shell_spline":
+            radii = torch.unique(mode_xyz.square().sum(-1), sorted=True)
+            self.shell_spline = NaturalCubicSpline(radii)
+            self.register_buffer(
+                "reference_wavenumber_squared",
+                torch.tensor(
+                    (2 * math.pi / reference_length) ** 2, dtype=torch.float64
+                ),
+            )
+            # Match the original shell-table layout and random initialization.
+            self.radial_weight = nn.Parameter(
+                scale
+                * torch.randn(
+                    self.groups,
+                    self.in_channels_per_group,
+                    self.out_channels_per_group,
+                    radii.numel(),
+                )
+            )
+        else:
+            self.radial_network = nn.Sequential(
+                nn.Linear(1, self.radial_hidden_channels),
+                nn.SiLU(),
+                nn.Linear(self.radial_hidden_channels, matrix_size),
+            )
+            final = self.radial_network[-1]
+            nn.init.normal_(
+                final.weight, std=scale / math.sqrt(self.radial_hidden_channels)
+            )
+            nn.init.normal_(final.bias, std=scale)
+
+    def radial_weights(self, squared_wavevectors: Tensor) -> Tensor:
+        """Return matrices shaped ``(*q.shape, groups, in/group, out/group)``."""
+        if self.parameterization == "shell_spline":
+            coordinate = squared_wavevectors / self.reference_wavenumber_squared
+            return self.shell_spline(coordinate, self.radial_weight.movedim(-1, 0))
+        values = self.radial_network(torch.log1p(squared_wavevectors).unsqueeze(-1))
+        return values.reshape(
+            *squared_wavevectors.shape,
+            self.groups,
+            self.in_channels_per_group,
+            self.out_channels_per_group,
         )
-        nn.init.normal_(final.bias, std=scale)
 
     def _physical_squared_wavevectors(self, cells: Tensor) -> Tensor:
         """Return retained ``|k|^2`` values with shape ``(batch, z, x, y)``."""
@@ -175,9 +220,7 @@ class MetricEqGINOSpectralConv3D(nn.Module):
         flat_modes = modes.reshape(-1, 3).transpose(0, 1)
         right_hand_side = flat_modes.unsqueeze(0).expand(cells.shape[0], -1, -1)
         wavevectors = (
-            2.0
-            * math.pi
-            * torch.linalg.solve(cells, right_hand_side).transpose(1, 2)
+            2.0 * math.pi * torch.linalg.solve(cells, right_hand_side).transpose(1, 2)
         )
         squared = wavevectors.square().sum(dim=-1)
         return squared.reshape(cells.shape[0], *modes.shape[:-1])
@@ -238,23 +281,13 @@ class MetricEqGINOSpectralConv3D(nn.Module):
         )
 
         squared_wavevectors = self._physical_squared_wavevectors(cells)
-        radial_coordinate = torch.log1p(squared_wavevectors).unsqueeze(-1)
-        weights = self.radial_network(radial_coordinate)
-        weights = weights.reshape(
-            field.shape[0],
-            *squared_wavevectors.shape[-3:],
-            self.groups,
-            self.in_channels_per_group,
-            self.out_channels_per_group,
-        ).permute(0, 4, 5, 6, 1, 2, 3)
+        weights = self.radial_weights(squared_wavevectors).permute(0, 4, 5, 6, 1, 2, 3)
         transformed = torch.complex(
             torch.einsum("bgizxy,bgiozxy->bgozxy", retained.real, weights),
             torch.einsum("bgizxy,bgiozxy->bgozxy", retained.imag, weights),
         ).reshape(field.shape[0], self.out_channels, *retained.shape[-3:])
 
-        output_k = field_k.new_zeros(
-            (field.shape[0], self.out_channels, nz, nx, ny)
-        )
+        output_k = field_k.new_zeros((field.shape[0], self.out_channels, nz, nx, ny))
         output_k[
             :,
             :,
@@ -273,12 +306,12 @@ def _spectral_conv3d(
     spectral_symmetry: str,
     spectral_groups: int,
     metric_hidden_channels: int,
+    metric_parameterization: str,
+    metric_reference_length: float,
 ) -> nn.Module:
     if spectral_symmetry == "none":
         if spectral_groups != 1:
-            raise ValueError(
-                "spectral_groups applies only to metric-aware EqGINO"
-            )
+            raise ValueError("spectral_groups applies only to metric-aware EqGINO")
         return SpectralConv3D(in_channels, out_channels, n_modes)
     if spectral_symmetry == "metric_eqgino":
         return MetricEqGINOSpectralConv3D(
@@ -287,6 +320,8 @@ def _spectral_conv3d(
             n_modes,
             groups=spectral_groups,
             radial_hidden_channels=metric_hidden_channels,
+            parameterization=metric_parameterization,
+            reference_length=metric_reference_length,
         )
     raise ValueError("spectral_symmetry must be 'none' or 'metric_eqgino'")
 
@@ -302,6 +337,8 @@ class FNOBlock3D(nn.Module):
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
         metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
     ) -> None:
         super().__init__()
         self.spectral = _spectral_conv3d(
@@ -311,6 +348,8 @@ class FNOBlock3D(nn.Module):
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
             metric_hidden_channels=metric_hidden_channels,
+            metric_parameterization=metric_parameterization,
+            metric_reference_length=metric_reference_length,
         )
         self.spectral_symmetry = spectral_symmetry
         self.local = nn.Conv3d(channels, channels, kernel_size=1, bias=False)
@@ -341,6 +380,8 @@ class LinearFNO3D(nn.Module):
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
         metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
     ) -> None:
         super().__init__()
         self.in_channels = int(in_channels)
@@ -352,6 +393,8 @@ class LinearFNO3D(nn.Module):
             spectral_symmetry=spectral_symmetry,
             spectral_groups=spectral_groups,
             metric_hidden_channels=metric_hidden_channels,
+            metric_parameterization=metric_parameterization,
+            metric_reference_length=metric_reference_length,
         )
         self.spectral_symmetry = spectral_symmetry
 
@@ -392,6 +435,8 @@ class FNO3D(nn.Module):
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
         metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
     ) -> None:
         super().__init__()
         if min(in_channels, out_channels, hidden_channels, n_layers) < 1:
@@ -415,6 +460,8 @@ class FNO3D(nn.Module):
                 spectral_symmetry=self.spectral_symmetry,
                 spectral_groups=self.spectral_groups,
                 metric_hidden_channels=metric_hidden_channels,
+                metric_parameterization=metric_parameterization,
+                metric_reference_length=metric_reference_length,
             )
             for _ in range(n_layers)
         )
@@ -475,6 +522,8 @@ class FNOFieldOperator3D(nn.Module):
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
         metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
         cell_conditioning: str = "none",
     ) -> None:
         super().__init__()
@@ -491,6 +540,7 @@ class FNOFieldOperator3D(nn.Module):
         self.spectral_symmetry = spectral_symmetry
         self.spectral_groups = int(spectral_groups)
         self.metric_hidden_channels = int(metric_hidden_channels)
+        self.metric_parameterization = metric_parameterization
         self.cell_conditioning = cell_conditioning
         conditioning_channels = {
             "none": 0,
@@ -506,6 +556,8 @@ class FNOFieldOperator3D(nn.Module):
                 spectral_symmetry=spectral_symmetry,
                 spectral_groups=spectral_groups,
                 metric_hidden_channels=metric_hidden_channels,
+                metric_parameterization=metric_parameterization,
+                metric_reference_length=metric_reference_length,
             )
         else:
             self.fno = FNO3D(
@@ -518,6 +570,8 @@ class FNOFieldOperator3D(nn.Module):
                 spectral_symmetry=spectral_symmetry,
                 spectral_groups=spectral_groups,
                 metric_hidden_channels=metric_hidden_channels,
+                metric_parameterization=metric_parameterization,
+                metric_reference_length=metric_reference_length,
             )
         self.register_buffer("input_scale", torch.ones(1, channels, 1, 1, 1))
         self.register_buffer("output_scale", torch.ones(1, channels, 1, 1, 1))
@@ -567,8 +621,10 @@ class FNOFieldOperator3D(nn.Module):
             lengths = cells.det().abs().pow(1.0 / 3.0)
             if bool((lengths <= 0).any().detach().cpu()):
                 raise ValueError("cell volumes must be positive")
-            condition = lengths.log().reshape(-1, 1, 1, 1, 1).expand(
-                -1, 1, *density_batch.shape[-3:]
+            condition = (
+                lengths.log()
+                .reshape(-1, 1, 1, 1, 1)
+                .expand(-1, 1, *density_batch.shape[-3:])
             )
             normalized = torch.cat((normalized, condition), dim=1)
         elif self.cell_conditioning == "anisotropic":

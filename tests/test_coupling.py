@@ -5,6 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import torch
+from mace_fno_test_helpers import FakeIrreps, FakeMACE, FakeProduct, batch_data
 from torch import nn
 
 from mace_fno import (
@@ -28,42 +29,6 @@ from mace_fno.training import (
 )
 
 DTYPE = torch.float64
-
-
-class _FakeIrrep:
-    def __init__(self, angular_momentum: int, parity: int) -> None:
-        self.l = angular_momentum
-        self.p = parity
-
-
-class _FakeIrreps:
-    def __init__(self, terms: list[tuple[int, int, int]]) -> None:
-        self.terms = [
-            (multiplicity, _FakeIrrep(angular_momentum, parity))
-            for multiplicity, angular_momentum, parity in terms
-        ]
-        self.dim = sum(
-            multiplicity * (2 * irrep.l + 1) for multiplicity, irrep in self.terms
-        )
-
-    def __iter__(self):
-        return iter(self.terms)
-
-    def slices(self) -> list[slice]:
-        result = []
-        start = 0
-        for multiplicity, irrep in self.terms:
-            stop = start + multiplicity * (2 * irrep.l + 1)
-            result.append(slice(start, stop))
-            start = stop
-        return result
-
-
-class _FakeProduct(nn.Module):
-    def __init__(self, irreps: _FakeIrreps) -> None:
-        super().__init__()
-        self.linear = nn.Module()
-        self.linear.irreps_out = irreps
 
 
 class _AtomicEnergyLookup(nn.Module):
@@ -108,84 +73,19 @@ class _FakeAtomicMACE(nn.Module):
         }
 
 
-class _FakeMACE(nn.Module):
-    """Small position-dependent module matching the relevant MACE contract."""
-
-    def __init__(self, with_irreps: bool = False) -> None:
-        super().__init__()
-        self.local_scale = nn.Parameter(torch.tensor(0.07, dtype=DTYPE))
-        if with_irreps:
-            self.products = nn.ModuleList(
-                [
-                    _FakeProduct(_FakeIrreps([(2, 0, 1), (1, 1, -1)])),
-                    _FakeProduct(_FakeIrreps([(1, 0, -1), (3, 0, 1)])),
-                ]
-            )
-
-    def forward(self, data, **kwargs):
-        compute_force = bool(kwargs.get("compute_force", False))
-        positions = data["positions"]
-        positions.requires_grad_(True)
-        batch = data["batch"]
-        num_graphs = int(batch.max().detach().cpu()) + 1
-        atom_energy = self.local_scale * positions.square().sum(dim=1)
-        energy = atom_energy.new_zeros(num_graphs).index_add(0, batch, atom_energy)
-        species = data["node_attrs"][:, 0]
-        radius_squared = positions.square().sum(dim=1)
-        node_features = torch.stack(
-            (
-                radius_squared,
-                positions[:, 0],
-                species + 0.2 * radius_squared,
-                positions[:, 1],
-            ),
-            dim=1,
-        )
-        forces = -2.0 * self.local_scale * positions if compute_force else None
-        return {"energy": energy, "forces": forces, "node_feats": node_features}
-
-
-def _batch_data() -> dict[str, torch.Tensor]:
-    positions = torch.tensor(
-        (
-            (1.31, 2.17, 0.2),
-            (4.22, 5.41, -0.1),
-            (7.15, 1.82, 0.4),
-            (2.26, 3.38, -0.3),
-            (6.73, 7.11, 0.1),
-        ),
-        dtype=DTYPE,
-    )
-    cells = torch.stack(
-        (
-            torch.diag(torch.tensor((9.0, 10.0, 18.0), dtype=DTYPE)),
-            torch.diag(torch.tensor((9.0, 10.0, 18.0), dtype=DTYPE)),
-        )
-    )
-    return {
-        "positions": positions,
-        "cell": cells,
-        "batch": torch.tensor((0, 0, 0, 1, 1), dtype=torch.long),
-        "ptr": torch.tensor((0, 3, 5), dtype=torch.long),
-        "node_attrs": torch.tensor(
-            ((1.0,), (0.0,), (1.0,), (0.0,), (1.0,)), dtype=DTYPE
-        ),
-    }
-
-
 class CouplingTests(unittest.TestCase):
     def setUp(self) -> None:
         torch.manual_seed(13)
 
     def test_irreps_metadata_locates_even_scalars_per_layer(self) -> None:
-        indices, descriptor_dim = mace_invariant_indices(_FakeMACE(with_irreps=True))
+        indices, descriptor_dim = mace_invariant_indices(FakeMACE(with_irreps=True))
         self.assertEqual(indices, [0, 1, 6, 7, 8])
         self.assertEqual(descriptor_dim, 9)
 
     def test_frozen_features_retain_position_derivatives(self) -> None:
-        backbone = _FakeMACE()
+        backbone = FakeMACE()
         adapter = FrozenMACEFeatures(backbone, invariant_indices=(0, 2))
-        data = _batch_data()
+        data = batch_data()
         _, features, _ = adapter(data)
         derivative = torch.autograd.grad(features.sum(), data["positions"])[0]
         self.assertTrue(torch.isfinite(derivative).all())
@@ -231,9 +131,9 @@ class CouplingTests(unittest.TestCase):
         torch.testing.assert_close(sums, torch.zeros_like(sums), atol=2e-15, rtol=0)
 
     def test_batched_coupling_and_joint_force_backward(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (12, 12),
             channels=2,
             n_modes=(3, 3),
@@ -278,8 +178,8 @@ class CouplingTests(unittest.TestCase):
         self.assertIsNone(model.backbone.mace_model.local_scale.grad)
 
     def test_joint_mode_backpropagates_total_force_loss_into_mace(self) -> None:
-        data = _batch_data()
-        backbone = _FakeMACE()
+        data = batch_data()
+        backbone = FakeMACE()
         model = MACEFNOResidual(
             backbone,
             (8, 8),
@@ -304,9 +204,9 @@ class CouplingTests(unittest.TestCase):
         self.assertFalse(backbone.training)
 
     def test_batched_hybrid_2p5d_coupling(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (12, 12),
             channels=2,
             n_modes=(3, 3),
@@ -345,9 +245,11 @@ class CouplingTests(unittest.TestCase):
         self.assertIsNone(model.backbone.mace_model.local_scale.grad)
 
     def test_batched_interlaced_2p5d_coupling(self) -> None:
-        data = _batch_data()
+        data = batch_data()
+        # D4 is a symmetry of a square physical plane, not the default rectangle.
+        data["cell"][:, 1, 1] = data["cell"][:, 0, 0]
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (12, 12),
             channels=2,
             n_modes=(3, 3),
@@ -381,9 +283,9 @@ class CouplingTests(unittest.TestCase):
         self.assertTrue(all(torch.isfinite(gradient).all() for gradient in gradients))
 
     def test_batched_fully_periodic_3d_coupling(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=2,
             n_modes=(2, 2),
@@ -408,9 +310,9 @@ class CouplingTests(unittest.TestCase):
         self.assertTrue(torch.isfinite(output["residual_forces"]).all())
 
     def test_batched_interlaced_fully_periodic_3d_coupling(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=2,
             n_modes=(2, 2),
@@ -434,7 +336,7 @@ class CouplingTests(unittest.TestCase):
         self.assertTrue(torch.isfinite(output["residual_forces"]).all())
 
     def test_low_k_diagnostic_is_validation_only_for_periodic_3d(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         cubic_cell = 8.0 * torch.eye(3, dtype=DTYPE)
         graph = {
             "positions": data["positions"][:3].clone(),
@@ -451,7 +353,7 @@ class CouplingTests(unittest.TestCase):
             "formula": "X",
         }
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -476,9 +378,15 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(report["diagnostic_kind"], "periodic_3d")
         self.assertEqual(report["samples"], 1)
         self.assertEqual(len(report["per_sample_response"][0]["modes"]), 13)
+        self.assertEqual(report["probe_phase"], "cosine")
+        sine_report = low_k_response_diagnostic(
+            model, [sample], max_mode=1, probe_phase="sine"
+        )
+        self.assertEqual(sine_report["probe_phase"], "sine")
+        self.assertEqual(len(sine_report["per_sample_response"][0]["modes"]), 13)
 
         planar_model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -519,6 +427,17 @@ class CouplingTests(unittest.TestCase):
             fit_shells=4,
         )
         amplitude_summary = amplitude_report["summary"]
+        sine_amplitudes = amplitude_convergence_diagnostic(
+            planar_model, [sample], relative_amplitudes=(0.025, 0.05),
+            max_mode=2, fit_shells=4, probe_phase="sine",
+        )
+        self.assertEqual(sine_amplitudes["probe_phase"], "sine")
+        for sine_run in sine_amplitudes["runs"]:
+            self.assertEqual(sine_run["probe_phase"], "sine")
+            self.assertAlmostEqual(
+                sine_run["low_k_planar_response_fit"]["free_power_exponent_p"],
+                1.0, places=10,
+            )
         self.assertEqual(amplitude_report["estimated_field_evaluations"], 108)
         self.assertTrue(amplitude_summary["curvature_stable_within_tolerance"])
         self.assertLess(amplitude_summary["maximum_mode_relative_span"], 1.0e-8)
@@ -533,7 +452,7 @@ class CouplingTests(unittest.TestCase):
             )
 
         slab_model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -552,6 +471,10 @@ class CouplingTests(unittest.TestCase):
         )
         self.assertEqual(len(slab_report["per_sample_response"][0]["modes"]), 4)
         self.assertEqual(slab_report["probes_per_mode"], 3)
+        sine_slab = low_k_response_diagnostic(
+            slab_model, [sample], fit_shells=2, z_profiles=1, probe_phase="sine"
+        )
+        self.assertEqual(sine_slab["probe_phase"], "sine")
 
         monopole_report = low_k_response_diagnostic(
             slab_model, [sample], fit_shells=2, z_profiles=1
@@ -561,7 +484,7 @@ class CouplingTests(unittest.TestCase):
         )
 
         anisotropic_model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -585,7 +508,7 @@ class CouplingTests(unittest.TestCase):
         )
 
         interlaced_model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -603,9 +526,9 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(interlaced_report["diagnostic_kind"], "periodic_3d")
 
     def test_3d_reference_cell_guard_includes_third_vector(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -620,12 +543,12 @@ class CouplingTests(unittest.TestCase):
             model(data, compute_force=False)
 
     def test_isotropic_3d_cell_mode_accepts_uniform_scalings(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         data["cell"] = torch.stack(
             (8.0 * torch.eye(3, dtype=DTYPE), 10.0 * torch.eye(3, dtype=DTYPE))
         )
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=2,
             n_modes=(2, 2),
@@ -653,7 +576,7 @@ class CouplingTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "requires a nonlinear"):
             MACEFNOResidual(
-                _FakeMACE(),
+                FakeMACE(),
                 (8, 8),
                 channels=1,
                 n_modes=(2, 2),
@@ -665,7 +588,7 @@ class CouplingTests(unittest.TestCase):
             )
 
     def test_anisotropic_3d_cell_mode_accepts_variable_cell_shapes(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         data["cell"] = torch.stack(
             (
                 torch.diag(torch.tensor((8.0, 9.0, 10.0), dtype=DTYPE)),
@@ -676,7 +599,7 @@ class CouplingTests(unittest.TestCase):
             )
         )
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=2,
             n_modes=(2, 2),
@@ -703,7 +626,7 @@ class CouplingTests(unittest.TestCase):
             model(invalid, compute_force=False)
 
         metric = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=2,
             n_modes=(2, 2),
@@ -715,18 +638,15 @@ class CouplingTests(unittest.TestCase):
             fno_spectral_groups=2,
             fno_metric_hidden_channels=5,
             invariant_indices=(0, 2),
+            reference_cell=data["cell"][0],
             cell_mode="anisotropic",
         ).to(dtype=DTYPE)
-        metric_output = metric(
-            data, compute_force=False, compute_residual_force=True
-        )
+        metric_output = metric(data, compute_force=False, compute_residual_force=True)
         self.assertTrue(torch.isfinite(metric_output["residual_forces"]).all())
-        self.assertEqual(
-            metric.long_range.field_operator.metric_hidden_channels, 5
-        )
+        self.assertEqual(metric.long_range.field_operator.metric_hidden_channels, 5)
 
     def test_reported_force_is_energy_gradient(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         one_graph = {
             key: value[:3].clone() if key in {"positions", "node_attrs"} else value
             for key, value in data.items()
@@ -735,7 +655,7 @@ class CouplingTests(unittest.TestCase):
         one_graph["ptr"] = torch.tensor((0, 3), dtype=torch.long)
         one_graph["cell"] = data["cell"][:1].clone()
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (12, 12),
             channels=1,
             n_modes=(3, 3),
@@ -762,9 +682,9 @@ class CouplingTests(unittest.TestCase):
         )
 
     def test_base_and_residual_forces_add_to_total_force(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -787,7 +707,7 @@ class CouplingTests(unittest.TestCase):
         )
 
     def test_frozen_targets_are_cached_as_reference_minus_mace(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         graphs = []
         for graph_index, (start, stop) in enumerate(((0, 3), (3, 5))):
             graphs.append(
@@ -799,7 +719,7 @@ class CouplingTests(unittest.TestCase):
                     "node_attrs": data["node_attrs"][start:stop].clone(),
                 }
             )
-        backbone = _FakeMACE()
+        backbone = FakeMACE()
         samples = []
         for graph in graphs:
             base_energy = (
@@ -845,9 +765,9 @@ class CouplingTests(unittest.TestCase):
         )
 
     def test_reference_cell_guard_rejects_changed_cell(self) -> None:
-        data = _batch_data()
+        data = batch_data()
         model = MACEFNOResidual(
-            _FakeMACE(),
+            FakeMACE(),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -860,9 +780,9 @@ class CouplingTests(unittest.TestCase):
             model(data, compute_force=False)
 
     def test_legacy_checkpoint_reconstructs_2p5d_model(self) -> None:
-        reference_cell = _batch_data()["cell"][0]
+        reference_cell = batch_data()["cell"][0]
         original = MACEFNOResidual(
-            _FakeMACE(with_irreps=True),
+            FakeMACE(with_irreps=True),
             (8, 10),
             channels=2,
             n_modes=(2, 3),
@@ -901,7 +821,7 @@ class CouplingTests(unittest.TestCase):
 
         restored = build_mace_fno_model(
             checkpoint,
-            _FakeMACE(with_irreps=True),
+            FakeMACE(with_irreps=True),
         )
         self.assertFalse(restored.training)
         self.assertEqual(restored.spatial_scheme, "2.5d")
@@ -934,6 +854,7 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(parameters["fno_spectral_symmetry"], "metric_eqgino")
         self.assertEqual(parameters["fno_spectral_groups"], 4)
         self.assertEqual(parameters["fno_metric_hidden_channels"], 12)
+        self.assertEqual(parameters["fno_metric_parameterization"], "radial_mlp")
         self.assertEqual(parameters["fno_interlacing_training"], "full")
 
         checkpoint["cell_mode"] = "anisotropic"
@@ -947,9 +868,9 @@ class CouplingTests(unittest.TestCase):
         self.assertEqual(parameters["fno_metric_hidden_channels"], 16)
 
     def test_metric_eqgino_checkpoint_reconstructs_model(self) -> None:
-        reference_cell = _batch_data()["cell"][0]
+        reference_cell = batch_data()["cell"][0]
         original = MACEFNOResidual(
-            _FakeMACE(with_irreps=True),
+            FakeMACE(with_irreps=True),
             (8, 8),
             channels=2,
             n_modes=(2, 2),
@@ -985,7 +906,7 @@ class CouplingTests(unittest.TestCase):
             "dtype": "float64",
         }
         restored = build_mace_fno_model(
-            checkpoint, _FakeMACE(with_irreps=True), dtype=DTYPE
+            checkpoint, FakeMACE(with_irreps=True), dtype=DTYPE
         )
         self.assertEqual(
             restored.long_range.field_operator.spectral_symmetry,
@@ -998,10 +919,97 @@ class CouplingTests(unittest.TestCase):
         for key, expected in checkpoint["residual_state_dict"].items():
             torch.testing.assert_close(residual_state_dict(restored)[key], expected)
 
+    def test_metric_parameterizations_roundtrip_predictions_in_both_training_modes(
+        self,
+    ) -> None:
+        def backbone():
+            model = FakeMACE()
+            # Match the four descriptor columns actually emitted by this mock.
+            model.products = nn.ModuleList(
+                [FakeProduct(FakeIrreps([(4, 0, 1)]))]
+            )
+            return model
+
+        for parameterization in ("shell_spline", "radial_mlp"):
+            for training in ("frozen", "joint"):
+                with self.subTest(parameterization=parameterization, training=training):
+                    reference_cell = batch_data()["cell"][0]
+                    original = MACEFNOResidual(
+                        backbone(),
+                        (8, 8),
+                        channels=2,
+                        n_modes=(2, 2),
+                        source_hidden_channels=7,
+                        fno_hidden_channels=4,
+                        fno_layers=1,
+                        spatial_scheme="3d",
+                        z_grid_size=8,
+                        fno_z_modes=2,
+                        fno_spectral_symmetry="metric_eqgino",
+                        fno_spectral_groups=2,
+                        fno_metric_hidden_channels=5,
+                        fno_metric_parameterization=parameterization,
+                        reference_cell=reference_cell,
+                        cell_mode="anisotropic",
+                        mace_training=training,
+                    ).to(dtype=DTYPE)
+                    checkpoint = {
+                        "residual_state_dict": residual_state_dict(original),
+                        "mace_state_dict": mace_state_dict(original)
+                        if training == "joint"
+                        else None,
+                        "mace_training": training,
+                        "grid_shape": (8, 8),
+                        "n_modes": (2, 2, 2),
+                        "spatial_scheme": "3d",
+                        "cell_mode": "anisotropic",
+                        "z_grid_size": 8,
+                        "spectral_symmetry": "metric_eqgino",
+                        "spectral_groups": 2,
+                        "metric_hidden_channels": 5,
+                        "channels": 2,
+                        "source_hidden_channels": 7,
+                        "fno_hidden_channels": 4,
+                        "fno_layers": 1,
+                        "architecture": "nonlinear",
+                        "reference_cell": reference_cell,
+                        "dtype": "float64",
+                    }
+                    # Historical MLP files have no parameterization tag. New
+                    # files explicitly declare it and persist spline anchors.
+                    if parameterization == "shell_spline":
+                        checkpoint["metric_parameterization"] = parameterization
+                    restored = build_mace_fno_model(
+                        checkpoint, backbone(), dtype=DTYPE
+                    )
+                    self.assertEqual(
+                        restored.long_range.field_operator.metric_parameterization,
+                        parameterization,
+                    )
+                    expected = original(
+                        batch_data(), training=True, compute_force=True
+                    )
+                    actual = restored(batch_data(), training=True, compute_force=True)
+                    for key in ("energy", "forces"):
+                        torch.testing.assert_close(
+                            actual[key], expected[key], atol=1e-12, rtol=1e-12
+                        )
+                    (
+                        actual["energy"].square().mean()
+                        + actual["forces"].square().mean()
+                    ).backward()
+                    spectral = restored.long_range.field_operator.fno.blocks[0].spectral
+                    self.assertTrue(
+                        all(
+                            p.grad is not None and torch.isfinite(p.grad).all()
+                            for p in spectral.parameters()
+                        )
+                    )
+
     def test_joint_checkpoint_restores_updated_mace_state(self) -> None:
-        reference_cell = _batch_data()["cell"][0]
+        reference_cell = batch_data()["cell"][0]
         original = MACEFNOResidual(
-            _FakeMACE(with_irreps=True),
+            FakeMACE(with_irreps=True),
             (8, 8),
             channels=1,
             n_modes=(2, 2),
@@ -1028,24 +1036,17 @@ class CouplingTests(unittest.TestCase):
         }
 
         restored = build_mace_fno_model(
-            checkpoint, _FakeMACE(with_irreps=True), dtype=DTYPE
+            checkpoint, FakeMACE(with_irreps=True), dtype=DTYPE
         )
 
         self.assertEqual(restored.mace_training, "joint")
-        self.assertAlmostEqual(
-            restored.backbone.mace_model.local_scale.item(), 0.321
-        )
+        self.assertAlmostEqual(restored.backbone.mace_model.local_scale.item(), 0.321)
 
     def test_legacy_artifact_model_path_follows_relocated_checkpoint(self) -> None:
         with TemporaryDirectory() as directory:
             run_root = Path(directory) / "runs"
             checkpoint = run_root / "les_au_mgo" / "residual.pt"
-            model = (
-                run_root
-                / "les_au_mgo"
-                / "pretrained"
-                / "Au2-MgO_stagetwo.model"
-            )
+            model = run_root / "les_au_mgo" / "pretrained" / "Au2-MgO_stagetwo.model"
             checkpoint.parent.mkdir(parents=True)
             model.parent.mkdir(parents=True)
             checkpoint.touch()

@@ -37,6 +37,7 @@ class YAMLConfigurationTests(unittest.TestCase):
                         "cell_mode": "anisotropic",
                         "grid": 24,
                         "spectral_symmetry": "metric_eqgino",
+                        "metric_parameterization": "shell_spline",
                     },
                     "training": {
                         "steps": 200,
@@ -55,6 +56,7 @@ class YAMLConfigurationTests(unittest.TestCase):
             self.assertEqual(args.checkpoint, (root / "run/model.pt").resolve())
             self.assertEqual(args.spatial_scheme, "3d")
             self.assertEqual(args.cell_mode, "anisotropic")
+            self.assertEqual(args.metric_parameterization, "shell_spline")
             self.assertEqual(args.grid, 24)
             self.assertEqual(args.steps, 200)
             self.assertEqual(args.spectral_diagnostic_amplitudes, [0.01, 0.05])

@@ -24,6 +24,7 @@ from .fno_slab import (
     SlabPlanarSpectralConv2D,
     SlabSpectralConv2D,
 )
+from .fno_slab_eqgino import MetricEqGINOSpectralConv2D
 
 __all__ = [
     "FNO2D",
@@ -37,6 +38,7 @@ __all__ = [
     "LinearFNO3D",
     "LinearSlabFNO2D",
     "MetricEqGINOSpectralConv3D",
+    "MetricEqGINOSpectralConv2D",
     "SlabFNO2D",
     "SlabFNOBlock2D",
     "SlabFNOFieldOperator2D",

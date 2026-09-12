@@ -62,6 +62,7 @@ class ModelConfig:
     spectral_symmetry: str
     spectral_groups: int
     metric_hidden_channels: int
+    metric_parameterization: str
     z_kernel_size: int
     z_mixing: str
     channels: int
@@ -91,6 +92,9 @@ class ModelConfig:
             spectral_symmetry=str(values["spectral_symmetry"]),
             spectral_groups=int(values["spectral_groups"]),
             metric_hidden_channels=int(values["metric_hidden_channels"]),
+            metric_parameterization=str(
+                values.get("metric_parameterization", "shell_spline")
+            ),
             z_kernel_size=int(values["z_kernel_size"]),
             z_mixing=str(values["z_mixing"]),
             channels=int(values["channels"]),
@@ -111,6 +115,10 @@ class ModelConfig:
             raise ValueError("spectral_groups must be positive")
         if self.metric_hidden_channels < 1:
             raise ValueError("metric_hidden_channels must be positive")
+        if self.metric_parameterization not in {"shell_spline", "radial_mlp"}:
+            raise ValueError(
+                "metric_parameterization must be 'shell_spline' or 'radial_mlp'"
+            )
         if self.spectral_symmetry == "none" and self.spectral_groups != 1:
             raise ValueError("--spectral-groups applies only with metric-aware EqGINO")
         if self.interlacing_training == "random" and self.volume_interlacing != 2:
@@ -147,7 +155,7 @@ class ModelConfig:
         if self.planar_symmetry != "none":
             raise ValueError("--planar-symmetry applies only to the 2.5D scheme")
         if self.spectral_symmetry != "none":
-            raise ValueError("--spectral-symmetry applies only to the 3D scheme")
+            raise ValueError("--spectral-symmetry requires the 2.5D or 3D scheme")
 
     def _validate_slab(self) -> None:
         if self.z_grid < 4:
@@ -156,8 +164,15 @@ class ModelConfig:
             raise ValueError("the 2.5D scheme requires a positive --z-extent")
         if self.z_modes:
             raise ValueError("--z-modes applies only to the 3D scheme")
-        if self.spectral_symmetry != "none":
-            raise ValueError("--spectral-symmetry applies only to the 3D scheme")
+        if self.spectral_symmetry == "metric_eqgino":
+            if self.architecture != "nonlinear":
+                raise ValueError("slab metric_eqgino requires --architecture nonlinear")
+            if self.planar_symmetry != "none":
+                raise ValueError("slab metric_eqgino requires --planar-symmetry none")
+            if self.fno_hidden_channels % self.spectral_groups:
+                raise ValueError(
+                    "metric-aware EqGINO channels must be divisible by spectral_groups"
+                )
         if self.volume_interlacing != 1:
             raise ValueError("--volume-interlacing applies only to the 3D scheme")
         if self.z_mixing == "local" and (

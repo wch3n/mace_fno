@@ -5,7 +5,10 @@ physical symmetries that a generic Cartesian-grid FNO does not enforce. It
 checks held-out errors, latent-source neutrality, force additivity, the
 acoustic sum rule, arbitrary rigid translations, exact grid and lattice
 translations, residual-force finite differences, and cubic signed-axis
-transformations of representative held-out periodic configurations.
+transformations of representative held-out periodic configurations. Fixed-cell
+cubic transformations are exact only when they preserve the mesh and mode
+cutoff. Anisotropic-cell models also undergo a rigid rotation of atoms and cell
+together, which does not require a cubic mesh or cell.
 """
 
 from __future__ import annotations
@@ -25,6 +28,7 @@ from mace_fno.training import (
     clone_graph,
     load_mace_fno_model,
 )
+from mace_fno.training.checkpoint import infer_metric_parameterization
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -43,8 +47,9 @@ def parse_arguments() -> argparse.Namespace:
         action="store_true",
         help=(
             "Fail if a promised exact invariant or energy-force consistency "
-            "check is violated. Cubic symmetry is promoted from a diagnostic "
-            "to a strict check for metric-aware EqGINO checkpoints."
+            "check is violated. For metric-aware EqGINO, fixed-cell cubic "
+            "transformations are strict only when they preserve both the mesh "
+            "and mode cutoff. Other cubic transformations remain diagnostics."
         ),
     )
     return parser.parse_args()
@@ -88,7 +93,9 @@ def signed_axis_transform(
     return torch.einsum("ij,...j->...i", rotation, vectors)
 
 
-def cubic_transformations(dtype: torch.dtype, device: torch.device) -> dict[str, torch.Tensor]:
+def cubic_transformations(
+    dtype: torch.dtype, device: torch.device
+) -> dict[str, torch.Tensor]:
     values = {
         "c4_x": ((1, 0, 0), (0, 0, -1), (0, 1, 0)),
         "c4_y": ((0, 0, 1), (0, 1, 0), (-1, 0, 0)),
@@ -118,6 +125,190 @@ def is_cubic(cell: torch.Tensor, tolerance: float = 1.0e-6) -> bool:
     )
 
 
+def select_sample_indices(
+    all_samples: list[dict[str, Any]], count: int, seed: int
+) -> list[int]:
+    """Include a cubic geometry when available, without relying on group labels."""
+    if not all_samples or count < 1:
+        raise ValueError("at least one sample is required")
+    generator = torch.Generator().manual_seed(seed)
+    indices = torch.randperm(len(all_samples), generator=generator)[
+        : min(count, len(all_samples))
+    ].tolist()
+    # Prefer an already selected cube, then search the remaining cache.
+    candidates = indices + [i for i in range(len(all_samples)) if i not in indices]
+    cubic_index = next(
+        (
+            i
+            for i in candidates
+            if is_cubic(all_samples[i]["data"]["cell"].reshape(-1, 3, 3)[0])
+        ),
+        None,
+    )
+    if cubic_index is not None:
+        indices = [cubic_index] + [i for i in indices if i != cubic_index]
+    return indices[: min(count, len(all_samples))]
+
+
+def cubic_discretization_status(
+    transform: torch.Tensor,
+    grid_shape_zxy: tuple[int, int, int],
+    n_modes_zxy: tuple[int, int, int],
+    spectral_symmetry: str,
+) -> dict[str, Any]:
+    """Classify a fixed-cell signed permutation in cell-axis xyz coordinates.
+
+    Signs preserve the periodic grid and EqGINO's symmetric mode support.
+    Axis exchanges must preserve both mesh sizes and Fourier cutoffs. This
+    contract concerns the finite-grid model, not continuous rotation symmetry.
+    """
+    absolute = transform.detach().abs().cpu()
+    if absolute.shape != (3, 3) or not bool(
+        ((absolute == 0) | (absolute == 1)).all()
+        & (absolute.sum(0) == 1).all()
+        & (absolute.sum(1) == 1).all()
+    ):
+        raise ValueError("transform must be a signed permutation matrix")
+    if any(
+        len(values) != 3 or min(values) < 1 for values in (grid_shape_zxy, n_modes_zxy)
+    ):
+        raise ValueError("grid and modes must contain three positive sizes")
+    permutation = absolute.argmax(dim=1).tolist()
+    # Array axes are zxy, whereas the transformations above act on xyz.
+    grid_xyz = [grid_shape_zxy[i] for i in (1, 2, 0)]
+    modes_xyz = [n_modes_zxy[i] for i in (1, 2, 0)]
+    mesh_ok = all(grid_xyz[i] == grid_xyz[j] for i, j in enumerate(permutation))
+    modes_ok = all(modes_xyz[i] == modes_xyz[j] for i, j in enumerate(permutation))
+    reasons = []
+    if spectral_symmetry != "metric_eqgino":
+        reasons.append("the spectral operator does not promise cubic equivariance")
+    if not mesh_ok:
+        reasons.append("the transformation exchanges unequal mesh sizes")
+    if not modes_ok:
+        reasons.append("the transformation exchanges unequal Fourier cutoffs")
+    return {
+        "preserves_mesh": mesh_ok,
+        "preserves_mode_cutoff": modes_ok,
+        "expected_exact": not reasons,
+        "diagnostic_only_reasons": reasons,
+    }
+
+
+def rigid_cell_rotation(dtype: torch.dtype, device: torch.device) -> torch.Tensor:
+    """A deterministic proper rotation mixing all three Cartesian directions."""
+    axis = torch.tensor((1.0, 2.0, 3.0), dtype=dtype, device=device)
+    axis = axis / torch.linalg.vector_norm(axis)
+    x, y, z = axis.unbind()
+    zero = axis.new_zeros(())
+    skew = torch.stack((zero, -z, y, z, zero, -x, -y, x, zero)).reshape(3, 3)
+    angle = axis.new_tensor(0.731)
+    return (
+        torch.eye(3, dtype=dtype, device=device)
+        + angle.sin() * skew
+        + (1 - angle.cos()) * (skew @ skew)
+    )
+
+
+def transform_graph(
+    graph: dict[str, Any], rotation: torch.Tensor, *, rotate_cell: bool
+) -> None:
+    """Transform a private single-graph copy, including neighbor-image shifts."""
+    cell = graph["cell"].reshape(3, 3)
+    center = cell.new_zeros(3) if rotate_cell else 0.5 * cell.sum(dim=0)
+    graph["positions"] = center + (graph["positions"] - center) @ rotation.T
+    graph["shifts"] = graph["shifts"] @ rotation.T
+    if rotate_cell:
+        graph["cell"] = (cell @ rotation.T).reshape_as(graph["cell"])
+        # Image indices are unchanged when the lattice rotates with the atoms.
+    elif "unit_shifts" in graph:
+        # For fixed-cell lattice symmetries the image indices rotate as well.
+        graph["unit_shifts"] = (
+            torch.linalg.solve(cell.T, graph["shifts"].T)
+            .T.round()
+            .to(graph["unit_shifts"])
+        )
+
+
+def evaluate_transformations(
+    model: MACEFNOResidual,
+    sample: dict[str, Any],
+    reference: dict[str, Any],
+    transformations: dict[str, torch.Tensor],
+    device: torch.device,
+    dtype: torch.dtype,
+    *,
+    rotate_cell: bool,
+) -> dict[str, Any]:
+    graphs = []
+    for rotation in transformations.values():
+        graph = clone_graph(sample["data"], device, dtype)
+        transform_graph(graph, rotation, rotate_cell=rotate_cell)
+        graphs.append(graph)
+    output = model(
+        batch_graphs(graphs),
+        training=False,
+        compute_force=True,
+        compute_residual_force=True,
+        compute_base_force=True,
+    )
+    count = int(sample["num_atoms"])
+    report = {}
+    for index, (name, rotation) in enumerate(transformations.items()):
+        item = {"determinant": float(torch.linalg.det(rotation).item())}
+        for label, prefix in (
+            ("base", "base_"),
+            ("residual", "residual_"),
+            ("total", ""),
+        ):
+            item[f"{label}_energy_change_mev"] = 1000.0 * abs(
+                output[f"{prefix}energy"][index].item()
+                - reference[f"{prefix}energy"].item()
+            )
+            expected = reference[f"{prefix}forces"].to(device) @ rotation.T
+            actual = output[f"{prefix}forces"][index * count : (index + 1) * count]
+            item[f"{label}_force_equivariance_rmse_mev_per_angstrom"] = 1000.0 * rms(
+                (actual - expected).detach().cpu().numpy()
+            )
+        report[name] = item
+    return report
+
+
+def spatial_exact_checks(
+    cubic_report: dict[str, Any] | None,
+    rotation_report: dict[str, Any] | None,
+    dtype: torch.dtype,
+) -> dict[str, Any]:
+    """Keep unsupported transformations visible without treating them as exact."""
+    checks = {}
+    for label, items in (
+        ("cubic", cubic_report),
+        ("rigid_cell_rotation", rotation_report),
+    ):
+        exact = {
+            name: item for name, item in (items or {}).items() if item["expected_exact"]
+        }
+        if not exact:
+            continue
+        for suffix, metric, threshold in (
+            (
+                "energy_invariance",
+                "residual_energy_change_mev",
+                2e-2 if dtype == torch.float32 else 1e-5,
+            ),
+            (
+                "force_covariance",
+                "residual_force_equivariance_rmse_mev_per_angstrom",
+                1e-1 if dtype == torch.float32 else 1e-4,
+            ),
+        ):
+            checks[f"{label}_residual_{suffix}"] = {
+                "observed": max(item[metric] for item in exact.values()),
+                "threshold": threshold,
+                "transformations": list(exact),
+            }
+    return checks
+
+
 def main() -> None:
     args = parse_arguments()
     if min(args.samples, args.fd_components) < 1:
@@ -133,25 +324,7 @@ def main() -> None:
     cache_path = args.sample_cache or Path(checkpoint["test_cache"])
     cache = torch.load(cache_path, map_location="cpu", weights_only=False)
     all_samples = cache["samples"]
-    selection_generator = torch.Generator().manual_seed(args.seed)
-    sample_indices = torch.randperm(len(all_samples), generator=selection_generator)[
-        : min(args.samples, len(all_samples))
-    ].tolist()
-    # The strict cubic-equivariance audit must not disappear merely because the
-    # first randomly selected configuration belongs to a noncubic cell class.
-    cubic_index = next(
-        (
-            index
-            for index, sample in enumerate(all_samples)
-            if sample.get("benchmark_group") == "cubic"
-        ),
-        None,
-    )
-    if cubic_index is not None:
-        sample_indices = [cubic_index] + [
-            index for index in sample_indices if index != cubic_index
-        ]
-        sample_indices = sample_indices[: min(args.samples, len(all_samples))]
+    sample_indices = select_sample_indices(all_samples, args.samples, args.seed)
     samples = [all_samples[index] for index in sample_indices]
 
     corrected_energy_errors: list[float] = []
@@ -221,11 +394,7 @@ def main() -> None:
         net_force = output["residual_forces"].sum(dim=0).detach().cpu()
         net_residual_forces.append(net_force.tolist())
         force_additivity_errors.extend(
-            (
-                output["forces"]
-                - output["base_forces"]
-                - output["residual_forces"]
-            )
+            (output["forces"] - output["base_forces"] - output["residual_forces"])
             .detach()
             .cpu()
             .abs()
@@ -245,9 +414,9 @@ def main() -> None:
         translation_energy_changes.append(
             np.max(np.abs(shifted - reference_residual), axis=1).tolist()
         )
-        finite_translation_force = -(
-            derivative[:, 1] - derivative[:, 0]
-        ) / (2.0 * args.fd_step)
+        finite_translation_force = -(derivative[:, 1] - derivative[:, 0]) / (
+            2.0 * args.fd_step
+        )
         projected_net_force = np.asarray(
             [
                 torch.dot(net_force, direction.detach().cpu()).item()
@@ -302,8 +471,11 @@ def main() -> None:
         compute_force=False,
         compute_residual_force=True,
     )
-    translated_forces = translated_output["residual_forces"].detach().cpu().reshape(
-        3, 2, int(first_sample["num_atoms"]), 3
+    translated_forces = (
+        translated_output["residual_forces"]
+        .detach()
+        .cpu()
+        .reshape(3, 2, int(first_sample["num_atoms"]), 3)
     )
     continuous_force_equivariance_rms = [
         rms((translated_forces[axis] - reference_residual_force).numpy())
@@ -341,90 +513,59 @@ def main() -> None:
             abs(finite_force.item() - reference_residual_force[atom, axis].item())
         )
 
+    grid_shape_zxy = (natural_grid_shape[2], *natural_grid_shape[:2])
+    n_modes_zxy = tuple(int(value) for value in checkpoint["n_modes"])
     cubic_report = None
     if is_cubic(first_cell):
-        center = 0.5 * first_cell.sum(dim=0)
         transformations = cubic_transformations(dtype, device)
-        transformed_graphs = []
-        for transform in transformations.values():
-            graph = clone_graph(first_sample["data"], device, dtype)
-            graph["positions"] = center + signed_axis_transform(
-                graph["positions"] - center, first_cell, transform
-            )
-            graph["shifts"] = signed_axis_transform(
-                graph["shifts"], first_cell, transform
-            )
-            transformed_graphs.append(graph)
-        transformed_output = model(
-            batch_graphs(transformed_graphs),
-            training=False,
-            compute_force=True,
-            compute_residual_force=True,
-            compute_base_force=True,
+        basis = first_cell / torch.linalg.vector_norm(first_cell, dim=1, keepdim=True)
+        rotations = {
+            name: basis.T @ transform @ basis
+            for name, transform in transformations.items()
+        }
+        cubic_report = evaluate_transformations(
+            model,
+            first_sample,
+            first_output,
+            rotations,
+            device,
+            dtype,
+            rotate_cell=False,
         )
-        transformed_base_forces = transformed_output["base_forces"].detach().cpu()
-        transformed_residual_forces = (
-            transformed_output["residual_forces"].detach().cpu()
+        for name, transform in transformations.items():
+            cubic_report[name].update(
+                cubic_discretization_status(
+                    transform,
+                    grid_shape_zxy,
+                    n_modes_zxy,
+                    checkpoint.get("spectral_symmetry", "none"),
+                )
+            )
+
+    rotation_report = None
+    if model.cell_mode == "anisotropic":
+        rotation_report = evaluate_transformations(
+            model,
+            first_sample,
+            first_output,
+            {"oblique_rotation": rigid_cell_rotation(dtype, device)},
+            device,
+            dtype,
+            rotate_cell=True,
         )
-        transformed_total_forces = transformed_output["forces"].detach().cpu()
-        cubic_report = {}
-        for index, (name, transform) in enumerate(transformations.items()):
-            atom_slice = slice(index * n_atoms, (index + 1) * n_atoms)
-            expected_base_force = signed_axis_transform(
-                first_output["base_forces"].to(device), first_cell, transform
-            ).cpu()
-            expected_residual_force = signed_axis_transform(
-                reference_residual_force.to(device), first_cell, transform
-            ).cpu()
-            expected_total_force = signed_axis_transform(
-                first_output["forces"].to(device), first_cell, transform
-            ).cpu()
-            cubic_report[name] = {
-                "determinant": float(torch.linalg.det(transform).item()),
-                "base_energy_change_mev": 1000.0
-                * abs(
-                    transformed_output["base_energy"][index].item()
-                    - first_output["base_energy"].item()
-                ),
-                "residual_energy_change_mev": 1000.0
-                * abs(
-                    transformed_output["residual_energy"][index].item()
-                    - reference_residual
-                ),
-                "total_energy_change_mev": 1000.0
-                * abs(
-                    transformed_output["energy"][index].item()
-                    - first_output["energy"].item()
-                ),
-                "base_force_equivariance_rmse_mev_per_angstrom": 1000.0
-                * rms(
-                    (
-                        transformed_base_forces[atom_slice] - expected_base_force
-                    ).numpy()
-                ),
-                "residual_force_equivariance_rmse_mev_per_angstrom": 1000.0
-                * rms(
-                    (
-                        transformed_residual_forces[atom_slice]
-                        - expected_residual_force
-                    ).numpy()
-                ),
-                "total_force_equivariance_rmse_mev_per_angstrom": 1000.0
-                * rms(
-                    (
-                        transformed_total_forces[atom_slice] - expected_total_force
-                    ).numpy()
-                ),
-            }
+        for item in rotation_report.values():
+            item["expected_exact"] = True
 
     net = np.asarray(net_residual_forces)
     translation_changes = np.asarray(translation_energy_changes)
     translation_mismatch = np.asarray(translation_force_mismatch)
     report: dict[str, Any] = {
         "checkpoint": str(args.checkpoint),
+        "cell_mode": model.cell_mode,
         "spectral_symmetry": checkpoint.get("spectral_symmetry", "none"),
         "spectral_groups": checkpoint.get("spectral_groups", 1),
         "metric_hidden_channels": checkpoint.get("metric_hidden_channels", 16),
+        "metric_parameterization": infer_metric_parameterization(checkpoint),
         "volume_interlacing": checkpoint.get("volume_interlacing", 1),
         "interlacing_training": checkpoint.get("interlacing_training", "full"),
         "sample_cache": str(cache_path),
@@ -436,28 +577,24 @@ def main() -> None:
             int(checkpoint["grid_shape"][1]),
         ],
         "n_modes_zxy": [int(value) for value in checkpoint["n_modes"]],
-        "subset_frozen_energy_rmse_mev_per_atom": 1000.0
-        * rms(frozen_energy_errors),
+        "subset_frozen_energy_rmse_mev_per_atom": 1000.0 * rms(frozen_energy_errors),
         "subset_corrected_energy_rmse_mev_per_atom": 1000.0
         * rms(corrected_energy_errors),
-        "subset_frozen_force_rmse_mev_per_angstrom": 1000.0
-        * rms(frozen_force_errors),
+        "subset_frozen_force_rmse_mev_per_angstrom": 1000.0 * rms(frozen_force_errors),
         "subset_corrected_force_rmse_mev_per_angstrom": 1000.0
         * rms(corrected_force_errors),
         "subset_frozen_force_rmse_by_axis_mev_per_angstrom": [
             1000.0 * rms(axis_errors) for axis_errors in frozen_force_errors_by_axis
         ],
         "subset_corrected_force_rmse_by_axis_mev_per_angstrom": [
-            1000.0 * rms(axis_errors)
-            for axis_errors in corrected_force_errors_by_axis
+            1000.0 * rms(axis_errors) for axis_errors in corrected_force_errors_by_axis
         ],
         "predicted_residual_energy_rms_mev_per_atom": 1000.0
         * rms(predicted_residual_energies_per_atom),
         "predicted_residual_force_rms_mev_per_angstrom": 1000.0
         * rms(predicted_residual_forces),
         "max_source_sum": max(source_sums),
-        "force_additivity_max_mev_per_angstrom": 1000.0
-        * max(force_additivity_errors),
+        "force_additivity_max_mev_per_angstrom": 1000.0 * max(force_additivity_errors),
         "net_residual_force_rms_mev_per_angstrom": (
             1000.0 * np.sqrt(np.mean(net * net, axis=0))
         ).tolist(),
@@ -483,6 +620,20 @@ def main() -> None:
         "residual_force_fd_rms_mev_per_angstrom": 1000.0 * rms(fd_errors),
         "residual_force_fd_max_mev_per_angstrom": 1000.0 * max(fd_errors),
         "cubic_signed_axis_transformations": cubic_report,
+        "rigid_cell_rotation": rotation_report,
+        "symmetry_scope": {
+            "fixed_cell_cubic": (
+                "All tested transformations are reported. Strict EqGINO checks "
+                "cover only transformations preserving both the mesh and mode cutoff."
+            ),
+            "rigid_cell_rotation": (
+                "Atoms, neighbor-image shifts, and cell rotate together. "
+                "The mesh stays attached to the cell."
+                if rotation_report is not None
+                else "Not evaluated: fixed/isotropic reference-cell validation "
+                "does not admit a rotated cell."
+            ),
+        },
     }
 
     exact_checks = {
@@ -529,8 +680,7 @@ def main() -> None:
         )
         report["diagnostic_status"] = {
             "continuous_translation_exact_to_0.01_mev": bool(
-                max(report["rigid_translation_energy_max_mev_by_cell_axis"])
-                <= 0.01
+                max(report["rigid_translation_energy_max_mev_by_cell_axis"]) <= 0.01
             ),
             "cubic_residual_energy_exact_to_1e-5_mev": bool(
                 maximum_residual_energy_change <= 1.0e-5
@@ -539,25 +689,21 @@ def main() -> None:
                 maximum_residual_force_rmse <= 1.0e-4
             ),
         }
-        if checkpoint.get("spectral_symmetry", "none") == "metric_eqgino":
-            float32 = checkpoint.get("dtype") == "float32"
-            exact_checks["cubic_residual_energy_invariance"] = {
-                "observed": maximum_residual_energy_change,
-                "threshold": 2.0e-2 if float32 else 1.0e-5,
-            }
-            exact_checks["cubic_residual_force_covariance"] = {
-                "observed": maximum_residual_force_rmse,
-                "threshold": 1.0e-1 if float32 else 1.0e-4,
-            }
+        report["diagnostic_status"]["cubic_strict_transformations"] = [
+            name for name, item in cubic_report.items() if item["expected_exact"]
+        ]
+        report["diagnostic_status"]["cubic_diagnostic_only_transformations"] = [
+            name for name, item in cubic_report.items() if not item["expected_exact"]
+        ]
     else:
         report["diagnostic_status"] = {
             "continuous_translation_exact_to_0.01_mev": bool(
-                max(report["rigid_translation_energy_max_mev_by_cell_axis"])
-                <= 0.01
+                max(report["rigid_translation_energy_max_mev_by_cell_axis"]) <= 0.01
             ),
             "cubic_geometry_available": False,
         }
 
+    exact_checks.update(spatial_exact_checks(cubic_report, rotation_report, dtype))
     for check in exact_checks.values():
         check["passed"] = bool(check["observed"] <= check["threshold"])
     report["promised_exact_checks"] = exact_checks
@@ -568,11 +714,11 @@ def main() -> None:
         args.output.write_text(json.dumps(report, indent=2) + "\n")
 
     if args.strict:
-        failures = [
-            name for name, check in exact_checks.items() if not check["passed"]
-        ]
+        failures = [name for name, check in exact_checks.items() if not check["passed"]]
         if failures:
-            raise RuntimeError("failed promised invariant checks: " + ", ".join(failures))
+            raise RuntimeError(
+                "failed promised invariant checks: " + ", ".join(failures)
+            )
 
 
 if __name__ == "__main__":

@@ -285,7 +285,7 @@ def _graph_cells(cell: Tensor, num_graphs: int) -> Tensor:
     if cell.ndim == 2 and cell.shape == (3 * num_graphs, 3):
         return cell.reshape(num_graphs, 3, 3)
     raise ValueError(
-        "cell must have shape (3, 3), (n_graphs, 3, 3), or " "(3*n_graphs, 3)"
+        "cell must have shape (3, 3), (n_graphs, 3, 3), or (3*n_graphs, 3)"
     )
 
 
@@ -344,6 +344,7 @@ class MACEFNOResidual(nn.Module):
         fno_spectral_symmetry: str = "none",
         fno_spectral_groups: int = 1,
         fno_metric_hidden_channels: int = 16,
+        fno_metric_parameterization: str = "shell_spline",
         invariant_indices: Sequence[int] | None = None,
         reference_cell: Tensor | None = None,
         cell_tolerance: float = 1.0e-6,
@@ -379,23 +380,21 @@ class MACEFNOResidual(nn.Module):
         if resolved_scheme != "2.5d" and fno_planar_symmetry != "none":
             raise ValueError("fno_planar_symmetry applies only to the 2.5D scheme")
         if fno_spectral_symmetry not in {"none", "metric_eqgino"}:
-            raise ValueError(
-                "fno_spectral_symmetry must be 'none' or 'metric_eqgino'"
-            )
-        if resolved_scheme != "3d" and fno_spectral_symmetry != "none":
-            raise ValueError("fno_spectral_symmetry applies only to the 3D scheme")
+            raise ValueError("fno_spectral_symmetry must be 'none' or 'metric_eqgino'")
+        if resolved_scheme == "2d" and fno_spectral_symmetry != "none":
+            raise ValueError("fno_spectral_symmetry requires the 2.5D or 3D scheme")
         if fno_spectral_groups < 1:
             raise ValueError("fno_spectral_groups must be positive")
         if fno_metric_hidden_channels < 1:
             raise ValueError("fno_metric_hidden_channels must be positive")
+        if fno_metric_parameterization not in {"shell_spline", "radial_mlp"}:
+            raise ValueError(
+                "fno_metric_parameterization must be 'shell_spline' or 'radial_mlp'"
+            )
         if fno_spectral_symmetry == "none" and fno_spectral_groups != 1:
-            raise ValueError(
-                "fno_spectral_groups applies only to metric-aware EqGINO"
-            )
+            raise ValueError("fno_spectral_groups applies only to metric-aware EqGINO")
         if cell_mode not in {"fixed", "isotropic", "anisotropic"}:
-            raise ValueError(
-                "cell_mode must be 'fixed', 'isotropic', or 'anisotropic'"
-            )
+            raise ValueError("cell_mode must be 'fixed', 'isotropic', or 'anisotropic'")
         if cell_mode != "fixed" and resolved_scheme != "3d":
             raise ValueError(
                 "variable-cell modes apply only to the fully periodic 3D scheme"
@@ -425,6 +424,21 @@ class MACEFNOResidual(nn.Module):
                 raise ValueError("z_grid_size is required for spatial_scheme='2.5d'")
             if z_extent is None:
                 raise ValueError("z_extent is required when z_grid_size is set")
+            metric_reference_length = 1.0
+            if (
+                fno_spectral_symmetry == "metric_eqgino"
+                and fno_metric_parameterization == "shell_spline"
+            ):
+                if reference_cell is None or reference_cell.shape != (3, 3):
+                    raise ValueError("shell_spline requires a (3, 3) reference_cell")
+                plane = reference_cell.detach().to(dtype=torch.float64)[:2]
+                area = torch.linalg.vector_norm(torch.linalg.cross(plane[0], plane[1]))
+                if not torch.isfinite(area) or area <= 0:
+                    raise ValueError(
+                        "shell_spline reference_cell must have a finite nondegenerate plane"
+                    )
+                # Slab anchors use an area-equivalent square, never the vacuum.
+                metric_reference_length = float(area.sqrt())
             self.long_range = LearnedSlabParticleMeshLongRange(
                 (int(z_grid_size), *grid_shape),
                 z_extent,
@@ -435,6 +449,11 @@ class MACEFNOResidual(nn.Module):
                 z_kernel_size=fno_z_kernel_size,
                 z_mixing=fno_z_mixing,
                 planar_symmetry=fno_planar_symmetry,
+                spectral_symmetry=fno_spectral_symmetry,
+                spectral_groups=fno_spectral_groups,
+                metric_hidden_channels=fno_metric_hidden_channels,
+                metric_parameterization=fno_metric_parameterization,
+                metric_reference_length=metric_reference_length,
                 hidden_channels=fno_hidden_channels,
                 n_layers=fno_layers,
                 projection_channels=fno_projection_channels,
@@ -452,6 +471,22 @@ class MACEFNOResidual(nn.Module):
             z_modes = int(fno_z_modes) if fno_z_modes is not None else int(n_modes[0])
             if z_modes < 1:
                 raise ValueError("fno_z_modes must be positive")
+            metric_reference_length = 1.0
+            if (
+                fno_spectral_symmetry == "metric_eqgino"
+                and fno_metric_parameterization == "shell_spline"
+            ):
+                if reference_cell is None or reference_cell.shape != (3, 3):
+                    raise ValueError("shell_spline requires a (3, 3) reference_cell")
+                # Keep anchors fixed to the volume-equivalent reference cube.
+                volume = torch.linalg.det(
+                    reference_cell.detach().to(dtype=torch.float64)
+                ).abs()
+                if not torch.isfinite(volume) or volume <= 0:
+                    raise ValueError(
+                        "shell_spline reference_cell must be finite and nonsingular"
+                    )
+                metric_reference_length = float(volume.pow(1.0 / 3.0))
             self.long_range = LearnedParticleMeshLongRange3D(
                 (int(z_grid_size), *grid_shape),
                 channels,
@@ -463,6 +498,8 @@ class MACEFNOResidual(nn.Module):
                 spectral_symmetry=fno_spectral_symmetry,
                 spectral_groups=fno_spectral_groups,
                 metric_hidden_channels=fno_metric_hidden_channels,
+                metric_parameterization=fno_metric_parameterization,
+                metric_reference_length=metric_reference_length,
                 cell_conditioning=(
                     cell_mode if cell_mode in {"isotropic", "anisotropic"} else "none"
                 ),

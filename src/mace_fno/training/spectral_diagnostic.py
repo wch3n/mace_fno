@@ -20,8 +20,8 @@ from ..spectral_response import (
     slab_z_profiles,
     unique_integer_modes,
     unique_integer_modes_2d,
-    unit_rms_cosine_mode,
-    unit_rms_cosine_mode_2d,
+    unit_rms_fourier_mode,
+    unit_rms_fourier_mode_2d,
     wavevector,
 )
 from .data import collate_samples
@@ -66,9 +66,7 @@ def _assign_physical_shell_ranks(mode_reports: list[dict[str, Any]]) -> int:
         magnitude = float(report["k_inverse_angstrom"])
         rank = None
         for index, representative in enumerate(representatives):
-            if math.isclose(
-                magnitude, representative, rel_tol=2.0e-6, abs_tol=1.0e-10
-            ):
+            if math.isclose(magnitude, representative, rel_tol=2.0e-6, abs_tol=1.0e-10):
                 rank = index + 1
                 break
         if rank is None:
@@ -115,7 +113,10 @@ def _validate_common(
     fit_shells: int,
     relative_amplitude: float,
     field_batch_size: int,
+    probe_phase: str,
 ) -> list[int]:
+    if probe_phase not in {"cosine", "sine"}:
+        raise ValueError("probe_phase must be 'cosine' or 'sine'")
     if min(max_mode, fit_shells, field_batch_size) < 1:
         raise ValueError("max_mode, fit_shells, and field_batch_size must be positive")
     if relative_amplitude <= 0.0:
@@ -132,6 +133,7 @@ def periodic_3d_response_diagnostic(
     fit_shells: int = 3,
     relative_amplitude: float = 0.05,
     field_batch_size: int = 32,
+    probe_phase: str = "cosine",
 ) -> dict[str, Any]:
     r"""Measure scalar and tensor-aware low-:math:`k` response in periodic 3D."""
     if model.spatial_scheme != "3d":
@@ -143,6 +145,7 @@ def periodic_3d_response_diagnostic(
         fit_shells=fit_shells,
         relative_amplitude=relative_amplitude,
         field_batch_size=field_batch_size,
+        probe_phase=probe_phase,
     )
     grid_shape = tuple(int(value) for value in model.long_range.assignment.grid_shape)
     if len(grid_shape) != 3:
@@ -175,24 +178,31 @@ def periodic_3d_response_diagnostic(
                 if density.ndim != 4:
                     raise RuntimeError("the 3D path must return one unbatched density")
                 volume = torch.linalg.det(cell).abs()
-                density_rms = density.square().mean().sqrt().clamp_min(
-                    torch.finfo(dtype).eps
+                density_rms = (
+                    density.square().mean().sqrt().clamp_min(torch.finfo(dtype).eps)
                 )
                 amplitude = density_rms * relative_amplitude
                 mode_reports: list[dict[str, Any]] = []
                 tensor_points: list[tuple[tuple[float, float, float], float]] = []
                 for mode_zxy in modes:
-                    perturbation = unit_rms_cosine_mode(
-                        grid_shape, mode_zxy, device=device, dtype=dtype
+                    perturbation = unit_rms_fourier_mode(
+                        grid_shape,
+                        mode_zxy,
+                        device=device,
+                        dtype=dtype,
+                        phase=probe_phase,
                     )
-                    response = quadratic_mode_response(
-                        density,
-                        perturbation,
-                        amplitude,
-                        lambda fields: _field_energies(
-                            model, fields, cell, batch_size=field_batch_size
-                        ),
-                    ) / volume
+                    response = (
+                        quadratic_mode_response(
+                            density,
+                            perturbation,
+                            amplitude,
+                            lambda fields: _field_energies(
+                                model, fields, cell, batch_size=field_batch_size
+                            ),
+                        )
+                        / volume
+                    )
                     eigenvalues = torch.linalg.eigvalsh(response).flip(0)
                     dominant = float(eigenvalues[0])
                     k_vector = wavevector(cell, mode_zxy)
@@ -252,6 +262,7 @@ def periodic_3d_response_diagnostic(
 
     return {
         "diagnostic_kind": "periodic_3d",
+        "probe_phase": probe_phase,
         "spatial_scheme": "3d",
         "samples": len(per_sample),
         "sample_indices": selected_indices,
@@ -261,9 +272,7 @@ def periodic_3d_response_diagnostic(
         "relative_amplitude": relative_amplitude,
         "field_batch_size": field_batch_size,
         "probes_per_mode": int(model.source_head.channels),
-        "field_evaluations_per_mode": int(
-            2 * model.source_head.channels**2 + 1
-        ),
+        "field_evaluations_per_mode": int(2 * model.source_head.channels**2 + 1),
         "description": (
             "Validation-only curvature of the 3D residual energy under neutral "
             "Fourier perturbations. Scalar fits use distinct physical |k| shells; "
@@ -290,6 +299,7 @@ def planar_2d_response_diagnostic(
     fit_shells: int = 2,
     relative_amplitude: float = 0.05,
     field_batch_size: int = 32,
+    probe_phase: str = "cosine",
 ) -> dict[str, Any]:
     r"""Measure the effective thin-sheet response of a planar 2D FNO."""
     if model.spatial_scheme != "2d":
@@ -301,6 +311,7 @@ def planar_2d_response_diagnostic(
         fit_shells=fit_shells,
         relative_amplitude=relative_amplitude,
         field_batch_size=field_batch_size,
+        probe_phase=probe_phase,
     )
     grid_shape = tuple(int(value) for value in model.long_range.assignment.grid_shape)
     if len(grid_shape) != 2:
@@ -327,26 +338,31 @@ def planar_2d_response_diagnostic(
                 if density.ndim != 3:
                     raise RuntimeError("the 2D path must return one unbatched density")
                 cell = graph["cell"].reshape(-1, 3, 3)[0]
-                area = torch.linalg.vector_norm(
-                    torch.linalg.cross(cell[0], cell[1])
-                )
-                density_rms = density.square().mean().sqrt().clamp_min(
-                    torch.finfo(dtype).eps
+                area = torch.linalg.vector_norm(torch.linalg.cross(cell[0], cell[1]))
+                density_rms = (
+                    density.square().mean().sqrt().clamp_min(torch.finfo(dtype).eps)
                 )
                 amplitude = density_rms * relative_amplitude
                 mode_reports: list[dict[str, Any]] = []
                 for mode_xy in modes:
-                    perturbation = unit_rms_cosine_mode_2d(
-                        grid_shape, mode_xy, device=device, dtype=dtype
+                    perturbation = unit_rms_fourier_mode_2d(
+                        grid_shape,
+                        mode_xy,
+                        device=device,
+                        dtype=dtype,
+                        phase=probe_phase,
                     )
-                    response = quadratic_mode_response(
-                        density,
-                        perturbation,
-                        amplitude,
-                        lambda fields: _field_energies(
-                            model, fields, cell, batch_size=field_batch_size
-                        ),
-                    ) / area
+                    response = (
+                        quadratic_mode_response(
+                            density,
+                            perturbation,
+                            amplitude,
+                            lambda fields: _field_energies(
+                                model, fields, cell, batch_size=field_batch_size
+                            ),
+                        )
+                        / area
+                    )
                     eigenvalues = torch.linalg.eigvalsh(response).flip(0)
                     dominant = float(eigenvalues[0])
                     k_vector = planar_wavevector(cell, mode_xy)
@@ -389,9 +405,7 @@ def planar_2d_response_diagnostic(
                             sample_low_k_points, 1.0
                         ),
                         "full_probed_range_planar_response_fit": (
-                            fit_reference_power_response(
-                                sample_full_range_points, 1.0
-                            )
+                            fit_reference_power_response(sample_full_range_points, 1.0)
                         ),
                         "modes": mode_reports,
                     }
@@ -401,6 +415,7 @@ def planar_2d_response_diagnostic(
 
     return {
         "diagnostic_kind": "planar_2d",
+        "probe_phase": probe_phase,
         "spatial_scheme": "2d",
         "samples": len(per_sample),
         "sample_indices": selected_indices,
@@ -410,18 +425,14 @@ def planar_2d_response_diagnostic(
         "relative_amplitude": relative_amplitude,
         "field_batch_size": field_batch_size,
         "probes_per_mode": int(model.source_head.channels),
-        "field_evaluations_per_mode": int(
-            2 * model.source_head.channels**2 + 1
-        ),
+        "field_evaluations_per_mode": int(2 * model.source_head.channels**2 + 1),
         "description": (
             "Validation-only channel curvature under neutral planar Fourier "
             "probes. The dominant response is compared with the effective "
             "thin-sheet Coulomb kernel 1/k_parallel; no z-profile information "
             "exists in this representation."
         ),
-        "low_k_planar_response_fit": fit_reference_power_response(
-            low_k_points, 1.0
-        ),
+        "low_k_planar_response_fit": fit_reference_power_response(low_k_points, 1.0),
         "full_probed_range_planar_response_fit": fit_reference_power_response(
             full_range_points, 1.0
         ),
@@ -439,9 +450,9 @@ def _slab_probe_basis(
     spatial = profiles[:, :, None, None] * planar_mode[None, None, :, :]
     basis = density.new_zeros((channels * profile_count, *density.shape))
     for channel in range(channels):
-        basis[
-            channel * profile_count : (channel + 1) * profile_count, channel
-        ] = spatial
+        basis[channel * profile_count : (channel + 1) * profile_count, channel] = (
+            spatial
+        )
     return basis
 
 
@@ -484,6 +495,7 @@ def slab_2p5d_response_diagnostic(
     relative_amplitude: float = 0.05,
     field_batch_size: int = 32,
     z_profiles: int = 3,
+    probe_phase: str = "cosine",
 ) -> dict[str, Any]:
     r"""Measure the channel/z-profile response of a finite-z 2.5D FNO."""
     if model.spatial_scheme != "2.5d":
@@ -502,6 +514,7 @@ def slab_2p5d_response_diagnostic(
         fit_shells=fit_shells,
         relative_amplitude=relative_amplitude,
         field_batch_size=field_batch_size,
+        probe_phase=probe_phase,
     )
     grid_shape = tuple(int(value) for value in model.long_range.assignment.grid_shape)
     if len(grid_shape) != 3:
@@ -538,25 +551,32 @@ def slab_2p5d_response_diagnostic(
                 cell = graph["cell"].reshape(-1, 3, 3)[0]
                 area = torch.linalg.vector_norm(torch.linalg.cross(cell[0], cell[1]))
                 effective_volume = area * z_extent
-                density_rms = density.square().mean().sqrt().clamp_min(
-                    torch.finfo(dtype).eps
+                density_rms = (
+                    density.square().mean().sqrt().clamp_min(torch.finfo(dtype).eps)
                 )
                 amplitude = density_rms * relative_amplitude
                 mode_reports: list[dict[str, Any]] = []
                 channels = density.shape[0]
                 for mode_xy in modes:
-                    planar_mode = unit_rms_cosine_mode_2d(
-                        (n_x, n_y), mode_xy, device=device, dtype=dtype
+                    planar_mode = unit_rms_fourier_mode_2d(
+                        (n_x, n_y),
+                        mode_xy,
+                        device=device,
+                        dtype=dtype,
+                        phase=probe_phase,
                     )
                     basis = _slab_probe_basis(density, planar_mode, profiles)
-                    response = quadratic_basis_response(
-                        density,
-                        basis,
-                        amplitude,
-                        lambda fields: _field_energies(
-                            model, fields, cell, batch_size=field_batch_size
-                        ),
-                    ) / effective_volume
+                    response = (
+                        quadratic_basis_response(
+                            density,
+                            basis,
+                            amplitude,
+                            lambda fields: _field_energies(
+                                model, fields, cell, batch_size=field_batch_size
+                            ),
+                        )
+                        / effective_volume
+                    )
                     response_blocks = response.reshape(
                         channels, z_profiles, channels, z_profiles
                     )
@@ -567,9 +587,7 @@ def slab_2p5d_response_diagnostic(
                     dominant = float(monopole_eigenvalues[0])
                     k_vector = planar_wavevector(cell, mode_xy)
                     k_norm = float(torch.linalg.vector_norm(k_vector))
-                    template = slab_coulomb_profile_matrix(
-                        profiles, k_norm, z_extent
-                    )
+                    template = slab_coulomb_profile_matrix(profiles, k_norm, z_extent)
                     template_fit = _slab_template_fit(response, template, channels)
                     mode_reports.append(
                         {
@@ -585,9 +603,7 @@ def slab_2p5d_response_diagnostic(
                             (
                                 "dominant_positive_monopole_eigenvalue_"
                                 "per_effective_volume"
-                            ): (
-                                dominant if dominant > 0.0 else None
-                            ),
+                            ): (dominant if dominant > 0.0 else None),
                             "coulomb_z_profile_template": template.cpu().tolist(),
                             "coulomb_template_fit": template_fit,
                         }
@@ -625,9 +641,7 @@ def slab_2p5d_response_diagnostic(
                             sample_low_k_points, 1.0
                         ),
                         "full_probed_range_monopole_response_fit": (
-                            fit_reference_power_response(
-                                sample_full_range_points, 1.0
-                            )
+                            fit_reference_power_response(sample_full_range_points, 1.0)
                         ),
                         "mean_low_k_coulomb_template_relative_error": (
                             sum(sample_template_errors) / len(sample_template_errors)
@@ -642,6 +656,7 @@ def slab_2p5d_response_diagnostic(
 
     return {
         "diagnostic_kind": "slab_2p5d",
+        "probe_phase": probe_phase,
         "spatial_scheme": "2.5d",
         "samples": len(per_sample),
         "sample_indices": selected_indices,
@@ -684,6 +699,7 @@ def low_k_response_diagnostic(
     relative_amplitude: float = 0.05,
     field_batch_size: int = 32,
     z_profiles: int = 3,
+    probe_phase: str = "cosine",
 ) -> dict[str, Any]:
     """Dispatch to the geometry-appropriate validation-only diagnostic."""
     common = {
@@ -692,6 +708,7 @@ def low_k_response_diagnostic(
         "fit_shells": fit_shells,
         "relative_amplitude": relative_amplitude,
         "field_batch_size": field_batch_size,
+        "probe_phase": probe_phase,
     }
     if model.spatial_scheme == "3d":
         return periodic_3d_response_diagnostic(model, samples, **common)
@@ -728,9 +745,7 @@ def _mode_key_and_response(
         response = float(mode["channel_eigenvalues_per_area"][0])
     elif diagnostic_kind == "slab_2p5d":
         mode_key = tuple(int(value) for value in mode["mode_xy"])
-        response = float(
-            mode["monopole_channel_eigenvalues_per_effective_volume"][0]
-        )
+        response = float(mode["monopole_channel_eigenvalues_per_effective_volume"][0])
     else:
         raise ValueError(f"unsupported diagnostic kind {diagnostic_kind!r}")
     return (sample_index, *mode_key), response
@@ -750,15 +765,17 @@ def summarize_amplitude_convergence(
     spatial_scheme = reports[0]["spatial_scheme"]
     sample_indices = reports[0]["sample_indices"]
     max_mode = reports[0]["max_mode"]
+    probe_phase = reports[0].get("probe_phase", "cosine")
     for report in reports[1:]:
         if (
             report["diagnostic_kind"] != diagnostic_kind
             or report["spatial_scheme"] != spatial_scheme
             or report["sample_indices"] != sample_indices
             or report["max_mode"] != max_mode
+            or report.get("probe_phase", "cosine") != probe_phase
         ):
             raise ValueError(
-                "amplitude reports must probe identical geometry and modes"
+                "amplitude reports must probe identical geometry, modes, and phase"
             )
 
     response_maps: list[dict[tuple[int, ...], float]] = []
@@ -806,9 +823,7 @@ def summarize_amplitude_convergence(
             else 0.5 * (sorted_spans[middle - 1] + sorted_spans[middle])
         )
     fits = [_response_fit(report) for report in reports]
-    exponents = [
-        float(fit["free_power_exponent_p"]) for fit in fits if fit is not None
-    ]
+    exponents = [float(fit["free_power_exponent_p"]) for fit in fits if fit is not None]
     reference_r2 = [
         float(fit["reference_power_log_r2"]) for fit in fits if fit is not None
     ]
@@ -829,9 +844,7 @@ def summarize_amplitude_convergence(
         "sign_stable_modes": sign_stable,
         "relative_span_tolerance": relative_span_tolerance,
         "median_mode_relative_span": median_span,
-        "maximum_mode_relative_span": (
-            max(relative_spans) if relative_spans else None
-        ),
+        "maximum_mode_relative_span": (max(relative_spans) if relative_spans else None),
         "fraction_modes_within_tolerance": (
             sum(span <= relative_span_tolerance for span in relative_spans)
             / len(relative_spans)
@@ -864,6 +877,7 @@ def amplitude_convergence_diagnostic(
     fit_shells: int = 3,
     field_batch_size: int = 32,
     z_profiles: int = 3,
+    probe_phase: str = "cosine",
 ) -> dict[str, Any]:
     """Repeat a spectral diagnostic to test finite-amplitude convergence."""
     amplitudes = sorted(float(value) for value in relative_amplitudes)
@@ -881,19 +895,18 @@ def amplitude_convergence_diagnostic(
             relative_amplitude=amplitude,
             field_batch_size=field_batch_size,
             z_profiles=z_profiles,
+            probe_phase=probe_phase,
         )
         for amplitude in amplitudes
     ]
     estimated_field_evaluations = sum(
         int(report["field_evaluations_per_mode"])
-        * sum(
-            len(sample["modes"])
-            for sample in report["per_sample_response"]
-        )
+        * sum(len(sample["modes"]) for sample in report["per_sample_response"])
         for report in reports
     )
     return {
         "diagnostic_kind": "amplitude_convergence",
+        "probe_phase": probe_phase,
         "spatial_scheme": model.spatial_scheme,
         "relative_amplitudes": amplitudes,
         "estimated_field_evaluations": estimated_field_evaluations,
