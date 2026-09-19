@@ -5,6 +5,7 @@ import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 import torch
 from mace_fno_test_helpers import train_arguments
@@ -17,6 +18,7 @@ from mace_fno.training import (
     evaluate_frozen_baseline,
     evaluate_selected_model,
     optimize_residual,
+    residual_state_dict,
     save_training_checkpoint,
     training_checkpoint_payload,
 )
@@ -108,6 +110,161 @@ def _sample(target: float = 0.5) -> dict[str, object]:
 
 
 class ResidualTrainerTests(unittest.TestCase):
+    def test_best_checkpoint_callback_tracks_validation_improvements(self) -> None:
+        arguments = train_arguments(
+            "--steps",
+            "6",
+            "--eval-interval",
+            "1",
+            "--learning-rate",
+            "0.1",
+            "--energy-weight",
+            "1",
+            "--force-weight",
+            "1",
+        )
+        configuration = TrainingConfig.from_namespace(arguments)
+        model = _ToyResidual()
+        samples = [_sample()]
+        saved: list[tuple[int, float, float]] = []
+
+        def record_best(current_model, current_result) -> None:
+            saved.append(
+                (
+                    current_result.best_step,
+                    current_result.best_validation_objective,
+                    float(current_model.scale.detach()),
+                )
+            )
+
+        with redirect_stdout(io.StringIO()):
+            baseline = evaluate_frozen_baseline(
+                model,
+                samples,
+                samples,
+                [],
+                configuration,
+            )
+            result = optimize_residual(
+                model,
+                samples,
+                samples,
+                baseline,
+                configuration,
+                device=torch.device("cpu"),
+                best_checkpoint_callback=record_best,
+            )
+
+        self.assertEqual(saved[0][0], 0)
+        self.assertEqual(saved[-1][0], result.best_step)
+        self.assertAlmostEqual(saved[-1][2], model.scale.item())
+        self.assertTrue(
+            all(current[1] < previous[1] for previous, current in zip(saved, saved[1:]))
+        )
+
+    def test_step_patience_stops_at_first_eligible_validation(self) -> None:
+        arguments = train_arguments(
+            "--steps",
+            "10",
+            "--eval-interval",
+            "2",
+            "--early-stopping-patience-steps",
+            "3",
+            "--energy-weight",
+            "1",
+            "--force-weight",
+            "1",
+        )
+        configuration = TrainingConfig.from_namespace(arguments)
+        model = _ToyResidual()
+        samples = [_sample(target=0.0)]
+
+        with redirect_stdout(io.StringIO()):
+            baseline = evaluate_frozen_baseline(
+                model,
+                samples,
+                samples,
+                [],
+                configuration,
+            )
+            result = optimize_residual(
+                model,
+                samples,
+                samples,
+                baseline,
+                configuration,
+                device=torch.device("cpu"),
+            )
+
+        self.assertEqual(result.best_step, 0)
+        self.assertEqual(result.completed_steps, 4)
+        self.assertTrue(result.stopped_early)
+
+    def test_step_patience_does_not_relabel_natural_completion(self) -> None:
+        arguments = train_arguments(
+            "--steps",
+            "4",
+            "--eval-interval",
+            "2",
+            "--early-stopping-patience-steps",
+            "3",
+            "--energy-weight",
+            "1",
+            "--force-weight",
+            "1",
+        )
+        configuration = TrainingConfig.from_namespace(arguments)
+        model = _ToyResidual()
+        samples = [_sample(target=0.0)]
+
+        with redirect_stdout(io.StringIO()):
+            baseline = evaluate_frozen_baseline(
+                model,
+                samples,
+                samples,
+                [],
+                configuration,
+            )
+            result = optimize_residual(
+                model,
+                samples,
+                samples,
+                baseline,
+                configuration,
+                device=torch.device("cpu"),
+            )
+
+        self.assertEqual(result.completed_steps, 4)
+        self.assertFalse(result.stopped_early)
+
+    def test_state_snapshot_does_not_alias_cpu_parameters(self) -> None:
+        model = _ToyResidual()
+        snapshot = residual_state_dict(model)
+
+        with torch.no_grad():
+            model.scale.fill_(2.0)
+
+        self.assertEqual(snapshot["scale"].item(), 0.0)
+
+    def test_atomic_checkpoint_failure_preserves_previous_file(self) -> None:
+        with TemporaryDirectory() as temporary_directory:
+            checkpoint = Path(temporary_directory) / "residual.pt"
+            torch.save({"marker": "previous"}, checkpoint)
+
+            with mock.patch(
+                "mace_fno.training.checkpoint.torch.save",
+                side_effect=RuntimeError("simulated write failure"),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "simulated write failure"):
+                    save_training_checkpoint(checkpoint, {"marker": "new"})
+
+            self.assertEqual(
+                torch.load(checkpoint, weights_only=False)["marker"], "previous"
+            )
+            self.assertEqual(
+                list(checkpoint.parent.glob(f".{checkpoint.name}.*.tmp")), []
+            )
+
     def test_optimizer_selects_and_restores_an_improved_residual(self) -> None:
         arguments = train_arguments(
             "--steps",
@@ -274,6 +431,7 @@ class ResidualTrainerTests(unittest.TestCase):
             self.assertEqual(payload["n_modes"], (6, 8, 8))
             self.assertEqual(payload["spectral_symmetry"], "metric_eqgino")
             self.assertEqual(payload["metric_parameterization"], "shell_spline")
+            self.assertEqual(payload["early_stopping_patience_steps"], 0)
             self.assertEqual(payload["best_step"], 4)
             self.assertEqual(payload["training_configuration"], effective)
 

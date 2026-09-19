@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
@@ -23,6 +25,14 @@ from .initialization import (
     finish_output_projection_warmup,
 )
 from .monitor import SpectralMonitor
+from .resume import (
+    RESUME_FORMAT_VERSION,
+    capture_rng_state,
+    cpu_snapshot,
+    restore_rng_state,
+    resume_configuration,
+    validate_resume_checkpoint,
+)
 
 Sample = dict[str, Any]
 
@@ -100,9 +110,18 @@ def optimize_residual(
     *,
     device: torch.device,
     spectral_monitor: SpectralMonitor | None = None,
+    best_checkpoint_callback: (
+        Callable[[MACEFNOResidual, OptimizationResult], None] | None
+    ) = None,
+    resume_state: Mapping[str, Any] | None = None,
+    last_checkpoint_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> OptimizationResult:
     """Optimize the configured parameters and restore the best validation state."""
     optimization = configuration.optimization
+    if resume_state is not None:
+        validate_resume_checkpoint(resume_state, configuration)
+        if resume_state["device_type"] != device.type:
+            raise ValueError("resume requires the same device type (CPU or CUDA)")
     joint_training = optimization.mace_training == "joint"
     model.train()
     model_dtype = next(model.parameters()).dtype
@@ -188,34 +207,133 @@ def optimize_residual(
         energy_scale=optimization.energy_scale,
         force_scale=optimization.force_scale,
     )
-    initial_validation = evaluate(
-        model,
-        validation_samples,
-        batch_size=optimization.evaluation_batch_size,
-    )
-    best_step = 0
-    best_objective = validation_objective(
-        initial_validation,
-        energy_weight=optimization.energy_weight,
-        force_weight=optimization.force_weight,
-        energy_scale=optimization.energy_scale,
-        force_scale=optimization.force_scale,
-    )
-    best_residual_state = residual_state_dict(model)
-    best_mace_state = mace_state_dict(model) if joint_training else None
     print(
         f"validation objective at initial MACE baseline: {baseline_objective:.6e}",
         flush=True,
     )
-    print(
-        f"validation objective at initialized combined model: {best_objective:.6e}",
-        flush=True,
-    )
+    if resume_state is None:
+        initial_validation = evaluate(
+            model, validation_samples,
+            batch_size=optimization.evaluation_batch_size,
+        )
+        best_step = 0
+        best_objective = validation_objective(
+            initial_validation,
+            energy_weight=optimization.energy_weight,
+            force_weight=optimization.force_weight,
+            energy_scale=optimization.energy_scale,
+            force_scale=optimization.force_scale,
+        )
+        best_residual_state = residual_state_dict(model)
+        best_mace_state = mace_state_dict(model) if joint_training else None
+        completed_steps = 0
+        stopped_early = False
+        evaluations_at_minimum_lr = 0
+        print(
+            f"validation objective at initialized combined model: {best_objective:.6e}",
+            flush=True,
+        )
+    else:
+        load_residual_state_dict(model, resume_state["residual_state_dict"])
+        if joint_training:
+            load_mace_state_dict(model, resume_state["mace_state_dict"])
+            model.backbone.set_trainable(any(
+                enabled for name, enabled in resume_state["requires_grad"].items()
+                if name.startswith("backbone.mace_model.")
+            ))
+        for name, parameter in model.named_parameters():
+            parameter.requires_grad_(resume_state["requires_grad"][name])
+        model.train()
+        optimizer.load_state_dict(deepcopy(resume_state["optimizer_state_dict"]))
+        if scheduler is not None:
+            scheduler.load_state_dict(deepcopy(resume_state["scheduler_state_dict"]))
+        generator.set_state(resume_state["sample_generator_state"])
+        best_step = resume_state["best_step"]
+        best_objective = resume_state["best_objective"]
+        best_residual_state = resume_state["best_residual_state_dict"]
+        best_mace_state = resume_state["best_mace_state_dict"]
+        completed_steps = resume_state["completed_steps"]
+        stopped_early = resume_state["stopped_early"]
+        evaluations_at_minimum_lr = resume_state["evaluations_at_minimum_lr"]
+        if spectral_monitor is not None:
+            spectral_monitor.history = deepcopy(resume_state["spectral_history"])
+            spectral_monitor.write_history()
+        print(
+            f"resuming after step {completed_steps} toward {optimization.steps} total "
+            f"steps (best step {best_step}, objective={best_objective:.6e})",
+            flush=True,
+        )
+        if stopped_early:
+            print("saved early-stopping condition is already satisfied", flush=True)
 
-    completed_steps = 0
-    stopped_early = False
-    evaluations_at_minimum_lr = 0
-    for step in range(optimization.steps):
+    def current_result() -> OptimizationResult:
+        return OptimizationResult(
+            best_step=best_step,
+            best_validation_objective=best_objective,
+            completed_steps=completed_steps,
+            stopped_early=stopped_early,
+            warmup_learning_rate=warmup_learning_rate,
+            final_learning_rate=float(optimizer.param_groups[0]["lr"]),
+            final_mace_learning_rate=(
+                float(optimizer.param_groups[1]["lr"])
+                if joint_training
+                else None
+            ),
+        )
+
+    last_saved_step = -1
+
+    def save_latest() -> None:
+        nonlocal last_saved_step
+        if last_checkpoint_callback is None or last_saved_step == completed_steps:
+            return
+        # Save before restoring the best weights: Adam's moments belong to the
+        # current iterate, which need not be the validation-selected model.
+        last_checkpoint_callback({
+            "resume_format_version": RESUME_FORMAT_VERSION,
+            "configuration": resume_configuration(configuration),
+            "device_type": device.type,
+            "completed_steps": completed_steps,
+            "best_step": best_step,
+            "best_objective": best_objective,
+            "stopped_early": stopped_early,
+            "evaluations_at_minimum_lr": evaluations_at_minimum_lr,
+            "residual_state_dict": residual_state_dict(model),
+            "mace_state_dict": mace_state_dict(model) if joint_training else None,
+            "best_residual_state_dict": best_residual_state,
+            "best_mace_state_dict": best_mace_state,
+            "optimizer_state_dict": cpu_snapshot(optimizer.state_dict()),
+            "scheduler_state_dict": deepcopy(scheduler.state_dict()) if scheduler else None,
+            "sample_generator_state": generator.get_state(),
+            "rng_state": capture_rng_state(device),
+            "requires_grad": {
+                name: parameter.requires_grad for name, parameter in model.named_parameters()
+            },
+            "spectral_history": deepcopy(spectral_monitor.history) if spectral_monitor else [],
+        })
+        last_saved_step = completed_steps
+
+    if best_checkpoint_callback is not None:
+        if resume_state is not None:
+            load_residual_state_dict(model, best_residual_state)
+            if best_mace_state is not None:
+                load_mace_state_dict(model, best_mace_state)
+        best_checkpoint_callback(model, current_result())
+        if resume_state is not None:
+            load_residual_state_dict(model, resume_state["residual_state_dict"])
+            if joint_training:
+                load_mace_state_dict(model, resume_state["mace_state_dict"])
+
+    if resume_state is not None:
+        # Setup, cache preparation, and model construction must not advance the
+        # resumed RNG stream. Restore last, immediately before optimization.
+        restore_rng_state(resume_state["rng_state"], device)
+    else:
+        save_latest()
+
+    for step in range(completed_steps, optimization.steps):
+        if stopped_early:
+            break
         if step == optimization.mace_warmup_steps and optimization.mace_warmup_steps:
             model.backbone.set_trainable(True)
             model.train()
@@ -309,6 +427,9 @@ def optimize_residual(
             completed_steps % optimization.eval_interval != 0
             and completed_steps != optimization.steps
         ):
+            interval = configuration.runtime.checkpoint_interval
+            if interval and completed_steps % interval == 0:
+                save_latest()
             continue
 
         validation_metrics = evaluate(
@@ -340,6 +461,8 @@ def optimize_residual(
             if joint_training:
                 best_mace_state = mace_state_dict(model)
             print(f"new best validation step: {best_step}", flush=True)
+            if best_checkpoint_callback is not None:
+                best_checkpoint_callback(model, current_result())
 
         scheduler_start_step = max(
             optimization.output_warmup_steps,
@@ -386,8 +509,24 @@ def optimize_residual(
                     f"minimum learning rate {current_learning_rate:.6e}",
                     flush=True,
                 )
-                break
 
+        if (
+            optimization.early_stopping_patience_steps
+            and completed_steps < optimization.steps
+            and completed_steps - best_step
+            >= optimization.early_stopping_patience_steps
+        ):
+            stopped_early = True
+            print(
+                f"early stopping at step {completed_steps}: validation objective "
+                f"has not improved for {completed_steps - best_step} optimizer steps",
+                flush=True,
+            )
+        save_latest()
+        if stopped_early:
+            break
+
+    save_latest()
     load_residual_state_dict(model, best_residual_state)
     if best_mace_state is not None:
         load_mace_state_dict(model, best_mace_state)
@@ -395,17 +534,7 @@ def optimize_residual(
         f"restored best validation step {best_step} (objective={best_objective:.6e})",
         flush=True,
     )
-    return OptimizationResult(
-        best_step=best_step,
-        best_validation_objective=best_objective,
-        completed_steps=completed_steps,
-        stopped_early=stopped_early,
-        warmup_learning_rate=warmup_learning_rate,
-        final_learning_rate=float(optimizer.param_groups[0]["lr"]),
-        final_mace_learning_rate=(
-            float(optimizer.param_groups[1]["lr"]) if joint_training else None
-        ),
-    )
+    return current_result()
 
 
 def evaluate_selected_model(

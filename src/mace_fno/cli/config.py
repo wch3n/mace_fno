@@ -281,6 +281,15 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--lr-patience-evals", type=int, default=4)
     parser.add_argument("--minimum-learning-rate", type=float, default=1.0e-6)
     parser.add_argument(
+        "--early-stopping-patience-steps",
+        type=int,
+        default=0,
+        help=(
+            "Stop when the validation objective has not improved for this many "
+            "optimizer steps; checked at validation intervals, zero disables it"
+        ),
+    )
+    parser.add_argument(
         "--early-stopping-patience-evals",
         type=int,
         default=0,
@@ -407,5 +416,17 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "reference energies in float64"
         ),
     )
-    parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument("--checkpoint", type=Path, help="Best-model output for inference")
+    parser.add_argument(
+        "--last-checkpoint", type=Path,
+        help="Resumable training-state output (default: <checkpoint stem>.last.pt)",
+    )
+    parser.add_argument(
+        "--resume", type=Path,
+        help="Continue from a latest training-state checkpoint, not a best-model file",
+    )
+    parser.add_argument(
+        "--checkpoint-interval", type=int, default=0,
+        help="Save training state every N steps, also at validation/end (0: validation only)",
+    )
     return parse_args_with_config(parser, argv)

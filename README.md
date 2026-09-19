@@ -108,7 +108,60 @@ mace-fno-train --config train.yaml
 ```
 
 The saved frozen-mode checkpoint contains the learned residual state and
-reconstruction metadata, but does not duplicate the MACE weights.
+reconstruction metadata, but does not duplicate the MACE weights. The trainer
+writes the initialized model and then atomically replaces that file whenever
+the validation objective improves, so the best model remains available while
+training is running. Optional step-based early stopping follows the same
+validation objective:
+
+```yaml
+training:
+  eval_interval: 500
+  early_stopping_patience_steps: 5000
+```
+
+The patience counts optimizer steps since the best validation result. Because
+validation is evaluated periodically, stopping occurs at the first validation
+check that reaches or exceeds the requested patience. A value of zero disables
+early stopping.
+
+Training also writes a separate `model.last.pt` alongside `model.pt`. The former
+contains the latest training state, while the latter contains the best model
+selected by validation. The latest file includes optimizer moments, scheduler
+state, sampling and global random-number-generator states, warm-up flags,
+early-stopping counters, the best weights so far, and spectral-monitor history.
+Both files are written atomically. This works for frozen and joint training.
+
+To resume an interrupted run with the same configuration:
+
+```bash
+mace-fno-train --config train.yaml --resume /path/to/run/model.last.pt
+```
+
+Alternatively, add `resume: /path/to/run/model.last.pt` to the YAML file.
+`steps` remains the **total** target, not the number of additional steps. It can
+be increased when continuing a completed run. A saved early-stopping decision
+is preserved, rather than resetting patience. Resuming rejects changed model,
+loss, batching, validation, or diagnostic settings and checks SHA-256 hashes of
+the input data and original MACE checkpoint. Cache and output locations can
+change. Keep the same software and device type for reproducibility. GPU
+nondeterminism can still prevent bitwise-identical results.
+
+By default, training state is saved at initialization, validation checks, and
+the end of optimization, before restoring the best model. For more frequent
+saves or a custom location:
+
+```yaml
+last_checkpoint: /path/to/run/last.pt
+checkpoint_interval: 100  # Additional saves every 100 optimizer steps
+```
+
+A sudden termination loses only progress since the last completed save. No
+automatic Slurm requeue is performed. Older best-model or weights-only files
+cannot provide a full resume. Extending a completed run continues its saved
+state, including the final validation/scheduler update, so it can differ from
+a run originally configured with a longer budget and a different validation
+schedule at that boundary.
 
 Joint training uses the same total model,
 

@@ -22,6 +22,7 @@ class TrainingArgumentTests(unittest.TestCase):
             "batch_size": 1,
             "mace_training": "frozen",
             "mace_learning_rate": 1.0e-5,
+            "early_stopping_patience_steps": 0,
             "spectral_diagnostic_samples": 0,
             "spectral_diagnostic_max_mode": 1,
             "spectral_diagnostic_z_profiles": 3,
@@ -65,6 +66,11 @@ class TrainingArgumentTests(unittest.TestCase):
                     "12",
                 ),
                 {"spectral_symmetry": "metric_eqgino", "metric_hidden_channels": 12},
+            ),
+            (
+                "step-based early stopping",
+                ("--early-stopping-patience-steps", "500"),
+                {"early_stopping_patience_steps": 500},
             ),
         )
         for name, options, expected in cases:
@@ -165,6 +171,15 @@ class TrainingConfigurationTests(unittest.TestCase):
             ("--evaluation-batch-size", "-1"),
             ("--mace-warmup-steps", "1"),
             ("--mace-training", "joint", "--output-warmup-steps", "1"),
+            ("--early-stopping-patience-steps", "-1"),
+            (
+                "--early-stopping-patience-steps",
+                "10",
+                "--early-stopping-patience-evals",
+                "2",
+                "--lr-scheduler",
+                "plateau",
+            ),
             (
                 "--spectral-diagnostic-samples",
                 "1",

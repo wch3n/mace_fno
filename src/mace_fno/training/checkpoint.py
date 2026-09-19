@@ -8,6 +8,8 @@ compatibility boundary for reconstructing either form.
 
 from __future__ import annotations
 
+import os
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -159,6 +161,7 @@ def training_checkpoint_payload(
         "lr_decay_factor": optimization.lr_decay_factor,
         "lr_patience_evals": optimization.lr_patience_evals,
         "minimum_learning_rate": optimization.minimum_learning_rate,
+        "early_stopping_patience_steps": optimization.early_stopping_patience_steps,
         "early_stopping_patience_evals": optimization.early_stopping_patience_evals,
         "energy_weight": optimization.energy_weight,
         "force_weight": optimization.force_weight,
@@ -180,10 +183,21 @@ def training_checkpoint_payload(
 
 
 def save_training_checkpoint(path: str | Path, payload: Mapping[str, Any]) -> Path:
-    """Serialize a training payload, creating its parent directory if needed."""
+    """Atomically serialize a training payload beside the destination."""
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    torch.save(dict(payload), destination)
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{destination.name}.",
+        suffix=".tmp",
+        dir=destination.parent,
+        delete=False,
+    ) as handle:
+        temporary = Path(handle.name)
+    try:
+        torch.save(dict(payload), temporary)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
     return destination
 
 
@@ -469,7 +483,7 @@ def residual_state_dict(model: torch.nn.Module) -> dict[str, torch.Tensor]:
     """Return non-MACE state without duplicating backbone parameters."""
     prefix = "backbone.mace_model."
     return {
-        key: value.detach().cpu()
+        key: value.detach().to(device="cpu", copy=True)
         for key, value in model.state_dict().items()
         if not key.startswith(prefix)
     }
@@ -481,7 +495,10 @@ def mace_state_dict(model: torch.nn.Module) -> dict[str, torch.Tensor]:
         mace_model = model.backbone.mace_model
     except AttributeError as error:
         raise TypeError("model does not expose backbone.mace_model") from error
-    return {key: value.detach().cpu() for key, value in mace_model.state_dict().items()}
+    return {
+        key: value.detach().to(device="cpu", copy=True)
+        for key, value in mace_model.state_dict().items()
+    }
 
 
 def load_mace_state_dict(

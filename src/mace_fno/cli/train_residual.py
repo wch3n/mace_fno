@@ -35,6 +35,11 @@ from mace_fno.training import (
     save_training_checkpoint,
     training_checkpoint_payload,
 )
+from mace_fno.training.resume import (
+    input_fingerprints,
+    load_resume_checkpoint,
+    validate_resume_checkpoint,
+)
 
 
 def _save_checkpoint(
@@ -44,6 +49,8 @@ def _save_checkpoint(
     result: OptimizationResult,
     spectral_monitor: SpectralMonitor | None,
     model: MACEFNOResidual,
+    *,
+    write_configuration: bool = True,
 ) -> None:
     """Save one self-describing checkpoint and its resolved YAML sidecar."""
     checkpoint = configuration.runtime.checkpoint
@@ -60,6 +67,7 @@ def _save_checkpoint(
         ),
         evaluation_batch_size=optimization.evaluation_batch_size,
         output_warmup_learning_rate=result.warmup_learning_rate,
+        last_checkpoint=configuration.runtime.last_checkpoint,
     )
     spectral_record = None
     if spectral_monitor is not None:
@@ -79,7 +87,14 @@ def _save_checkpoint(
         spectral_diagnostic=spectral_record,
     )
     save_training_checkpoint(checkpoint, payload)
-    print(f"checkpoint: {checkpoint}")
+    print(
+        f"best checkpoint: {checkpoint} "
+        f"(step={result.best_step}, "
+        f"validation_objective={result.best_validation_objective:.6e})",
+        flush=True,
+    )
+    if not write_configuration:
+        return
     configuration_path = checkpoint.with_suffix(".config.yaml")
     write_resolved_configuration(configuration_path, effective_configuration)
     print(f"resolved configuration: {configuration_path}")
@@ -90,6 +105,16 @@ def main() -> None:
     total_start = perf_counter()
     args = parse_arguments()
     configuration = TrainingConfig.from_namespace(args)
+    resume_state = (
+        load_resume_checkpoint(configuration.runtime.resume)
+        if configuration.runtime.resume is not None else None
+    )
+    fingerprints = (
+        input_fingerprints(configuration)
+        if configuration.runtime.last_checkpoint is not None else None
+    )
+    if resume_state is not None:
+        validate_resume_checkpoint(resume_state, configuration, fingerprints=fingerprints)
     torch.manual_seed(configuration.runtime.seed)
     device = choose_device(configuration.runtime.device)
     dtype = torch.float32 if configuration.runtime.dtype == "float32" else torch.float64
@@ -130,6 +155,36 @@ def main() -> None:
     )
     initial_evaluation_seconds = elapsed_since(initial_evaluation_start, device)
 
+    def save_best_checkpoint(
+        current_model: MACEFNOResidual,
+        current_result: OptimizationResult,
+    ) -> None:
+        _save_checkpoint(
+            args,
+            configuration,
+            prepared,
+            current_result,
+            spectral_monitor,
+            current_model,
+            write_configuration=False,
+        )
+
+    best_checkpoint_callback = (
+        save_best_checkpoint if configuration.runtime.checkpoint is not None else None
+    )
+
+    def save_last_checkpoint(state: dict) -> None:
+        state["input_fingerprints"] = fingerprints
+        state["training_configuration"] = resolved_configuration(
+            args, last_checkpoint=configuration.runtime.last_checkpoint,
+        )
+        save_training_checkpoint(configuration.runtime.last_checkpoint, state)
+        print(
+            f"latest training state: {configuration.runtime.last_checkpoint} "
+            f"(step={state['completed_steps']})",
+            flush=True,
+        )
+
     optimization_start = perf_counter()
     result = optimize_residual(
         model,
@@ -139,6 +194,11 @@ def main() -> None:
         configuration,
         device=device,
         spectral_monitor=spectral_monitor,
+        best_checkpoint_callback=best_checkpoint_callback,
+        resume_state=resume_state,
+        last_checkpoint_callback=(
+            save_last_checkpoint if configuration.runtime.last_checkpoint is not None else None
+        ),
     )
     optimization_seconds = elapsed_since(optimization_start, device)
 

@@ -41,6 +41,7 @@ class YAMLConfigurationTests(unittest.TestCase):
                     },
                     "training": {
                         "steps": 200,
+                        "early_stopping_patience_steps": 50,
                         "spectral_diagnostic_amplitudes": [0.01, 0.05],
                         "allow_periodic_z": True,
                     },
@@ -59,6 +60,7 @@ class YAMLConfigurationTests(unittest.TestCase):
             self.assertEqual(args.metric_parameterization, "shell_spline")
             self.assertEqual(args.grid, 24)
             self.assertEqual(args.steps, 200)
+            self.assertEqual(args.early_stopping_patience_steps, 50)
             self.assertEqual(args.spectral_diagnostic_amplitudes, [0.01, 0.05])
             self.assertTrue(args.allow_periodic_z)
 

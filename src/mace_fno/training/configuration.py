@@ -226,6 +226,7 @@ class OptimizationConfig:
     lr_decay_factor: float
     lr_patience_evals: int
     minimum_learning_rate: float
+    early_stopping_patience_steps: int
     early_stopping_patience_evals: int
     energy_weight: float
     force_weight: float
@@ -256,6 +257,9 @@ class OptimizationConfig:
             lr_decay_factor=float(values["lr_decay_factor"]),
             lr_patience_evals=int(values["lr_patience_evals"]),
             minimum_learning_rate=float(values["minimum_learning_rate"]),
+            early_stopping_patience_steps=int(
+                values["early_stopping_patience_steps"]
+            ),
             early_stopping_patience_evals=int(values["early_stopping_patience_evals"]),
             energy_weight=float(values["energy_weight"]),
             force_weight=float(values["force_weight"]),
@@ -319,9 +323,21 @@ class OptimizationConfig:
             raise ValueError("evaluation_batch_size must be positive")
         if not 0.0 < self.lr_decay_factor < 1.0:
             raise ValueError("lr_decay_factor must be between zero and one")
-        if self.lr_patience_evals < 0 or self.early_stopping_patience_evals < 0:
+        if (
+            self.lr_patience_evals < 0
+            or self.early_stopping_patience_steps < 0
+            or self.early_stopping_patience_evals < 0
+        ):
             raise ValueError(
                 "learning-rate and early-stopping patience must be non-negative"
+            )
+        if (
+            self.early_stopping_patience_steps
+            and self.early_stopping_patience_evals
+        ):
+            raise ValueError(
+                "--early-stopping-patience-steps and "
+                "--early-stopping-patience-evals are mutually exclusive"
             )
         if not 0.0 < self.minimum_learning_rate <= self.learning_rate:
             raise ValueError(
@@ -435,6 +451,18 @@ class RuntimeConfig:
     dtype: str
     checkpoint: Path | None
     source_config: Path | None
+    last_checkpoint: Path | None = None
+    resume: Path | None = None
+    checkpoint_interval: int = 0
+
+    def validate(self) -> None:
+        if self.checkpoint_interval < 0:
+            raise ValueError("checkpoint_interval must be non-negative")
+        if self.checkpoint is not None:
+            best = self.checkpoint.expanduser().resolve()
+            for path in (self.last_checkpoint, self.resume):
+                if path is not None and path.expanduser().resolve() == best:
+                    raise ValueError("best-model and resume/last-checkpoint paths must differ")
 
 
 @dataclass(frozen=True)
@@ -474,12 +502,22 @@ class TrainingConfig:
         model = ModelConfig.from_mapping(values)
         optimization = OptimizationConfig.from_mapping(values)
         checkpoint = values["checkpoint"]
+        resume = values.get("resume")
+        last_checkpoint = values.get("last_checkpoint")
+        if last_checkpoint is None:
+            last_checkpoint = (
+                checkpoint.with_name(f"{checkpoint.stem}.last.pt")
+                if checkpoint is not None else resume
+            )
         runtime = RuntimeConfig(
             seed=int(values["seed"]),
             device=str(values["device"]),
             dtype=str(values["dtype"]),
             checkpoint=checkpoint,
             source_config=values.get("config"),
+            last_checkpoint=last_checkpoint,
+            resume=resume,
+            checkpoint_interval=int(values.get("checkpoint_interval", 0)),
         )
         diagnostic = DiagnosticConfig.from_mapping(values, checkpoint=checkpoint)
         configuration = cls(
@@ -497,3 +535,4 @@ class TrainingConfig:
         self.model.validate()
         self.optimization.validate(self.model.architecture)
         self.diagnostic.validate(self.model)
+        self.runtime.validate()
