@@ -125,6 +125,49 @@ validation is evaluated periodically, stopping occurs at the first validation
 check that reaches or exceeds the requested patience. A value of zero disables
 early stopping.
 
+An optional **energy-prioritized checkpoint** selects the lowest validation
+energy RMSE among checkpoints close to the best combined validation loss:
+
+```yaml
+checkpoint: /path/to/run/model.pt
+training:
+  energy_checkpoint_tolerance: 0.01  # Allow loss up to 1% above the best
+  energy_checkpoint_constraint: loss
+  energy_checkpoint_metric: raw
+```
+
+This writes `model.energy.pt` in addition to the usual best-loss `model.pt`.
+The selection rule is `argmin(E_RMSE)` subject to
+`validation_loss <= (1 + tolerance) * minimum_validation_loss`. Both quantities
+come from validation, not training minibatches or the test set. Candidates are
+the initialized model and subsequent validation checks, so `eval_interval`
+controls the selection frequency. Choose the tolerance before inspecting test
+errors and apply the same rule across seeds.
+
+Set `energy_checkpoint_constraint: forces` to constrain validation force RMSE
+instead of combined loss. Set `energy_checkpoint_metric: centered` to rank by
+`sqrt(E_RMSE**2 - E_ME**2)` instead of raw energy RMSE. Centered selection does
+**not** calibrate the energy reference or apply a shift to the saved model.
+Raw selection is the default and is appropriate when absolute energy accuracy
+is the goal. Omitting `energy_checkpoint_tolerance` disables this feature.
+
+The energy-selected file is updated atomically during training, including when
+a lower best loss tightens the eligibility threshold. It contains one complete
+model, including its matching MACE weights for joint training, and selection
+metadata. At completion, both selected models have their energy and force
+errors evaluated together, with raw validation and test metrics stored under
+`evaluation_metrics` in their respective checkpoints. The energy-selected file
+does not reuse the primary model's spectral diagnostic. Run a separate
+diagnostic on that file if needed. The training loss, scheduler, early stopping,
+and primary best-loss selection are unchanged.
+
+To enforce the final threshold exactly, training keeps eligible, nondominated
+energy/constraint candidates in CPU memory and in `model.last.pt`. This adds
+memory and checkpoint-size overhead that grows with the number of such
+candidates, especially for joint training. Resuming preserves these candidates
+and requires unchanged selection settings. Selection cannot be enabled
+retroactively when resuming an older run that did not save them.
+
 Training also writes a separate `model.last.pt` alongside `model.pt`. The former
 contains the latest training state, while the latter contains the best model
 selected by validation. The latest file includes optimizer moments, scheduler
@@ -162,6 +205,46 @@ cannot provide a full resume. Extending a completed run continues its saved
 state, including the final validation/scheduler update, so it can differ from
 a run originally configured with a longer budget and a different validation
 schedule at that boundary.
+
+To start a **new fine-tuning stage** from existing weights, use `init_from`
+instead of `resume`. For example, keep the model/data settings from the parent
+configuration and change the loss scales and learning rate:
+
+```yaml
+init_from: /path/to/parent/model.pt
+checkpoint: /path/to/new_run/model.pt
+training:
+  steps: 2000
+  energy_scale: 0.30
+  force_scale: 1.0
+  learning_rate: 1.25e-4
+```
+
+The command-line equivalent is `--init-from /path/to/parent/model.pt`.
+Best-model (`model.pt`), energy-selected (`model.energy.pt`), and latest-state
+(`model.last.pt`) checkpoints with saved training configuration are accepted.
+For a latest-state checkpoint, initialization uses its **latest** weights, not
+the best weights embedded in its training history.
+
+Fine-tuning restores the source head, FNO, and, for joint training, the learned
+MACE weights. Adam moments, scheduler state, random streams, early-stopping
+counters, and checkpoint-selection history start fresh. `steps` is the budget
+for this new stage, and the learning rate comes from the new configuration.
+No energy-reference shift is fitted or applied. Fresh Adam state can introduce
+an initial transient, so compare sustained validation accuracy as well as the
+selected checkpoint.
+
+The architecture, dtype, frozen/joint mode, MACE head, and original MACE
+reference must match. Compatible new data and different optimization settings
+are allowed. The parent reference cell and spectral interpolation anchors are
+preserved. Older selected checkpoints without a MACE fingerprint require their
+original reference file to remain accessible. Parent path, SHA-256, and step
+are recorded in the new checkpoints. Output paths must not overwrite the parent.
+
+`init_from` and `resume` are mutually exclusive. To exactly resume an interrupted
+fine-tuning stage, remove `init_from` from its YAML and set `resume` to that
+stage's new `model.last.pt`. Its parent provenance is preserved. This does not
+relax the unchanged-loss requirement of ordinary `resume`.
 
 Joint training uses the same total model,
 

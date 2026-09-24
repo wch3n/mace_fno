@@ -33,6 +33,7 @@ from .resume import (
     resume_configuration,
     validate_resume_checkpoint,
 )
+from .selection import EnergyCheckpointSelector
 
 Sample = dict[str, Any]
 
@@ -48,6 +49,7 @@ class OptimizationResult:
     warmup_learning_rate: float
     final_learning_rate: float
     final_mace_learning_rate: float | None = None
+    energy_selection: dict[str, Any] | None = None
 
 
 def evaluate_frozen_baseline(
@@ -115,6 +117,7 @@ def optimize_residual(
     ) = None,
     resume_state: Mapping[str, Any] | None = None,
     last_checkpoint_callback: Callable[[dict[str, Any]], None] | None = None,
+    energy_checkpoint_callback: Callable[[OptimizationResult], None] | None = None,
 ) -> OptimizationResult:
     """Optimize the configured parameters and restore the best validation state."""
     optimization = configuration.optimization
@@ -266,6 +269,26 @@ def optimize_residual(
         if stopped_early:
             print("saved early-stopping condition is already satisfied", flush=True)
 
+    energy_selector = None
+    if optimization.energy_checkpoint_tolerance is not None:
+        energy_selector = EnergyCheckpointSelector(
+            optimization.energy_checkpoint_tolerance,
+            optimization.energy_checkpoint_constraint,
+            optimization.energy_checkpoint_metric,
+        )
+        if resume_state is not None:
+            if resume_state.get("energy_selector") is None:
+                raise ValueError("resume checkpoint is missing energy-selection candidates")
+            energy_selector.load_state_dict(resume_state["energy_selector"])
+        else:
+            energy_selector.consider(
+                0, initial_validation, best_objective,
+                lambda: {
+                    "residual_state_dict": best_residual_state,
+                    "mace_state_dict": best_mace_state,
+                },
+            )
+
     def current_result() -> OptimizationResult:
         return OptimizationResult(
             best_step=best_step,
@@ -279,6 +302,7 @@ def optimize_residual(
                 if joint_training
                 else None
             ),
+            energy_selection=energy_selector.selected if energy_selector else None,
         )
 
     last_saved_step = -1
@@ -310,6 +334,7 @@ def optimize_residual(
                 name: parameter.requires_grad for name, parameter in model.named_parameters()
             },
             "spectral_history": deepcopy(spectral_monitor.history) if spectral_monitor else [],
+            "energy_selector": energy_selector.state_dict() if energy_selector else None,
         })
         last_saved_step = completed_steps
 
@@ -323,6 +348,9 @@ def optimize_residual(
             load_residual_state_dict(model, resume_state["residual_state_dict"])
             if joint_training:
                 load_mace_state_dict(model, resume_state["mace_state_dict"])
+
+    if energy_selector is not None and energy_checkpoint_callback is not None:
+        energy_checkpoint_callback(current_result())
 
     if resume_state is not None:
         # Setup, cache preparation, and model construction must not advance the
@@ -446,6 +474,16 @@ def optimize_residual(
             force_scale=optimization.force_scale,
         )
         print(f"validation objective step {completed_steps}: {score:.6e}", flush=True)
+        if energy_selector is not None:
+            selection_changed = energy_selector.consider(
+                completed_steps, validation_metrics, score,
+                lambda: {
+                    "residual_state_dict": residual_state_dict(model),
+                    "mace_state_dict": mace_state_dict(model) if joint_training else None,
+                },
+            )
+            if selection_changed and energy_checkpoint_callback is not None:
+                energy_checkpoint_callback(current_result())
         if spectral_monitor is not None:
             spectral_monitor.evaluate_validation(
                 model,
@@ -543,20 +581,17 @@ def evaluate_selected_model(
     validation_samples: list[Sample],
     test_samples: list[Sample],
     configuration: TrainingConfig,
-) -> None:
+    *,
+    label: str = "selected",
+) -> dict[str, Any]:
     """Report the errors of the restored best residual checkpoint."""
     optimization = configuration.optimization
     batch_size = optimization.evaluation_batch_size
+    splits = {"validation": validation_samples, "held-out test": test_samples}
     if optimization.evaluation_scope == "all":
-        print_metrics(
-            "selected train",
-            evaluate(model, train_samples, batch_size=batch_size),
-        )
-    print_metrics(
-        "selected validation",
-        evaluate(model, validation_samples, batch_size=batch_size),
-    )
-    print_metrics(
-        "selected held-out test",
-        evaluate(model, test_samples, batch_size=batch_size),
-    )
+        splits = {"train": train_samples, **splits}
+    metrics = {}
+    for split, samples in splits.items():
+        metrics[split] = evaluate(model, samples, batch_size=batch_size)
+        print_metrics(f"{label} {split}", metrics[split])
+    return metrics

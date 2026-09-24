@@ -137,7 +137,9 @@ def training_checkpoint_payload(
         "fno_hidden_channels": model_config.fno_hidden_channels,
         "fno_layers": model_config.fno_layers,
         "architecture": model_config.architecture,
-        "reference_cell": prepared.reference_cell.detach().cpu(),
+        "reference_cell": (
+            getattr(model, "reference_cell", prepared.reference_cell).detach().cpu()
+        ),
         "num_atoms": data.num_atoms,
         "validation_fraction": data.validation_fraction,
         "skip_cell_mismatch": data.skip_cell_mismatch,

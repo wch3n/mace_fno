@@ -8,6 +8,7 @@ file is evaluated only before and after optimization.
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 from time import perf_counter
 
 import torch
@@ -35,6 +36,16 @@ from mace_fno.training import (
     save_training_checkpoint,
     training_checkpoint_payload,
 )
+from mace_fno.training.checkpoint import (
+    load_mace_state_dict,
+    load_residual_state_dict,
+    mace_state_dict,
+    residual_state_dict,
+)
+from mace_fno.training.finetune import (
+    initialize_finetune_model,
+    load_finetune_checkpoint,
+)
 from mace_fno.training.resume import (
     input_fingerprints,
     load_resume_checkpoint,
@@ -51,9 +62,22 @@ def _save_checkpoint(
     model: MACEFNOResidual,
     *,
     write_configuration: bool = True,
+    energy_selection: dict | None = None,
+    evaluation_metrics: dict | None = None,
+    fingerprints: dict | None = None,
+    fine_tuning: dict | None = None,
 ) -> None:
     """Save one self-describing checkpoint and its resolved YAML sidecar."""
     checkpoint = configuration.runtime.checkpoint
+    if energy_selection is not None:
+        checkpoint = configuration.energy_checkpoint
+        candidate = energy_selection["candidate"]
+        result = replace(
+            result, best_step=candidate["step"],
+            best_validation_objective=candidate["validation_objective"],
+        )
+        # The monitor describes the primary best-loss model, not this selection.
+        spectral_monitor = None
     if checkpoint is None:
         return
 
@@ -86,13 +110,34 @@ def _save_checkpoint(
         effective_configuration=effective_configuration,
         spectral_diagnostic=spectral_record,
     )
+    if energy_selection is not None:
+        payload.update(energy_selection["candidate"]["state"])
+        payload["checkpoint_selection"] = energy_selection["metadata"]
+    if evaluation_metrics is not None:
+        payload["evaluation_metrics"] = evaluation_metrics
+    if fingerprints is not None:
+        payload["input_fingerprints"] = fingerprints
+    if fine_tuning is not None:
+        payload["fine_tuning"] = fine_tuning
     save_training_checkpoint(checkpoint, payload)
+    label = "energy-selected" if energy_selection is not None else "best"
     print(
-        f"best checkpoint: {checkpoint} "
+        f"{label} checkpoint: {checkpoint} "
         f"(step={result.best_step}, "
         f"validation_objective={result.best_validation_objective:.6e})",
         flush=True,
     )
+    if energy_selection is not None:
+        metadata = energy_selection["metadata"]
+        print(
+            f"  validation {metadata['energy_metric']} E_RMSE="
+            f"{metadata['selected_energy_score']:.6e} eV/atom, "
+            f"{metadata['constraint']}={metadata['selected_constraint']:.6e} "
+            f"<= {metadata['constraint_limit']:.6e} "
+            f"(best={metadata['best_constraint']:.6e}, "
+            f"tolerance={metadata['relative_tolerance']:.2%})",
+            flush=True,
+        )
     if not write_configuration:
         return
     configuration_path = checkpoint.with_suffix(".config.yaml")
@@ -115,6 +160,14 @@ def main() -> None:
     )
     if resume_state is not None:
         validate_resume_checkpoint(resume_state, configuration, fingerprints=fingerprints)
+    initialization = (
+        load_finetune_checkpoint(configuration.runtime.init_from, configuration)
+        if configuration.runtime.init_from is not None
+        else None
+    )
+    fine_tuning = resume_state.get("fine_tuning") if resume_state is not None else None
+    if initialization is not None:
+        fine_tuning = initialization.provenance
     torch.manual_seed(configuration.runtime.seed)
     device = choose_device(configuration.runtime.device)
     dtype = torch.float32 if configuration.runtime.dtype == "float32" else torch.float64
@@ -128,7 +181,11 @@ def main() -> None:
     model = build_training_model(
         calculator.models[0],
         configuration,
-        prepared.reference_cell,
+        (
+            initialization.reference_cell
+            if initialization is not None
+            else prepared.reference_cell
+        ),
         device=device,
         dtype=dtype,
     )
@@ -137,6 +194,19 @@ def main() -> None:
     target_cache_start = perf_counter()
     cache_frozen_targets(model, prepared, configuration, device=device)
     target_cache_seconds = elapsed_since(target_cache_start, device)
+    if initialization is not None:
+        # Keep baseline/cache targets tied to the original MACE file. Joint
+        # prediction uses the restored MACE weights through the live model.
+        initialize_finetune_model(model, initialization)
+        model._validate_cells(
+            prepared.reference_cell.unsqueeze(0).to(device=device, dtype=dtype)
+        )
+        print(
+            f"initialized from {fine_tuning['parent_checkpoint']} "
+            f"(parent step {fine_tuning['parent_step']}); fresh optimizer, "
+            "scheduler, selection history and step count; no energy shift",
+            flush=True,
+        )
 
     print(
         f"selected structures: {len(prepared.samples)} "
@@ -167,6 +237,8 @@ def main() -> None:
             spectral_monitor,
             current_model,
             write_configuration=False,
+            fingerprints=fingerprints,
+            fine_tuning=fine_tuning,
         )
 
     best_checkpoint_callback = (
@@ -175,6 +247,11 @@ def main() -> None:
 
     def save_last_checkpoint(state: dict) -> None:
         state["input_fingerprints"] = fingerprints
+        state["reference_cell"] = (
+            getattr(model, "reference_cell", prepared.reference_cell).detach().cpu()
+        )
+        if fine_tuning is not None:
+            state["fine_tuning"] = fine_tuning
         state["training_configuration"] = resolved_configuration(
             args, last_checkpoint=configuration.runtime.last_checkpoint,
         )
@@ -184,6 +261,16 @@ def main() -> None:
             f"(step={state['completed_steps']})",
             flush=True,
         )
+
+    def save_energy_checkpoint(current_result: OptimizationResult) -> None:
+        if current_result.energy_selection is not None:
+            _save_checkpoint(
+                args, configuration, prepared, current_result, None, model,
+                write_configuration=False,
+                energy_selection=current_result.energy_selection,
+                fingerprints=fingerprints,
+                fine_tuning=fine_tuning,
+            )
 
     optimization_start = perf_counter()
     result = optimize_residual(
@@ -199,11 +286,12 @@ def main() -> None:
         last_checkpoint_callback=(
             save_last_checkpoint if configuration.runtime.last_checkpoint is not None else None
         ),
+        energy_checkpoint_callback=save_energy_checkpoint,
     )
     optimization_seconds = elapsed_since(optimization_start, device)
 
     final_evaluation_start = perf_counter()
-    evaluate_selected_model(
+    selected_metrics = evaluate_selected_model(
         model,
         prepared.train_samples,
         prepared.validation_samples,
@@ -216,8 +304,6 @@ def main() -> None:
             step=result.best_step,
             validation_objective=result.best_validation_objective,
         )
-    final_evaluation_seconds = elapsed_since(final_evaluation_start, device)
-
     _save_checkpoint(
         args,
         configuration,
@@ -225,7 +311,38 @@ def main() -> None:
         result,
         spectral_monitor,
         model,
+        evaluation_metrics=selected_metrics,
+        fingerprints=fingerprints,
+        fine_tuning=fine_tuning,
     )
+
+    if result.energy_selection is not None:
+        primary_residual = residual_state_dict(model)
+        primary_mace = (
+            mace_state_dict(model)
+            if configuration.optimization.mace_training == "joint" else None
+        )
+        state = result.energy_selection["candidate"]["state"]
+        try:
+            load_residual_state_dict(model, state["residual_state_dict"])
+            if state["mace_state_dict"] is not None:
+                load_mace_state_dict(model, state["mace_state_dict"])
+            energy_metrics = evaluate_selected_model(
+                model, prepared.train_samples, prepared.validation_samples,
+                prepared.test_samples, configuration, label="energy-selected",
+            )
+            _save_checkpoint(
+                args, configuration, prepared, result, None, model,
+                energy_selection=result.energy_selection,
+                evaluation_metrics=energy_metrics,
+                fingerprints=fingerprints,
+                fine_tuning=fine_tuning,
+            )
+        finally:
+            load_residual_state_dict(model, primary_residual)
+            if primary_mace is not None:
+                load_mace_state_dict(model, primary_mace)
+    final_evaluation_seconds = elapsed_since(final_evaluation_start, device)
 
     total_seconds = elapsed_since(total_start, device)
     print(

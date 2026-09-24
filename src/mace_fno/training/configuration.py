@@ -238,6 +238,9 @@ class OptimizationConfig:
     batch_size: int
     evaluation_batch_size: int
     random_residual_initialization: bool
+    energy_checkpoint_tolerance: float | None = None
+    energy_checkpoint_constraint: str = "loss"
+    energy_checkpoint_metric: str = "raw"
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any]) -> OptimizationConfig:
@@ -273,9 +276,28 @@ class OptimizationConfig:
             random_residual_initialization=bool(
                 values["random_residual_initialization"]
             ),
+            energy_checkpoint_tolerance=(
+                float(values["energy_checkpoint_tolerance"])
+                if values.get("energy_checkpoint_tolerance") is not None else None
+            ),
+            energy_checkpoint_constraint=str(
+                values.get("energy_checkpoint_constraint", "loss")
+            ),
+            energy_checkpoint_metric=str(
+                values.get("energy_checkpoint_metric", "raw")
+            ),
         )
 
     def validate(self, architecture: str) -> None:
+        if self.energy_checkpoint_tolerance is not None and (
+            not math.isfinite(self.energy_checkpoint_tolerance)
+            or self.energy_checkpoint_tolerance < 0
+        ):
+            raise ValueError("energy_checkpoint_tolerance must be finite and non-negative")
+        if self.energy_checkpoint_constraint not in {"loss", "forces"}:
+            raise ValueError("energy_checkpoint_constraint must be loss or forces")
+        if self.energy_checkpoint_metric not in {"raw", "centered"}:
+            raise ValueError("energy_checkpoint_metric must be raw or centered")
         if self.steps < 1:
             raise ValueError("steps must be positive")
         if self.mace_training not in {"frozen", "joint"}:
@@ -454,10 +476,13 @@ class RuntimeConfig:
     last_checkpoint: Path | None = None
     resume: Path | None = None
     checkpoint_interval: int = 0
+    init_from: Path | None = None
 
     def validate(self) -> None:
         if self.checkpoint_interval < 0:
             raise ValueError("checkpoint_interval must be non-negative")
+        if self.resume is not None and self.init_from is not None:
+            raise ValueError("--resume and --init-from are mutually exclusive")
         if self.checkpoint is not None:
             best = self.checkpoint.expanduser().resolve()
             for path in (self.last_checkpoint, self.resume):
@@ -518,6 +543,7 @@ class TrainingConfig:
             last_checkpoint=last_checkpoint,
             resume=resume,
             checkpoint_interval=int(values.get("checkpoint_interval", 0)),
+            init_from=values.get("init_from"),
         )
         diagnostic = DiagnosticConfig.from_mapping(values, checkpoint=checkpoint)
         configuration = cls(
@@ -536,3 +562,37 @@ class TrainingConfig:
         self.optimization.validate(self.model.architecture)
         self.diagnostic.validate(self.model)
         self.runtime.validate()
+        if self.runtime.init_from is not None:
+            parent = self.runtime.init_from.expanduser().resolve()
+            outputs = [
+                self.runtime.checkpoint, self.runtime.last_checkpoint,
+                self.energy_checkpoint, self.diagnostic.output,
+                self.data.train_cache, self.data.validation_cache, self.data.test_cache,
+            ]
+            for checkpoint in (self.runtime.checkpoint, self.energy_checkpoint):
+                if checkpoint is not None:
+                    outputs.append(checkpoint.with_suffix(".config.yaml"))
+            for output in outputs:
+                if output is not None and (
+                    output.expanduser().resolve() == parent
+                    or (output.exists() and parent.exists() and output.samefile(parent))
+                ):
+                    raise ValueError("fine-tuning outputs must not overwrite --init-from")
+        if self.optimization.energy_checkpoint_tolerance is not None:
+            if self.runtime.checkpoint is None:
+                raise ValueError("energy checkpoint selection requires --checkpoint")
+            energy_path = self.energy_checkpoint
+            for path in (
+                self.runtime.checkpoint, self.runtime.last_checkpoint, self.runtime.resume,
+            ):
+                if path is not None and path.resolve() == energy_path.resolve():
+                    raise ValueError(
+                        "energy checkpoint must not overwrite best/last/resume files"
+                    )
+
+    @property
+    def energy_checkpoint(self) -> Path | None:
+        checkpoint = self.runtime.checkpoint
+        if checkpoint is None or self.optimization.energy_checkpoint_tolerance is None:
+            return None
+        return checkpoint.with_name(f"{checkpoint.stem}.energy.pt")

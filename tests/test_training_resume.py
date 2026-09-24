@@ -340,6 +340,34 @@ class TrainingResumeTests(unittest.TestCase):
                 )
                 self.assertEqual(stopped[1], resumed[1])
 
+    def test_energy_selection_resumes_without_changing_primary_training(self):
+        for factory, regime in ((_StochasticResidual, "frozen"), (_ToyJointModel, "joint")):
+            for constraint in ("loss", "forces"):
+                with self.subTest(regime=regime, constraint=constraint):
+                    configuration = self.configuration(
+                        "--checkpoint", "model.pt", "--mace-training", regime,
+                        "--energy-checkpoint-tolerance", "0.1",
+                        "--energy-checkpoint-constraint", constraint,
+                    )
+                    full = self.run_training(factory, configuration)
+                    interrupted = self.run_training(factory, configuration, stop=7)
+                    resumed = self.run_training(
+                        factory, configuration, resume=self.roundtrip(interrupted[2][-1])
+                    )
+                    self.assert_nested_equal(full[2][-1], resumed[2][-1])
+                    self.assert_nested_equal(full[1].energy_selection, resumed[1].energy_selection)
+                    disabled = replace(configuration, optimization=replace(
+                        configuration.optimization, energy_checkpoint_tolerance=None,
+                    ))
+                    original = self.run_training(factory, disabled)
+                    self.assertEqual(replace(full[1], energy_selection=None), original[1])
+                    self.assert_nested_equal(full[0].state_dict(), original[0].state_dict())
+                    changed = replace(configuration, optimization=replace(
+                        configuration.optimization, energy_checkpoint_tolerance=0.2,
+                    ))
+                    with self.assertRaisesRegex(ValueError, "settings differ"):
+                        validate_resume_checkpoint(interrupted[2][-1], changed)
+
     def test_last_weights_are_not_overwritten_by_best_and_budget_can_extend(self):
         configuration = self.configuration("--steps", "6", "--learning-rate", "1")
         trained = self.run_training(_ToyResidual, configuration)

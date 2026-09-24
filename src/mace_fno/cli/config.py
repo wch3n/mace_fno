@@ -299,6 +299,19 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument("--energy-weight", type=float, default=1.0)
+    parser.add_argument(
+        "--energy-checkpoint-tolerance", type=float, default=None,
+        help=("Also save the minimum-energy validation model within this relative "
+              "tolerance of the best validation loss/force RMSE (0.01 means 1%%)"),
+    )
+    parser.add_argument(
+        "--energy-checkpoint-constraint", choices=("loss", "forces"), default="loss",
+        help="Quantity constrained by --energy-checkpoint-tolerance",
+    )
+    parser.add_argument(
+        "--energy-checkpoint-metric", choices=("raw", "centered"), default="raw",
+        help="Energy RMSE used to rank eligible checkpoints (no energy shift is applied)",
+    )
     parser.add_argument("--force-weight", type=float, default=10.0)
     parser.add_argument("--energy-scale", type=float, default=1.0)
     parser.add_argument("--force-scale", type=float, default=1.0)
@@ -424,6 +437,13 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--resume", type=Path,
         help="Continue from a latest training-state checkpoint, not a best-model file",
+    )
+    parser.add_argument(
+        "--init-from", type=Path,
+        help=(
+            "Initialize from a MACE-FNO checkpoint with fresh optimization state; "
+            "allows changed loss scales and is mutually exclusive with --resume"
+        ),
     )
     parser.add_argument(
         "--checkpoint-interval", type=int, default=0,

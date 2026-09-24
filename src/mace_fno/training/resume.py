@@ -41,6 +41,14 @@ def resume_configuration(configuration: TrainingConfig) -> dict[str, Any]:
             data[name] = str(value.expanduser().resolve())
     optimization = asdict(configuration.optimization)
     optimization.pop("steps")  # --steps is the total budget, which may be extended.
+    if optimization["energy_checkpoint_tolerance"] is None:
+        # Preserve the continuation contract for pre-selection training states.
+        for name in (
+            "energy_checkpoint_tolerance",
+            "energy_checkpoint_constraint",
+            "energy_checkpoint_metric",
+        ):
+            optimization.pop(name)
     diagnostic = asdict(configuration.diagnostic)
     diagnostic.pop("output")
     return {
