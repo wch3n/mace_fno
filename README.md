@@ -1,4 +1,4 @@
-# MACE-FNO long-range residuals
+# MACE-FNO: Learning long-range residuals with Fourier neural operators
 
 This repository develops conservative Fourier neural-operator corrections for
 local MACE potentials. MACE supplies local invariant descriptors and a baseline
@@ -11,6 +11,28 @@ New users can start with the [MACE-FNO quick-start tutorial](TUTORIAL.md),
 which covers data preparation, residual training, audits, and ASE inference.
 Training options may be supplied through `mace-fno-train --config train.yaml`;
 explicit command-line options override YAML values.
+
+## Table of contents
+
+- [Quick-start tutorial](TUTORIAL.md)
+- [Geometries and benchmarks](#geometries-and-benchmarks)
+- [Installation and tests](#installation-and-tests)
+- [Repository layout](#repository-layout)
+- [Frozen and joint training modes](#frozen-and-joint-training-modes)
+  - [Frozen-backbone training](#frozen-backbone-training)
+  - [Energy-prioritized checkpoints](#energy-prioritized-checkpoints)
+  - [Resuming training](#resuming-training)
+  - [Checkpoint-initialized fine-tuning](#checkpoint-initialized-fine-tuning)
+  - [Joint training](#joint-training)
+- [Geometry-specific settings](#geometry-specific-settings)
+  - [2D FNO for slabs](#2d-fno-for-slabs)
+  - [Fully periodic 3D](#fully-periodic-3d)
+- [Spectral diagnostics](#spectral-diagnostics)
+- [ASE inference](#ase-inference)
+- [Current limitations](#current-limitations)
+- [Contributing and citation](#contributing-and-citation)
+
+## Geometries and benchmarks
 
 Implemented geometries are:
 
@@ -76,6 +98,8 @@ reusable implementations belong to the package.
 
 ## Frozen and joint training modes
 
+### Frozen-backbone training
+
 Frozen residual training is the default. MACE weights remain fixed, but
 descriptor derivatives with respect to atom positions remain in the autograd
 graph. Detaching or evaluating the descriptors under `torch.no_grad()` would
@@ -125,6 +149,8 @@ validation is evaluated periodically, stopping occurs at the first validation
 check that reaches or exceeds the requested patience. A value of zero disables
 early stopping.
 
+### Energy-prioritized checkpoints
+
 An optional **energy-prioritized checkpoint** selects the lowest validation
 energy RMSE among checkpoints close to the best combined validation loss:
 
@@ -168,6 +194,8 @@ candidates, especially for joint training. Resuming preserves these candidates
 and requires unchanged selection settings. Selection cannot be enabled
 retroactively when resuming an older run that did not save them.
 
+### Resuming training
+
 Training also writes a separate `model.last.pt` alongside `model.pt`. The former
 contains the latest training state, while the latter contains the best model
 selected by validation. The latest file includes optimizer moments, scheduler
@@ -205,6 +233,8 @@ cannot provide a full resume. Extending a completed run continues its saved
 state, including the final validation/scheduler update, so it can differ from
 a run originally configured with a longer budget and a different validation
 schedule at that boundary.
+
+### Checkpoint-initialized fine-tuning
 
 To start a **new fine-tuning stage** from existing weights, use `init_from`
 instead of `resume`. For example, keep the model/data settings from the parent
@@ -246,6 +276,8 @@ fine-tuning stage, remove `init_from` from its YAML and set `resume` to that
 stage's new `model.last.pt`. Its parent provenance is preserved. This does not
 relax the unchanged-loss requirement of ordinary `resume`.
 
+### Joint training
+
 Joint training uses the same total model,
 
 ```text
@@ -271,6 +303,8 @@ Afterward, backpropagation through both the MACE energy and the descriptors
 updates MACE and FNO together in every optimizer step. Joint checkpoints embed
 the updated MACE state; the original MACE file is still needed to reconstruct
 the architecture and its atom-to-graph conversion settings.
+
+## Geometry-specific settings
 
 ### 2D FNO for slabs
 
