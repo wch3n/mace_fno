@@ -24,6 +24,7 @@ test -s "${FNO_CONFIG}"
 cd "${JOB_WORK_ROOT}"
 python3 "${PROJECT_ROOT}/benchmarks/water_scan_qnep/prepare_dataset.py" \
     --data-root "${SOURCE_DATA_ROOT}" \
+    --output-dir "${DATA_ROOT}" \
     --download
 
 common_sbatch=(

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Download, audit, and split the published Water-SCAN/QNEP data.
+"""Prepare exact-geometry-disjoint Water-SCAN energy/force benchmarks.
 
-The official training file is split into fit and model-selection subsets.
-The official validation file remains untouched by model selection and is
-renamed test.xyz in the prepared benchmark.
+Deduplicate the source training pool before its fit/validation split. Keep only
+unique source-validation geometries absent from that pool for the final test.
+Raw files are never rewritten; the manifest records every source occurrence.
 """
 
 from __future__ import annotations
@@ -22,6 +22,9 @@ from ase.io import read, write
 
 RECORD_ID = 18335947
 RECORD_URL = f"https://zenodo.org/records/{RECORD_ID}"
+SPLIT_PROTOCOL = "exact-geometry-disjoint-source-roles-v1"
+ENERGY_LABEL_TOLERANCE = 1.0e-6  # eV per structure
+FORCE_LABEL_TOLERANCE = 1.0e-5  # eV/angstrom per component
 FILES = {
     "reference-structures-training-water-SCAN.xyz": {
         "md5": "1844300168cb9f2b6431595f12aee910",
@@ -60,6 +63,11 @@ def parse_arguments() -> argparse.Namespace:
         default=project_root / "data" / "water_scan_qnep",
     )
     parser.add_argument("--download", action="store_true")
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="Prepared output directory; defaults to DATA_ROOT/prepared",
+    )
     parser.add_argument(
         "--download-published-models",
         action="store_true",
@@ -213,6 +221,8 @@ def stratified_validation_indices(
     validation_fraction: float,
     seed: int,
 ) -> list[int]:
+    if len(side_lengths) < 2:
+        raise ValueError("at least two unique training geometries are required")
     if not 0.0 < validation_fraction < 1.0:
         raise ValueError("validation_fraction must be between zero and one")
     validation_size = round(validation_fraction * len(side_lengths))
@@ -222,6 +232,182 @@ def stratified_validation_indices(
     generator = np.random.default_rng(seed)
     selected = [int(group[generator.integers(len(group))]) for group in bins]
     return sorted(selected)
+
+
+def canonical_atom_order(atoms: Any) -> np.ndarray:
+    """Sort species and Cartesian coordinates without changing the structure."""
+    positions = np.asarray(atoms.positions)
+    return np.lexsort(
+        (positions[:, 2], positions[:, 1], positions[:, 0], atoms.numbers)
+    )
+
+
+def geometry_fingerprint(atoms: Any) -> str:
+    """Exact, atom-permutation-invariant species/position/cell/PBC identity.
+
+    No coordinate rounding, structural relaxation, rotation alignment, or
+    periodic-image matching is performed. This is not a near-duplicate test.
+    """
+    order = canonical_atom_order(atoms)
+    rows = np.column_stack((atoms.numbers, atoms.positions))[order]
+    values = np.concatenate((np.asarray(atoms.cell).ravel(), rows.ravel()))
+    if not np.isfinite(values).all():
+        raise ValueError("non-finite geometry cannot be fingerprinted")
+    values = np.asarray(values, dtype="<f8")
+    values[values == 0.0] = 0.0  # Normalize the sign bit of numerical zero.
+    digest = hashlib.sha256()
+    digest.update(np.asarray([len(atoms)], dtype="<i8").tobytes())
+    digest.update(np.asarray(atoms.pbc, dtype=np.uint8).tobytes())
+    digest.update(values.tobytes())
+    return digest.hexdigest()
+
+
+def geometry_disjoint_split(
+    official_train: list[Any],
+    official_test: list[Any],
+    validation_fraction: float,
+    seed: int,
+) -> tuple[dict[str, list[Any]], dict[str, Any]]:
+    """Keep first representatives, check labels, and preserve source roles."""
+    sources = {"training": official_train, "validation": official_test}
+    groups: dict[str, dict[str, list[int]]] = {}
+    for source, structures in sources.items():
+        for index, atoms in enumerate(structures):
+            key = geometry_fingerprint(atoms)
+            groups.setdefault(key, {"training": [], "validation": []})[source].append(
+                index
+            )
+
+    max_energy_span = 0.0
+    max_force_span = 0.0
+    for key, occurrences in groups.items():
+        members = [
+            sources[source][index]
+            for source, indices in occurrences.items()
+            for index in indices
+        ]
+        energies = np.asarray([reference_energy(atoms) for atoms in members])
+        forces = np.stack(
+            [reference_forces(atoms)[canonical_atom_order(atoms)] for atoms in members]
+        )
+        if not np.isfinite(energies).all() or not np.isfinite(forces).all():
+            raise ValueError(f"non-finite energy/force labels in geometry {key}")
+        energy_span = float(np.ptp(energies))
+        force_span = float(np.max(np.ptp(forces, axis=0)))
+        max_energy_span = max(max_energy_span, energy_span)
+        max_force_span = max(max_force_span, force_span)
+        if energy_span > ENERGY_LABEL_TOLERANCE or force_span > FORCE_LABEL_TOLERANCE:
+            raise ValueError(
+                f"conflicting duplicate labels in geometry {key}: "
+                f"energy span={energy_span} eV, force span={force_span} eV/A"
+            )
+
+    train_keys = [key for key, indices in groups.items() if indices["training"]]
+    test_keys = [
+        key
+        for key, indices in groups.items()
+        if indices["validation"] and not indices["training"]
+    ]
+    if not test_keys:
+        raise ValueError("no source-validation geometries remain for an unseen test")
+    lengths = np.asarray(
+        [
+            abs(np.linalg.det(official_train[groups[key]["training"][0]].cell))
+            ** (1 / 3)
+            for key in train_keys
+        ]
+    )
+    val_local = set(stratified_validation_indices(lengths, validation_fraction, seed))
+    split_keys = {
+        "train": [
+            key for index, key in enumerate(train_keys) if index not in val_local
+        ],
+        "validation": [
+            key for index, key in enumerate(train_keys) if index in val_local
+        ],
+        "test": test_keys,
+    }
+    splits: dict[str, list[Any]] = {}
+    source_indices: dict[str, list[int]] = {}
+    assignments = {}
+    for split, keys in split_keys.items():
+        source = "validation" if split == "test" else "training"
+        indices = [groups[key][source][0] for key in keys]
+        # Copy labels too: Atoms.copy() alone does not retain its calculator.
+        from ase.calculators.singlepoint import SinglePointCalculator
+
+        splits[split] = []
+        source_indices[split] = indices
+        for output_index, (key, index) in enumerate(zip(keys, indices)):
+            original = sources[source][index]
+            atoms = original.copy()
+            atoms.calc = (
+                SinglePointCalculator(atoms, **original.calc.results)
+                if original.calc is not None
+                else None
+            )
+            atoms.info.update(
+                benchmark_split=split,
+                source_index=index,
+                source_file=source,
+                geometry_sha256=key,
+            )
+            splits[split].append(atoms)
+            assignments[key] = {
+                "split": split,
+                "output_index": output_index,
+                "representative_source": source,
+                "representative_index": index,
+            }
+
+    shared = [
+        key
+        for key, indices in groups.items()
+        if indices["training"] and indices["validation"]
+    ]
+    unique_source_validation = sum(
+        bool(value["validation"]) for value in groups.values()
+    )
+    report = {
+        "protocol": SPLIT_PROTOCOL,
+        "identity": "SHA256 of exact float64 cell, PBC and sorted species/Cartesian positions",
+        "scope": "exact geometry and atom permutations; not trajectory or near-duplicate independence",
+        "representative_policy": "first occurrence; source training takes precedence; no label averaging",
+        "source_counts": {name: len(value) for name, value in sources.items()},
+        "unique_source_training": len(train_keys),
+        "unique_source_validation": unique_source_validation,
+        "unique_union": len(groups),
+        "shared_unique_geometries": len(shared),
+        "source_validation_entries_seen_in_training": sum(
+            len(groups[key]["validation"]) for key in shared
+        ),
+        "extra_repeated_source_training_entries": len(official_train) - len(train_keys),
+        "extra_repeated_source_validation_entries": len(official_test)
+        - unique_source_validation,
+        "label_consistency": {
+            "max_energy_span_eV": max_energy_span,
+            "max_force_component_span_eV_per_A": max_force_span,
+            "energy_tolerance_eV": ENERGY_LABEL_TOLERANCE,
+            "force_tolerance_eV_per_A": FORCE_LABEL_TOLERANCE,
+        },
+        "source_indices": source_indices,
+        "counts": {name: len(value) for name, value in splits.items()},
+        "pairwise_geometry_overlap": {
+            f"{first}-{second}": len(set(split_keys[first]) & set(split_keys[second]))
+            for first, second in (
+                ("train", "validation"),
+                ("train", "test"),
+                ("validation", "test"),
+            )
+        },
+        "geometry_groups": [
+            {"sha256": key, "source_occurrences": value, **assignments[key]}
+            for key, value in groups.items()
+        ],
+    }
+    if any(report["pairwise_geometry_overlap"].values()):
+        raise AssertionError("geometry leakage in prepared splits")
+    return splits, report
 
 
 def label_split(structures: list[Any], name: str, source_indices: list[int]) -> None:
@@ -240,24 +426,15 @@ def main() -> None:
     )
     source_train = data_root / "reference-structures-training-water-SCAN.xyz"
     source_test = data_root / "reference-structures-validation-water-SCAN.xyz"
-    official_train, train_lengths, train_summary = audit_structures(source_train)
+    official_train, _, train_summary = audit_structures(source_train)
     official_test, _, test_summary = audit_structures(source_test)
 
-    validation_indices = stratified_validation_indices(
-        train_lengths, args.validation_fraction, args.seed
+    splits, deduplication = geometry_disjoint_split(
+        official_train, official_test, args.validation_fraction, args.seed
     )
-    selected = set(validation_indices)
-    train_indices = [
-        index for index in range(len(official_train)) if index not in selected
-    ]
-    train = [official_train[index] for index in train_indices]
-    validation = [official_train[index] for index in validation_indices]
-    test_indices = list(range(len(official_test)))
-    label_split(train, "train", train_indices)
-    label_split(validation, "validation", validation_indices)
-    label_split(official_test, "test", test_indices)
-
-    prepared = data_root / "prepared"
+    train, validation, test = (splits[name] for name in ("train", "validation", "test"))
+    validation_indices = deduplication["source_indices"]["validation"]
+    prepared = (args.output_dir or data_root / "prepared").resolve()
     outputs = {
         "train": prepared / "train.xyz",
         "validation": prepared / "validation.xyz",
@@ -274,23 +451,35 @@ def main() -> None:
                 f"prepared files exist without {manifest_file}; rerun with --force"
             )
         manifest = json.loads(manifest_file.read_text())
-        expected = (args.seed, args.validation_fraction, validation_indices)
+        expected = (
+            args.seed,
+            args.validation_fraction,
+            validation_indices,
+            SPLIT_PROTOCOL,
+        )
         observed = (
             manifest["split"]["seed"],
             manifest["split"]["validation_fraction"],
             manifest["split"]["validation_indices"],
+            manifest.get("deduplication", {}).get("protocol"),
         )
         if observed != expected:
             raise FileExistsError(
-                f"prepared split differs in {prepared}; rerun with --force"
+                f"prepared split differs in {prepared}; use a new --output-dir "
+                "to preserve prior benchmark evidence"
             )
+        if manifest["source"]["files"] != provenance:
+            raise FileExistsError("source provenance differs from the prepared split")
+        for name, path in outputs.items():
+            if md5sum(path) != manifest["prepared"][name]["md5"]:
+                raise ValueError(f"prepared checksum mismatch: {path}")
         print(f"prepared split already exists: {prepared}", flush=True)
         return
 
     prepared.mkdir(parents=True, exist_ok=True)
     write(outputs["train"], train, format="extxyz")
     write(outputs["validation"], validation, format="extxyz")
-    write(outputs["test"], official_test, format="extxyz")
+    write(outputs["test"], test, format="extxyz")
     indices_file = prepared / f"validation_indices_seed{args.seed}.txt"
     indices_file.write_text("\n".join(map(str, validation_indices)) + "\n")
 
@@ -300,19 +489,20 @@ def main() -> None:
             "url": RECORD_URL,
             "files": provenance,
             "official_training": train_summary,
-            "official_validation_used_as_test": test_summary,
+            "official_validation": test_summary,
         },
         "split": {
-            "method": "cell-length-stratified deterministic sampling",
+            "method": "deduplicate source training, stratify its unique geometries by cell length; exclude source-training geometries from unique test",
             "seed": args.seed,
             "validation_fraction": args.validation_fraction,
             "validation_indices": validation_indices,
             "counts": {
                 "train": len(train),
                 "validation": len(validation),
-                "test": len(official_test),
+                "test": len(test),
             },
         },
+        "deduplication": deduplication,
         "prepared": {
             name: {
                 "path": str(path.resolve()),
@@ -325,7 +515,7 @@ def main() -> None:
     manifest_file.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     print(
         f"wrote train/validation/test = {len(train)}/"
-        f"{len(validation)}/{len(official_test)} to {prepared}",
+        f"{len(validation)}/{len(test)} to {prepared}",
         flush=True,
     )
 

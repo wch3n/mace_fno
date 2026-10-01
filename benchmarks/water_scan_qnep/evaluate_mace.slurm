@@ -35,7 +35,8 @@ export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
 export MPLCONFIGDIR="${TMPDIR:-/tmp}/mace-fno-matplotlib-${SLURM_JOB_ID}"
 mkdir -p "${MPLCONFIGDIR}"
 
-# The official Zenodo validation set is the held-out benchmark test set here.
+# The test file contains only unique source-validation geometries absent from
+# the complete deduplicated source-training pool.
 python3 -u -m mace_fno.cli.evaluate_mace \
     --model "${MACE_MODEL}" \
     --train-file "${DATA_ROOT}/train.xyz" \
