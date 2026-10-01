@@ -41,6 +41,11 @@ def resume_configuration(configuration: TrainingConfig) -> dict[str, Any]:
             data[name] = str(value.expanduser().resolve())
     optimization = asdict(configuration.optimization)
     optimization.pop("steps")  # --steps is the total budget, which may be extended.
+    if optimization["stage_two_start_step"] is None:
+        # Older single-stage runs have no schedule fields in their contract.
+        for name in list(optimization):
+            if name.startswith("stage_two_"):
+                optimization.pop(name)
     if optimization["energy_checkpoint_tolerance"] is None:
         # Preserve the continuation contract for pre-selection training states.
         for name in (
@@ -135,6 +140,18 @@ def validate_resume_checkpoint(
             "and cache locations may change."
         )
     completed = state["completed_steps"]
+    transition = configuration.optimization.stage_two_start_step
+    if transition is not None:
+        stage = state.get("optimization_stage")
+        if not (
+            (stage == 1 and completed <= transition)
+            or (stage == 2 and completed >= transition)
+        ):
+            raise ValueError("resume checkpoint has missing or inconsistent optimization stage")
+        if state.get("stage_start_step") != (0 if stage == 1 else transition):
+            raise ValueError("resume checkpoint has inconsistent stage_start_step")
+        if state.get("active_loss_settings") != configuration.optimization.loss_settings(stage):
+            raise ValueError("resume checkpoint has inconsistent active loss settings")
     if configuration.optimization.steps < completed:
         raise ValueError(
             f"steps is a total budget and must be >= completed_steps ({completed})"

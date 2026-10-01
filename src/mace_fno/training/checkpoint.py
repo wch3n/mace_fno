@@ -44,7 +44,7 @@ def training_checkpoint_payload(
     data = configuration.data
     model_config = configuration.model
     optimization = configuration.optimization
-    return {
+    payload = {
         "checkpoint_format_version": CHECKPOINT_FORMAT_VERSION,
         "training_configuration": dict(effective_configuration),
         "residual_state_dict": residual_state_dict(model),
@@ -165,10 +165,7 @@ def training_checkpoint_payload(
         "minimum_learning_rate": optimization.minimum_learning_rate,
         "early_stopping_patience_steps": optimization.early_stopping_patience_steps,
         "early_stopping_patience_evals": optimization.early_stopping_patience_evals,
-        "energy_weight": optimization.energy_weight,
-        "force_weight": optimization.force_weight,
-        "energy_scale": optimization.energy_scale,
-        "force_scale": optimization.force_scale,
+        **optimization.loss_settings(result.optimization_stage),
         "dtype": configuration.runtime.dtype,
         "train_cache": str(data.train_cache) if data.train_cache else None,
         "validation_cache": (
@@ -182,6 +179,13 @@ def training_checkpoint_payload(
         ),
         "seed": configuration.runtime.seed,
     }
+    if optimization.stage_two_start_step is not None:
+        payload.update(
+            optimization_stage=result.optimization_stage,
+            stage_start_step=result.stage_start_step,
+            active_loss_settings=optimization.loss_settings(result.optimization_stage),
+        )
+    return payload
 
 
 def save_training_checkpoint(path: str | Path, payload: Mapping[str, Any]) -> Path:

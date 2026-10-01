@@ -50,6 +50,8 @@ class OptimizationResult:
     final_learning_rate: float
     final_mace_learning_rate: float | None = None
     energy_selection: dict[str, Any] | None = None
+    optimization_stage: int = 1
+    stage_start_step: int = 0
 
 
 def evaluate_frozen_baseline(
@@ -125,6 +127,10 @@ def optimize_residual(
         validate_resume_checkpoint(resume_state, configuration)
         if resume_state["device_type"] != device.type:
             raise ValueError("resume requires the same device type (CPU or CUDA)")
+    staged = optimization.stage_two_start_step is not None
+    optimization_stage = resume_state.get("optimization_stage", 1) if resume_state else 1
+    stage_start_step = resume_state.get("stage_start_step", 0) if resume_state else 0
+    loss_settings = optimization.loss_settings(optimization_stage)
     joint_training = optimization.mace_training == "joint"
     model.train()
     model_dtype = next(model.parameters()).dtype
@@ -191,6 +197,7 @@ def optimize_residual(
         if optimization.lr_scheduler == "plateau"
         else None
     )
+    initial_scheduler_state = deepcopy(scheduler.state_dict()) if scheduler else None
     generator = torch.Generator().manual_seed(configuration.runtime.seed + 1)
 
     if optimization.output_warmup_steps:
@@ -205,10 +212,7 @@ def optimize_residual(
 
     baseline_objective = validation_objective(
         baseline_validation,
-        energy_weight=optimization.energy_weight,
-        force_weight=optimization.force_weight,
-        energy_scale=optimization.energy_scale,
-        force_scale=optimization.force_scale,
+        **loss_settings,
     )
     print(
         f"validation objective at initial MACE baseline: {baseline_objective:.6e}",
@@ -222,10 +226,7 @@ def optimize_residual(
         best_step = 0
         best_objective = validation_objective(
             initial_validation,
-            energy_weight=optimization.energy_weight,
-            force_weight=optimization.force_weight,
-            energy_scale=optimization.energy_scale,
-            force_scale=optimization.force_scale,
+            **loss_settings,
         )
         best_residual_state = residual_state_dict(model)
         best_mace_state = mace_state_dict(model) if joint_training else None
@@ -303,6 +304,8 @@ def optimize_residual(
                 else None
             ),
             energy_selection=energy_selector.selected if energy_selector else None,
+            optimization_stage=optimization_stage,
+            stage_start_step=stage_start_step,
         )
 
     last_saved_step = -1
@@ -313,7 +316,7 @@ def optimize_residual(
             return
         # Save before restoring the best weights: Adam's moments belong to the
         # current iterate, which need not be the validation-selected model.
-        last_checkpoint_callback({
+        state = {
             "resume_format_version": RESUME_FORMAT_VERSION,
             "configuration": resume_configuration(configuration),
             "device_type": device.type,
@@ -335,7 +338,14 @@ def optimize_residual(
             },
             "spectral_history": deepcopy(spectral_monitor.history) if spectral_monitor else [],
             "energy_selector": energy_selector.state_dict() if energy_selector else None,
-        })
+        }
+        if staged:
+            state.update(
+                optimization_stage=optimization_stage,
+                stage_start_step=stage_start_step,
+                active_loss_settings=dict(loss_settings),
+            )
+        last_checkpoint_callback(state)
         last_saved_step = completed_steps
 
     if best_checkpoint_callback is not None:
@@ -359,10 +369,22 @@ def optimize_residual(
     else:
         save_latest()
 
+    if staged:
+        print(
+            f"two-stage optimization: switch after {optimization.stage_two_start_step} "
+            "updates; early stopping applies only in stage two; "
+            "preserve Adam moments and reset selection/scheduler history",
+            flush=True,
+        )
+
     for step in range(completed_steps, optimization.steps):
         if stopped_early:
             break
-        if step == optimization.mace_warmup_steps and optimization.mace_warmup_steps:
+        if (
+            step == optimization.mace_warmup_steps
+            and optimization.mace_warmup_steps
+            and optimization_stage == 1
+        ):
             model.backbone.set_trainable(True)
             model.train()
             print(
@@ -373,6 +395,7 @@ def optimize_residual(
         if (
             step == optimization.output_warmup_steps
             and optimization.output_warmup_steps
+            and optimization_stage == 1
         ):
             finish_output_projection_warmup(parameters)
             previous_learning_rate = optimizer.param_groups[0]["lr"]
@@ -385,6 +408,61 @@ def optimize_residual(
                 f"{optimization.learning_rate:.6e}",
                 flush=True,
             )
+
+        if staged and optimization_stage == 1 and step == optimization.stage_two_start_step:
+            optimization_stage = 2
+            stage_start_step = completed_steps
+            loss_settings = optimization.loss_settings(2)
+            for index, new_rate in enumerate((
+                optimization.stage_two_learning_rate,
+                optimization.stage_two_mace_learning_rate,
+            )):
+                if new_rate is not None:
+                    optimizer.param_groups[index]["lr"] = new_rate
+            if scheduler is not None:
+                scheduler.load_state_dict(deepcopy(initial_scheduler_state))
+                # A smaller second-stage MACE rate must not be raised by its floor.
+                scheduler.min_lrs = [
+                    min(floor, group["lr"])
+                    for floor, group in zip(scheduler.min_lrs, optimizer.param_groups)
+                ]
+                scheduler._last_lr = [group["lr"] for group in optimizer.param_groups]
+            evaluations_at_minimum_lr = 0
+            transition_metrics = evaluate(
+                model, validation_samples,
+                batch_size=optimization.evaluation_batch_size,
+            )
+            best_objective = validation_objective(transition_metrics, **loss_settings)
+            best_step = completed_steps
+            best_residual_state = residual_state_dict(model)
+            best_mace_state = mace_state_dict(model) if joint_training else None
+            if energy_selector is not None:
+                energy_selector = EnergyCheckpointSelector(
+                    optimization.energy_checkpoint_tolerance,
+                    optimization.energy_checkpoint_constraint,
+                    optimization.energy_checkpoint_metric,
+                )
+                energy_selector.consider(
+                    completed_steps, transition_metrics, best_objective,
+                    lambda: {
+                        "residual_state_dict": best_residual_state,
+                        "mace_state_dict": best_mace_state,
+                    },
+                )
+            print(
+                f"stage two starts after step {completed_steps}: "
+                + ", ".join(f"{key}={value:.6e}" for key, value in loss_settings.items())
+                + f", learning_rates={[group['lr'] for group in optimizer.param_groups]}"
+                + f", initial validation objective={best_objective:.6e}",
+                flush=True,
+            )
+            if best_checkpoint_callback is not None:
+                best_checkpoint_callback(model, current_result())
+            if energy_selector is not None and energy_checkpoint_callback is not None:
+                energy_checkpoint_callback(current_result())
+            # Persist the reset state even though no new update has occurred.
+            last_saved_step = -1
+            save_latest()
 
         optimizer.zero_grad(set_to_none=True)
         accumulated = {"loss": 0.0, "energy": 0.0, "forces": 0.0}
@@ -430,10 +508,7 @@ def optimize_residual(
                 target_energy,
                 target_forces,
                 graph["batch"],
-                energy_weight=optimization.energy_weight,
-                force_weight=optimization.force_weight,
-                energy_scale=optimization.energy_scale,
-                force_scale=optimization.force_scale,
+                **loss_settings,
             )
             (terms["loss"] / optimization.accumulation_steps).backward()
             for name in accumulated:
@@ -454,6 +529,7 @@ def optimize_residual(
         if (
             completed_steps % optimization.eval_interval != 0
             and completed_steps != optimization.steps
+            and completed_steps != optimization.stage_two_start_step
         ):
             interval = configuration.runtime.checkpoint_interval
             if interval and completed_steps % interval == 0:
@@ -468,12 +544,13 @@ def optimize_residual(
         print_metrics(f"validation step {completed_steps}", validation_metrics)
         score = validation_objective(
             validation_metrics,
-            energy_weight=optimization.energy_weight,
-            force_weight=optimization.force_weight,
-            energy_scale=optimization.energy_scale,
-            force_scale=optimization.force_scale,
+            **loss_settings,
         )
-        print(f"validation objective step {completed_steps}: {score:.6e}", flush=True)
+        stage_label = f" (stage {optimization_stage})" if staged else ""
+        print(
+            f"validation objective step {completed_steps}: {score:.6e}{stage_label}",
+            flush=True,
+        )
         if energy_selector is not None:
             selection_changed = energy_selector.consider(
                 completed_steps, validation_metrics, score,
@@ -489,6 +566,7 @@ def optimize_residual(
                 model,
                 step=completed_steps,
                 validation_objective=score,
+                **({"optimization_stage": optimization_stage} if staged else {}),
             )
 
         improved = score < best_objective
@@ -537,6 +615,7 @@ def optimize_residual(
                 evaluations_at_minimum_lr = 0
             if (
                 optimization.early_stopping_patience_evals
+                and (not staged or optimization_stage == 2)
                 and evaluations_at_minimum_lr
                 >= optimization.early_stopping_patience_evals
             ):
@@ -550,6 +629,7 @@ def optimize_residual(
 
         if (
             optimization.early_stopping_patience_steps
+            and (not staged or optimization_stage == 2)
             and completed_steps < optimization.steps
             and completed_steps - best_step
             >= optimization.early_stopping_patience_steps

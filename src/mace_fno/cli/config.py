@@ -316,6 +316,21 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--force-weight", type=float, default=10.0)
     parser.add_argument("--energy-scale", type=float, default=1.0)
     parser.add_argument("--force-scale", type=float, default=1.0)
+    parser.add_argument(
+        "--stage-two-start-step", type=int, default=None,
+        help=("Optional two-stage optimization: perform this many first-stage "
+              "updates, then switch loss settings before the next update"),
+    )
+    for name in ("energy-scale", "force-scale", "energy-weight", "force-weight"):
+        parser.add_argument(
+            f"--stage-two-{name}", type=float, default=None,
+            help=f"Second-stage {name}; defaults to the first-stage value",
+        )
+    for name in ("learning-rate", "mace-learning-rate"):
+        parser.add_argument(
+            f"--stage-two-{name}", type=float, default=None,
+            help=f"Second-stage {name}; defaults to the current (possibly decayed) rate",
+        )
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--eval-interval", type=int, default=100)
     parser.add_argument(

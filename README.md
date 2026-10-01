@@ -23,6 +23,7 @@ explicit command-line options override YAML values.
   - [Energy-prioritized checkpoints](#energy-prioritized-checkpoints)
   - [Resuming training](#resuming-training)
   - [Checkpoint-initialized fine-tuning](#checkpoint-initialized-fine-tuning)
+  - [Two-stage optimization](#two-stage-optimization)
   - [Joint training](#joint-training)
 - [Geometry-specific settings](#geometry-specific-settings)
   - [2D FNO for slabs](#2d-fno-for-slabs)
@@ -294,6 +295,61 @@ are recorded in the new checkpoints. Output paths must not overwrite the parent.
 fine-tuning stage, remove `init_from` from its YAML and set `resume` to that
 stage's new `model.last.pt`. Its parent provenance is preserved. This does not
 relax the unchanged-loss requirement of ordinary `resume`.
+
+### Two-stage optimization
+
+An optional **two-stage loss schedule** changes the energy/force balance within
+one run, for either frozen or joint MACE training. For example:
+
+```yaml
+checkpoint: /path/to/run/model.pt
+training:
+  steps: 12000
+  energy_weight: 1.0
+  force_weight: 10.0
+  energy_scale: 0.5
+  force_scale: 1.0
+  stage_two_start_step: 10000
+  stage_two_energy_scale: 0.1
+  # Optional: otherwise continue with the current, possibly decayed LR.
+  # stage_two_learning_rate: 1.0e-4
+```
+
+Here, updates 1–10000 follow the original objective. Updates 10001–12000
+have 25 times more energy weight relative to forces, because the loss divides
+the energy squared error by `energy_scale**2`. These numbers illustrate the
+schedule, not a universal prescription. Stronger energy weighting does not
+guarantee smaller offsets without affecting force accuracy. No energy shift is
+fitted or applied.
+
+`stage_two_force_scale`, `stage_two_energy_weight`, and `stage_two_force_weight`
+can also be specified. Omitted loss settings inherit their first-stage values.
+`stage_two_learning_rate` and, for joint training,
+`stage_two_mace_learning_rate` optionally replace the current learning rates.
+The switch follows any configured warm-up and continues from the latest
+weights with the same Adam moments. This implements loss reweighting, not
+MACE's optional weight averaging.
+
+Validation runs at the transition even if it falls between regular checks.
+The current weights are re-scored under the new objective. Best-loss selection,
+the optional energy selector, plateau-scheduler history, and patience counters
+restart, so losses with different weights are never compared for selection.
+Early stopping applies only after the switch, ensuring stage two is reached.
+The ordinary learning-rate floor also applies to the second-stage FNO rate.
+
+With `checkpoint: model.pt`, the first-stage selection is saved to
+`model.stage1.pt` (and `model.stage1.energy.pt` if enabled). The second-stage
+selections use `model.pt` and `model.energy.pt`. `model.last.pt` saves the active
+stage, objective, optimizer, and random states for continuation on either side
+of the transition. Physical energy/force RMSEs remain comparable across stages,
+but the weighted objective changes. Final test evaluation concerns the
+second-stage selections.
+
+The schedule is **off by default**. Existing YAML files and older checkpoints
+keep their single-stage behavior, including exact resume from older `.last.pt`
+files. A scheduled run requires the same schedule when resumed. To introduce a
+new schedule using an older run's weights, start a separate run with `init_from`
+and new output paths, not `resume`.
 
 ### Joint training
 

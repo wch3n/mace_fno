@@ -145,6 +145,7 @@ class SpectralMonitor:
         *,
         step: int,
         validation_objective: float,
+        optimization_stage: int | None = None,
     ) -> None:
         """Evaluate and persist the inexpensive probe at a validation step."""
         diagnostic = self.configuration.diagnostic
@@ -165,6 +166,8 @@ class SpectralMonitor:
                 "validation_objective": validation_objective,
             }
         )
+        if optimization_stage is not None:
+            report["optimization_stage"] = optimization_stage
         self.history.append(report)
         print_low_k_diagnostic(f"low-k response step {step}", report)
         self.write_history()
@@ -175,6 +178,7 @@ class SpectralMonitor:
         *,
         step: int,
         validation_objective: float,
+        optimization_stage: int | None = None,
     ) -> None:
         """Evaluate the restored best checkpoint, including an optional deep audit."""
         diagnostic = self.configuration.diagnostic
@@ -214,6 +218,8 @@ class SpectralMonitor:
                 "validation_objective": validation_objective,
             }
         )
+        if optimization_stage is not None:
+            selected_report["optimization_stage"] = optimization_stage
         self.history.append(selected_report)
         print_low_k_diagnostic("low-k response selected", selected_report)
 
@@ -228,6 +234,8 @@ class SpectralMonitor:
                     "validation_objective": validation_objective,
                 }
             )
+            if optimization_stage is not None:
+                compact_report["optimization_stage"] = optimization_stage
             self.history.append(compact_report)
             print_amplitude_diagnostic(
                 "amplitude convergence selected", amplitude_report

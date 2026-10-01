@@ -80,6 +80,14 @@ def _save_checkpoint(
         spectral_monitor = None
     if checkpoint is None:
         return
+    if (
+        configuration.optimization.stage_two_start_step is not None
+        and result.optimization_stage == 1
+    ):
+        checkpoint = (
+            configuration.stage_one_energy_checkpoint if energy_selection is not None
+            else configuration.stage_one_checkpoint
+        )
 
     model_config = configuration.model
     optimization = configuration.optimization
@@ -303,6 +311,10 @@ def main() -> None:
             model,
             step=result.best_step,
             validation_objective=result.best_validation_objective,
+            **(
+                {"optimization_stage": result.optimization_stage}
+                if configuration.optimization.stage_two_start_step is not None else {}
+            ),
         )
     _save_checkpoint(
         args,

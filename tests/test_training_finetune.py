@@ -150,6 +150,19 @@ class FineTuneFixtures(unittest.TestCase):
 
 
 class FineTuneTests(FineTuneFixtures):
+    def test_stage_two_parent_reports_active_scales(self):
+        for latest in (False, True):
+            with self.subTest(latest=latest):
+                path, payload, _ = self.parent(latest=latest)
+                payload["active_loss_settings"] = {
+                    "energy_scale": 0.1, "force_scale": 2.0,
+                    "energy_weight": 1.0, "force_weight": 10.0,
+                }
+                torch.save(payload, path)
+                parent = load_finetune_checkpoint(path, self.configuration())
+                self.assertEqual(parent.provenance["parent_energy_scale"], 0.1)
+                self.assertEqual(parent.provenance["parent_force_scale"], 2.0)
+
     def test_yaml_init_from_and_changed_scales(self):
         path = self.root / "fine.yaml"
         path.write_text(

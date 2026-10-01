@@ -253,6 +253,13 @@ class OptimizationConfig:
     energy_checkpoint_tolerance: float | None = None
     energy_checkpoint_constraint: str = "loss"
     energy_checkpoint_metric: str = "raw"
+    stage_two_start_step: int | None = None
+    stage_two_energy_scale: float | None = None
+    stage_two_force_scale: float | None = None
+    stage_two_energy_weight: float | None = None
+    stage_two_force_weight: float | None = None
+    stage_two_learning_rate: float | None = None
+    stage_two_mace_learning_rate: float | None = None
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any]) -> OptimizationConfig:
@@ -298,9 +305,74 @@ class OptimizationConfig:
             energy_checkpoint_metric=str(
                 values.get("energy_checkpoint_metric", "raw")
             ),
+            stage_two_start_step=(
+                int(values["stage_two_start_step"])
+                if values.get("stage_two_start_step") is not None else None
+            ),
+            **{
+                f"stage_two_{name}": (
+                    float(values[f"stage_two_{name}"])
+                    if values.get(f"stage_two_{name}") is not None else None
+                )
+                for name in (
+                    "energy_scale", "force_scale", "energy_weight", "force_weight",
+                    "learning_rate", "mace_learning_rate",
+                )
+            },
         )
 
+    def loss_settings(self, stage: int = 1) -> dict[str, float]:
+        """Resolve the objective without mutating the original training contract."""
+        if stage not in (1, 2):
+            raise ValueError("optimization stage must be 1 or 2")
+        settings = {}
+        for name in ("energy_weight", "force_weight", "energy_scale", "force_scale"):
+            override = getattr(self, f"stage_two_{name}") if stage == 2 else None
+            settings[name] = getattr(self, name) if override is None else override
+        return settings
+
+    def _validate_stages(self) -> None:
+        overrides = (
+            self.stage_two_energy_scale, self.stage_two_force_scale,
+            self.stage_two_energy_weight, self.stage_two_force_weight,
+            self.stage_two_learning_rate, self.stage_two_mace_learning_rate,
+        )
+        if self.stage_two_start_step is None:
+            if any(value is not None for value in overrides):
+                raise ValueError("stage_two overrides require stage_two_start_step")
+            return
+        if not 1 <= self.stage_two_start_step < self.steps:
+            raise ValueError("stage_two_start_step must satisfy 1 <= start < steps")
+        if self.stage_two_start_step < max(
+            self.output_warmup_steps, self.mace_warmup_steps,
+        ):
+            raise ValueError("stage two must start after completing warm-up")
+        for stage in (1, 2):
+            settings = self.loss_settings(stage)
+            for name, value in settings.items():
+                if not math.isfinite(value) or value < 0 or (
+                    name.endswith("scale") and value == 0
+                ):
+                    raise ValueError(
+                        f"stage {stage} {name} must be finite and "
+                        + ("positive" if name.endswith("scale") else "non-negative")
+                    )
+            if settings["energy_weight"] + settings["force_weight"] == 0:
+                raise ValueError(f"stage {stage} requires a nonzero loss weight")
+        for name in ("stage_two_learning_rate", "stage_two_mace_learning_rate"):
+            value = getattr(self, name)
+            if value is not None and (not math.isfinite(value) or value <= 0):
+                raise ValueError(f"{name} must be finite and positive")
+        if (
+            self.stage_two_learning_rate is not None
+            and self.stage_two_learning_rate < self.minimum_learning_rate
+        ):
+            raise ValueError("stage_two_learning_rate must be >= minimum_learning_rate")
+        if self.stage_two_mace_learning_rate is not None and self.mace_training != "joint":
+            raise ValueError("stage_two_mace_learning_rate requires joint training")
+
     def validate(self, architecture: str) -> None:
+        self._validate_stages()
         if self.energy_checkpoint_tolerance is not None and (
             not math.isfinite(self.energy_checkpoint_tolerance)
             or self.energy_checkpoint_tolerance < 0
@@ -579,9 +651,13 @@ class TrainingConfig:
             outputs = [
                 self.runtime.checkpoint, self.runtime.last_checkpoint,
                 self.energy_checkpoint, self.diagnostic.output,
+                self.stage_one_checkpoint, self.stage_one_energy_checkpoint,
                 self.data.train_cache, self.data.validation_cache, self.data.test_cache,
             ]
-            for checkpoint in (self.runtime.checkpoint, self.energy_checkpoint):
+            for checkpoint in (
+                self.runtime.checkpoint, self.energy_checkpoint,
+                self.stage_one_checkpoint, self.stage_one_energy_checkpoint,
+            ):
                 if checkpoint is not None:
                     outputs.append(checkpoint.with_suffix(".config.yaml"))
             for output in outputs:
@@ -601,10 +677,37 @@ class TrainingConfig:
                     raise ValueError(
                         "energy checkpoint must not overwrite best/last/resume files"
                     )
+        for stage_one_path in (self.stage_one_checkpoint, self.stage_one_energy_checkpoint):
+            if stage_one_path is None:
+                continue
+            for path in (
+                self.runtime.checkpoint, self.energy_checkpoint,
+                self.runtime.last_checkpoint, self.runtime.resume,
+            ):
+                if path is not None and (
+                    path.resolve() == stage_one_path.resolve()
+                    or (path.exists() and stage_one_path.exists()
+                        and path.samefile(stage_one_path))
+                ):
+                    raise ValueError("stage-one checkpoint must not overwrite other outputs")
 
     @property
     def energy_checkpoint(self) -> Path | None:
         checkpoint = self.runtime.checkpoint
+        if checkpoint is None or self.optimization.energy_checkpoint_tolerance is None:
+            return None
+        return checkpoint.with_name(f"{checkpoint.stem}.energy.pt")
+
+    @property
+    def stage_one_checkpoint(self) -> Path | None:
+        checkpoint = self.runtime.checkpoint
+        if checkpoint is None or self.optimization.stage_two_start_step is None:
+            return None
+        return checkpoint.with_name(f"{checkpoint.stem}.stage1.pt")
+
+    @property
+    def stage_one_energy_checkpoint(self) -> Path | None:
+        checkpoint = self.stage_one_checkpoint
         if checkpoint is None or self.optimization.energy_checkpoint_tolerance is None:
             return None
         return checkpoint.with_name(f"{checkpoint.stem}.energy.pt")
