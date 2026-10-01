@@ -1,0 +1,36 @@
+# MACE and MACE-LES settings for the synthetic benchmark (Table III) and for
+# the contact-augmented MD models (Fig. 4). train_mace.slurm renders a per-run
+# copy that adds the data files, run name, seed and output directories, and sets
+# the three model-specific entries marked below. Everything else is used as is.
+energy_key: energy
+forces_key: forces
+E0s: isolated
+model: MACE                  # MACELES for MACE1-LES
+r_max: 4.5
+num_interactions: 1          # 2 for MACE2
+hidden_irreps: 128x0e+128x1o
+default_dtype: float64
+device: cuda
+loss: weighted
+energy_weight: 1.0
+forces_weight: 100.0
+max_num_epochs: 200          # 1200 for MACE1-LES
+batch_size: 4
+valid_batch_size: 4
+lr: 0.005
+weight_decay: 5.0e-07
+amsgrad: true
+ema: true
+ema_decay: 0.99
+scheduler: ReduceLROnPlateau
+lr_factor: 0.8
+scheduler_patience: 5
+patience: 50
+eval_interval: 1
+swa: true
+start_swa: 150               # 450 for MACE1-LES
+swa_lr: 0.001
+swa_energy_weight: 100.0
+swa_forces_weight: 100.0
+error_table: PerAtomRMSE
+log_level: INFO

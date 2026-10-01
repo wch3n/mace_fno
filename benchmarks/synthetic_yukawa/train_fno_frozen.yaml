@@ -1,0 +1,80 @@
+# Frozen-backbone MACE1-FNO for the synthetic benchmark (Table I settings).
+# train_fno.slurm supplies the data files, caches, MACE backbone, seed and
+# checkpoint, together with the kappa-dependent energy_scale and the number of
+# spectral-diagnostic samples (8 for the static benchmark, 0 for the MD models).
+data:
+  energy_key: energy
+  forces_key: forces
+  num_atoms: 1146
+  allow_periodic_z: false
+  skip_cell_mismatch: false
+
+model:
+  spatial_scheme: 3d
+  cell_mode: fixed
+  grid: 44
+  z_grid: 44
+  modes: 11
+  z_modes: 11
+  z_center: mean
+  lateral_interlacing: 1
+  volume_interlacing: 1
+  interlacing_training: full
+  planar_symmetry: none
+  spectral_symmetry: metric_eqgino
+  spectral_groups: 1
+  metric_parameterization: shell_spline
+  metric_hidden_channels: 16
+  z_kernel_size: 3
+  z_mixing: local
+  channels: 4
+  source_hidden_channels: 64
+  fno_hidden_channels: 32
+  fno_layers: 2
+  architecture: nonlinear
+  random_residual_initialization: false
+
+training:
+  mace_training: frozen
+  steps: 100000
+  learning_rate: 1.0e-3
+  mace_learning_rate: 1.0e-5
+  mace_warmup_steps: 0
+  output_initialization_scale: 0.1
+  output_warmup_steps: 0
+  output_warmup_learning_rate: 3.0e-4
+  lr_scheduler: plateau
+  lr_decay_factor: 0.5
+  lr_patience_evals: 4
+  minimum_learning_rate: 1.0e-6
+  early_stopping_patience_steps: 2000
+  early_stopping_patience_evals: 0
+  energy_weight: 1.0
+  force_weight: 1.0
+  energy_scale: 0.65          # per kappa: 0.65, 0.50, 0.40 eV/atom (set by train_fno.slurm)
+  force_scale: 1.0
+  validation_fraction: 0.2
+  eval_interval: 100
+  batch_size: 8
+  evaluation_batch_size: 8
+  accumulation_steps: 1
+  evaluation_scope: validation-test
+  energy_checkpoint_tolerance: 0.01
+  energy_checkpoint_constraint: forces
+  energy_checkpoint_metric: raw
+
+diagnostics:
+  spectral_diagnostic_samples: 8
+  spectral_diagnostic_max_mode: 1
+  spectral_diagnostic_fit_shells: 3
+  spectral_diagnostic_relative_amplitude: 0.05
+  spectral_diagnostic_field_batch_size: 32
+  spectral_diagnostic_z_profiles: 3
+  spectral_diagnostic_depth: fast
+  spectral_diagnostic_amplitudes: [0.025, 0.05, 0.1]
+  spectral_diagnostic_relative_span_tolerance: 0.05
+
+runtime:
+  device: cuda
+  dtype: float64
+  rebuild_cache: false

@@ -42,8 +42,7 @@ Implemented geometries are:
 - fully periodic 3D, including a metric-aware EqGINO spectral contraction for
   arbitrary nonsingular cells.
 
-The benchmark surface is intentionally narrow. Only the systems assessed with
-complete reproducible workflows are retained:
+The benchmark workflows cover:
 
 1. [Au2-MgO](benchmarks/au_mgo/README.md), comparing planar projection and the
    slab-resolved 2D FNO correction;
@@ -51,7 +50,10 @@ complete reproducible workflows are retained:
 3. [LLZO](benchmarks/llzo_qnep/README.md), testing metric-aware 3D FNO on
    heterogeneous cubic, tetragonal, and orthorhombic cells;
 4. [LES liquid water](benchmarks/les_water/README.md), revisiting the fixed-cell
-   RPBE-D3 water benchmark with the current metric-aware EqGINO operator.
+   RPBE-D3 water benchmark with the current metric-aware EqGINO operator;
+5. [Synthetic Yukawa](benchmarks/synthetic_yukawa/README.md), comparing local
+   MACE, MACE-LES, and frozen, joint, and linear FNO models for a known
+   screened-Coulomb interaction.
 
 Generated data, MACE models, graph caches, FNO checkpoints, and audit reports
 are not versioned. Benchmark workflows write them beneath
