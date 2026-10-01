@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 import tempfile
 import unittest
+from itertools import product
 from pathlib import Path
 
 import torch
@@ -272,12 +273,15 @@ class SlabEqGINOEnergyTests(unittest.TestCase):
 
 
 class SlabEqGINOIntegrationTests(unittest.TestCase):
-    def _configuration(self, path, training, parameterization="shell_spline"):
+    def _configuration(
+        self, path, training, parameterization="shell_spline", cell_mode="fixed"
+    ):
         document = {
             "mace_model": "local.model",
             "train_file": "train.xyz",
             "model": {
                 "spatial_scheme": "2.5d",
+                "cell_mode": cell_mode,
                 "grid": 8,
                 "modes": 2,
                 "z_grid": 6,
@@ -311,15 +315,32 @@ class SlabEqGINOIntegrationTests(unittest.TestCase):
     def test_yaml_training_checkpoint_roundtrip_and_ase(self):
         torch.manual_seed(741)
         for training in ("frozen", "joint"):
-            for parameterization in ("shell_spline", "radial_mlp"):
+            for parameterization, cell_mode in product(
+                ("shell_spline", "radial_mlp"), ("fixed", "anisotropic")
+            ):
                 with (
-                    self.subTest(training=training, parameterization=parameterization),
+                    self.subTest(
+                        training=training,
+                        parameterization=parameterization,
+                        cell_mode=cell_mode,
+                    ),
                     tempfile.TemporaryDirectory() as directory,
                 ):
                     configuration = self._configuration(
-                        Path(directory) / "train.yaml", training, parameterization
+                        Path(directory) / "train.yaml",
+                        training,
+                        parameterization,
+                        cell_mode,
                     )
-                    reference = batch_data()["cell"][0]
+
+                    def data():
+                        graph = batch_data()
+                        if cell_mode == "anisotropic":
+                            graph["cell"][1, 0, 0] = 12.0
+                            graph["cell"][1, 1, :2] = torch.tensor([2.0, 14.0])
+                        return graph
+
+                    reference = data()["cell"][0]
                     model = build_training_model(
                         self._backbone(),
                         configuration,
@@ -327,7 +348,7 @@ class SlabEqGINOIntegrationTests(unittest.TestCase):
                         device=torch.device("cpu"),
                         dtype=DTYPE,
                     )
-                    output = model(batch_data(), training=True, compute_force=True)
+                    output = model(data(), training=True, compute_force=True)
                     before = model.backbone.mace_model.local_scale.detach().clone()
                     optimizer = torch.optim.Adam(
                         [p for p in model.parameters() if p.requires_grad], lr=1e-3
@@ -376,11 +397,12 @@ class SlabEqGINOIntegrationTests(unittest.TestCase):
                     )
                     self.assertEqual(payload["spectral_symmetry"], "metric_eqgino")
                     self.assertEqual(payload["spectral_groups"], 2)
+                    self.assertEqual(payload["cell_mode"], cell_mode)
                     restored = build_mace_fno_model(
                         payload, self._backbone(), dtype=DTYPE
                     )
-                    expected = model(batch_data(), compute_force=True)
-                    actual = restored(batch_data(), compute_force=True)
+                    expected = model(data(), compute_force=True)
+                    actual = restored(data(), compute_force=True)
                     for key in ("energy", "forces"):
                         torch.testing.assert_close(
                             actual[key], expected[key], atol=1e-12, rtol=1e-12
@@ -407,7 +429,7 @@ class SlabEqGINOIntegrationTests(unittest.TestCase):
                     atoms = Atoms(
                         "H3",
                         positions=batch_data()["positions"][:3].numpy(),
-                        cell=reference.numpy(),
+                        cell=data()["cell"][1].numpy(),
                         pbc=[True, True, False],
                     )
                     atoms.calc = MACEFNOCalculator(

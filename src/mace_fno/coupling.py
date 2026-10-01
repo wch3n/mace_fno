@@ -395,9 +395,14 @@ class MACEFNOResidual(nn.Module):
             raise ValueError("fno_spectral_groups applies only to metric-aware EqGINO")
         if cell_mode not in {"fixed", "isotropic", "anisotropic"}:
             raise ValueError("cell_mode must be 'fixed', 'isotropic', or 'anisotropic'")
-        if cell_mode != "fixed" and resolved_scheme != "3d":
+        variable_slab = (
+            resolved_scheme == "2.5d"
+            and cell_mode == "anisotropic"
+            and fno_spectral_symmetry == "metric_eqgino"
+        )
+        if cell_mode != "fixed" and resolved_scheme != "3d" and not variable_slab:
             raise ValueError(
-                "variable-cell modes apply only to the fully periodic 3D scheme"
+                "variable-cell modes require 3D, or an anisotropic metric_eqgino slab"
             )
         if cell_mode != "fixed" and fno_architecture != "nonlinear":
             raise ValueError("variable-cell mode requires a nonlinear FNO")
@@ -518,6 +523,17 @@ class MACEFNOResidual(nn.Module):
         self.cell_mode = cell_mode
 
     def _validate_cells(self, cells: Tensor) -> None:
+        if self.cell_mode == "anisotropic" and self.spatial_scheme == "2.5d":
+            areas = torch.linalg.vector_norm(
+                torch.linalg.cross(cells[:, 0], cells[:, 1]), dim=-1
+            )
+            valid = torch.isfinite(cells).all(dim=(-2, -1)) & torch.isfinite(areas)
+            valid = valid & (areas > torch.finfo(cells.dtype).eps)
+            if not bool(valid.all().detach().cpu()):
+                raise ValueError(
+                    "anisotropic slab cells require finite nondegenerate planes"
+                )
+            return
         if self.cell_mode == "anisotropic":
             determinants = torch.linalg.det(cells)
             valid = torch.isfinite(cells).all(dim=(-2, -1)) & torch.isfinite(

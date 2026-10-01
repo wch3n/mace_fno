@@ -37,9 +37,18 @@ def _is_finite_nonsingular_cell(cell: torch.Tensor) -> bool:
         return False
     determinant = torch.linalg.det(cell)
     return bool(
-        torch.isfinite(determinant)
-        & (determinant.abs() > torch.finfo(cell.dtype).eps)
+        torch.isfinite(determinant) & (determinant.abs() > torch.finfo(cell.dtype).eps)
     )
+
+
+def _is_valid_variable_cell(cell: torch.Tensor, spatial_scheme: str) -> bool:
+    """Slabs need a nondegenerate periodic plane, not a periodic volume."""
+    if spatial_scheme != "2.5d":
+        return _is_finite_nonsingular_cell(cell)
+    if cell.shape != (3, 3) or not bool(torch.isfinite(cell).all()):
+        return False
+    area = torch.linalg.vector_norm(torch.linalg.cross(cell[0], cell[1]))
+    return bool(torch.isfinite(area) & (area > torch.finfo(cell.dtype).eps))
 
 
 def clone_graph(
@@ -264,7 +273,7 @@ def load_or_create_samples(
                         compared_cached, compared_reference
                     )
                 elif cell_mode == "anisotropic":
-                    cells_match = _is_finite_nonsingular_cell(cached_cell)
+                    cells_match = _is_valid_variable_cell(cached_cell, spatial_scheme)
                 else:
                     cells_match = torch.allclose(
                         compared_cached, compared_reference, atol=1.0e-6, rtol=1.0e-6
@@ -306,11 +315,13 @@ def load_samples(
 ) -> tuple[list[dict[str, Any]], torch.Tensor]:
     """Read labeled structures and build the corresponding MACE graph samples."""
     if cell_mode not in {"fixed", "isotropic", "anisotropic"}:
-        raise ValueError(
-            "cell_mode must be 'fixed', 'isotropic', or 'anisotropic'"
-        )
-    if cell_mode != "fixed" and spatial_scheme != "3d":
-        raise ValueError("variable-cell modes apply only to the 3D scheme")
+        raise ValueError("cell_mode must be 'fixed', 'isotropic', or 'anisotropic'")
+    if (
+        cell_mode != "fixed"
+        and spatial_scheme != "3d"
+        and not (spatial_scheme == "2.5d" and cell_mode == "anisotropic")
+    ):
+        raise ValueError("variable-cell modes require 3D or an anisotropic 2.5D slab")
     configurations = read(filename, index=":")
     if not isinstance(configurations, list):
         configurations = [configurations]
@@ -352,7 +363,9 @@ def load_samples(
     cell_mismatch_count = 0
     for index, atoms in indexed_configurations:
         if not bool(atoms.pbc[0] and atoms.pbc[1]):
-            raise ValueError(f"selected configuration {index} must be periodic in-plane")
+            raise ValueError(
+                f"selected configuration {index} must be periodic in-plane"
+            )
         if spatial_scheme == "3d" and not bool(atoms.pbc[2]):
             raise ValueError(
                 f"selected configuration {index} must be periodic in all three "
@@ -376,7 +389,7 @@ def load_samples(
                 compared_cell, compared_reference
             )
         elif cell_mode == "anisotropic":
-            cells_match = _is_finite_nonsingular_cell(cell)
+            cells_match = _is_valid_variable_cell(cell, spatial_scheme)
         else:
             cells_match = torch.allclose(
                 compared_cell, compared_reference, atol=1.0e-6, rtol=1.0e-6
@@ -389,7 +402,7 @@ def load_samples(
                 f"cell mismatch at index {index}: cell_mode={cell_mode!r} "
                 "requires the same relevant vectors (fixed) or a positive "
                 "uniform scaling of the reference cubic cell (isotropic), or "
-                "a finite nonsingular 3D cell (anisotropic)"
+                "a finite nonsingular 3D cell or nondegenerate slab plane (anisotropic)"
             )
         batch = calculator._atoms_to_batch(atoms)
         batch_dict = batch.to("cpu").to_dict()
@@ -406,7 +419,9 @@ def load_samples(
         graph_keys.update(getattr(calculator.models[0], "embedding_specs", {}))
         missing_keys = graph_keys - set(batch_dict)
         if missing_keys:
-            raise KeyError(f"MACE graph is missing required keys: {sorted(missing_keys)}")
+            raise KeyError(
+                f"MACE graph is missing required keys: {sorted(missing_keys)}"
+            )
         # Keep reference labels in float64 until the frozen baseline is subtracted.
         target_energy = torch.as_tensor(
             [reference_energy(atoms, energy_key)], dtype=torch.float64
@@ -459,7 +474,9 @@ def split_samples(
         if min(validation_indices) < 0 or max(validation_indices) >= len(samples):
             raise ValueError("a validation index is outside the sample range")
         if len(validation_indices) == len(samples):
-            raise ValueError("validation_indices must leave at least one training sample")
+            raise ValueError(
+                "validation_indices must leave at least one training sample"
+            )
         selected = set(validation_indices)
         train = [
             sample for index, sample in enumerate(samples) if index not in selected

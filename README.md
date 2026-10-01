@@ -381,8 +381,14 @@ adaptation is intrinsically D4-equivariant: training and evaluation use the
 same function, without symmetry cycling or eight-image averaging. Do not
 combine it with `planar_symmetry: c4/d4`. Fixed rectangular or skew cells are
 also supported, using their actual metric; they do not acquire square-cell
-D4 symmetry. General variable-cell slab training remains unsupported. The
-standalone field operator accepts a shared cell or one per field in a batch.
+D4 symmetry. Variable in-plane sizes and shapes are supported with
+`cell_mode: anisotropic`, `spatial_scheme: 2.5d`, and
+`spectral_symmetry: metric_eqgino`. The height window, mesh dimensions, and
+integer mode counts stay fixed. Mesh spacing and physical Fourier coverage
+therefore vary with lateral cell size and must be checked for the intended
+size range. This does not imply accuracy for unseen sizes, adaptive meshing,
+or variable slab thickness beyond the chosen height window. The standalone
+field operator accepts a shared cell or one per field in a batch.
 For grouped spectral matrices, `spectral_groups` must divide
 `fno_hidden_channels`; pointwise layers still mix the groups.
 

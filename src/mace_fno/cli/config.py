@@ -95,8 +95,9 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help=(
             "Cell treatment for the FNO residual. Isotropic accepts positive "
             "uniform scalings of a cubic 3D reference cell. Anisotropic accepts "
-            "finite 3D cells and conditions the nonlinear operator on volume "
-            "and the normalized lattice metric."
+            "finite 3D cells, with volume/metric conditioning, or variable "
+            "in-plane slab cells with 2.5D metric_eqgino. Slabs keep a fixed "
+            "height window and evaluate spectral weights at physical wavevectors."
         ),
     )
     parser.add_argument(

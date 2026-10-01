@@ -125,8 +125,20 @@ class ModelConfig:
             raise ValueError(
                 "--interlacing-training random requires --volume-interlacing 2"
             )
-        if self.cell_mode != "fixed" and self.spatial_scheme != "3d":
-            raise ValueError("variable --cell-mode requires --spatial-scheme 3d")
+        variable_slab = (
+            self.spatial_scheme == "2.5d"
+            and self.cell_mode == "anisotropic"
+            and self.spectral_symmetry == "metric_eqgino"
+        )
+        if (
+            self.cell_mode != "fixed"
+            and self.spatial_scheme != "3d"
+            and not variable_slab
+        ):
+            raise ValueError(
+                "variable --cell-mode requires 3d, or 2.5d with "
+                "--cell-mode anisotropic and --spectral-symmetry metric_eqgino"
+            )
         if self.cell_mode != "fixed" and self.architecture != "nonlinear":
             raise ValueError("variable --cell-mode requires --architecture nonlinear")
 
