@@ -133,6 +133,23 @@ Run it with:
 mace-fno-train --config train.yaml
 ```
 
+Graph caches are optional, regenerable preprocessing files, not model
+checkpoints. Omit the cache paths to keep preprocessing in memory without
+writing caches to disk. For multiseed runs, share compatible caches instead
+of copying them into every run directory. Store these files on scratch when
+home-directory quotas are limited.
+
+Remove a shared cache only after **all** dependent training, held-out
+evaluation, and diagnostic jobs have succeeded and their outputs are saved.
+Do not delete it automatically when the first seed finishes. Keep the source
+XYZ files, split indices, MACE models, configuration files, and FNO checkpoints
+(including `.last.pt` for continuation). The training CLI can rebuild a missing
+cache from those inputs. Campaigns that enforce read-only caches and cache-only
+evaluation commands need a separate cache-preparation step first.
+Failed cache writes clean up their own temporary
+files while preserving any previously saved cache, except when the process
+is forcibly terminated before cleanup can run.
+
 The saved frozen-mode checkpoint contains the learned residual state and
 reconstruction metadata, but does not duplicate the MACE weights. The trainer
 writes the initialized model and then atomically replaces that file whenever

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+import tempfile
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -197,16 +197,25 @@ def save_sample_cache(
     if cache_file is None:
         return
     cache_file.parent.mkdir(parents=True, exist_ok=True)
-    temporary = cache_file.with_name(f".{cache_file.name}.tmp-{os.getpid()}")
-    torch.save(
-        {
-            "metadata": dict(metadata),
-            "samples": samples,
-            "reference_cell": reference_cell.detach().cpu(),
-        },
-        temporary,
-    )
-    temporary.replace(cache_file)
+    with tempfile.NamedTemporaryFile(
+        prefix=f".{cache_file.name}.", suffix=".tmp",
+        dir=cache_file.parent, delete=False,
+    ) as handle:
+        temporary = Path(handle.name)
+    try:
+        torch.save(
+            {
+                "metadata": dict(metadata),
+                "samples": samples,
+                "reference_cell": reference_cell.detach().cpu(),
+            },
+            temporary,
+        )
+        temporary.replace(cache_file)
+    finally:
+        # Failed writes (including quota errors) must not leave partial caches.
+        # Only remove this invocation's temporary file, never a shared cache.
+        temporary.unlink(missing_ok=True)
     print(f"wrote sample cache: {cache_file}", flush=True)
 
 

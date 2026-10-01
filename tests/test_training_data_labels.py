@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 import numpy as np
 import torch
@@ -238,6 +239,44 @@ class ReferenceLabelTests(unittest.TestCase):
             self.assertTrue(cache_hit)
             self.assertEqual(loaded[0]["formula"], "H")
             torch.testing.assert_close(loaded_cell, reference_cell)
+            self.assertEqual(sorted(p.name for p in root.iterdir()),
+                             ["mace.model", "samples.pt", "source.xyz"])
+
+    def test_failed_cache_write_removes_only_its_temporary_file(self) -> None:
+        for existing_cache in (False, True):
+            with self.subTest(existing_cache=existing_cache), TemporaryDirectory() as td:
+                root = Path(td)
+                cache = root / "samples.pt"
+                other_temporary = root / ".samples.pt.other.tmp"
+                other_temporary.write_bytes(b"another writer")
+                if existing_cache:
+                    cache.write_bytes(b"previous cache")
+
+                def fail_write(payload, path):
+                    Path(path).write_bytes(b"partial cache")
+                    raise OSError(122, "Disk quota exceeded")
+
+                with patch("mace_fno.training.data.torch.save", side_effect=fail_write):
+                    with self.assertRaisesRegex(OSError, "Disk quota exceeded"):
+                        save_sample_cache(cache, {}, [], torch.eye(3))
+
+                self.assertEqual(other_temporary.read_bytes(), b"another writer")
+                expected = [other_temporary]
+                if existing_cache:
+                    self.assertEqual(cache.read_bytes(), b"previous cache")
+                    expected.append(cache)
+                self.assertEqual(sorted(root.iterdir()), sorted(expected))
+
+    def test_failed_cache_replace_preserves_previous_cache(self) -> None:
+        with TemporaryDirectory() as td:
+            root = Path(td)
+            cache = root / "samples.pt"
+            cache.write_bytes(b"previous cache")
+            with patch.object(Path, "replace", side_effect=OSError("replace failed")):
+                with self.assertRaisesRegex(OSError, "replace failed"):
+                    save_sample_cache(cache, {}, [], torch.eye(3))
+            self.assertEqual(cache.read_bytes(), b"previous cache")
+            self.assertEqual(list(root.iterdir()), [cache])
 
 
 if __name__ == "__main__":
