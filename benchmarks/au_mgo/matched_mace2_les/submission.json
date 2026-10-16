@@ -1,0 +1,35 @@
+{
+  "created_utc": "2026-10-16T18:21:33.265514+00:00",
+  "validation": {
+    "job_id": "16275151",
+    "command": [
+      "sbatch",
+      "--parsable",
+      "--partition=debug-gpu",
+      "--qos=debug-gpu",
+      "--time=01:00:00",
+      "--job-name=au-mace2-les-cueq-check",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261016/logs/validation-%j.out",
+      "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261016/logs/validation-%j.err",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261016/job.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261016",
+      "validate"
+    ]
+  },
+  "production": {
+    "job_id": "16275152",
+    "command": [
+      "sbatch",
+      "--parsable",
+      "--array=0-4",
+      "--job-name=au-mace2-les-cueq",
+      "--dependency=afterok:16275151",
+      "--kill-on-invalid-dep=yes",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261016/logs/train-%A_%a.out",
+      "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261016/logs/train-%A_%a.err",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261016/job.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261016",
+      "train"
+    ]
+  }
+}

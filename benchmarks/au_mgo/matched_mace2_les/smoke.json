@@ -1,0 +1,29 @@
+{
+  "state": "passed",
+  "two_stage_training": true,
+  "saved_model_architectures_verified": true,
+  "config_roundtrip_verified": true,
+  "both_compositions": true,
+  "models": {
+    "smoke/les_nl2/models/au2_mgo_matched_smoke_les_nl2_stagetwo.model": {
+      "sha256": "bafc9d0a6b72275a3006874dc8ddfd2bf8dd16ba7242c5d661be806033933b21",
+      "model_class": "MACELES",
+      "product_irreps": [
+        "128x0e+128x1o",
+        "128x0e+128x1o"
+      ],
+      "parameters": 962336,
+      "cutoff_A": 5.5
+    },
+    "smoke/les_nl2/models/au2_mgo_matched_smoke_les_nl2.model": {
+      "sha256": "cd14c027450dd20fdc0d07683084edb0bfcde989c5ce55b5c98a94bf06531cba",
+      "model_class": "MACELES",
+      "product_irreps": [
+        "128x0e+128x1o",
+        "128x0e+128x1o"
+      ],
+      "parameters": 962336,
+      "cutoff_A": 5.5
+    }
+  }
+}

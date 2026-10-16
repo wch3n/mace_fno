@@ -1,0 +1,50 @@
+{
+  "state": "passed",
+  "gpu": "NVIDIA A100-SXM4-40GB",
+  "dtype": "float64",
+  "reference_sha256": "62b7d7596b2355d507945950db6f0d50eabc50725c9fcf4a29a96ef887d710f9",
+  "max_absolute_errors": {
+    "cueq/0/energy": 2.3283064365386963e-10,
+    "cueq/0/forces": 9.71445146547012e-17,
+    "cueq/0/les_energy": 1.2212453270876722e-15,
+    "cueq/0/latent_charges": 2.0816681711721685e-17,
+    "cueq/4/energy": 0.0,
+    "cueq/4/forces": 9.020562075079397e-17,
+    "cueq/4/les_energy": 1.1102230246251565e-15,
+    "cueq/4/latent_charges": 1.734723475976807e-17,
+    "roundtrip/0/energy": 0.0,
+    "roundtrip/0/forces": 4.597017211338539e-17,
+    "roundtrip/0/les_energy": 0.0,
+    "roundtrip/0/latent_charges": 8.673617379884035e-18,
+    "roundtrip/4/energy": 0.0,
+    "roundtrip/4/forces": 5.898059818321144e-17,
+    "roundtrip/4/les_energy": 0.0,
+    "roundtrip/4/latent_charges": 6.938893903907228e-18,
+    "after_one_adam_step/0/energy": 0.0,
+    "after_one_adam_step/0/forces": 3.608224830031759e-16,
+    "after_one_adam_step/0/les_energy": 3.1086244689504383e-15,
+    "after_one_adam_step/0/latent_charges": 2.949029909160572e-17,
+    "after_one_adam_step/4/energy": 0.0,
+    "after_one_adam_step/4/forces": 2.220446049250313e-16,
+    "after_one_adam_step/4/les_energy": 2.4424906541753444e-15,
+    "after_one_adam_step/4/latent_charges": 3.122502256758253e-17
+  },
+  "optimizer_coverage": {
+    "e3nn": {
+      "all_trainable_parameters_included": true,
+      "parameters": 962336,
+      "les_readout_parameters": 2192
+    },
+    "cueq": {
+      "all_trainable_parameters_included": true,
+      "parameters": 962336,
+      "les_readout_parameters": 2192
+    }
+  },
+  "batch_size": 10,
+  "training_step_seconds": {
+    "e3nn": 0.5465042155701667,
+    "cueq": 0.1339154220186174
+  },
+  "measured_step_speedup": 4.080965488009213
+}

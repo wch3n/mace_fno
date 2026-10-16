@@ -1,0 +1,52 @@
+{
+  "state": "complete",
+  "stage": "validated",
+  "task": {
+    "index": 0,
+    "name": "au2_mgo_matched_les_nl2_seed17",
+    "model": "MACELES",
+    "mace_layers": 2,
+    "seed": 17,
+    "config": "configs/les_nl2_seed17.yaml",
+    "run_dir": "runs/les_nl2_seed17"
+  },
+  "job_id": "16275151",
+  "started": "2026-10-16T18:21:48.542318+00:00",
+  "commands": [
+    {
+      "stage": "preflight",
+      "command": [
+        "verify.py",
+        "--preflight"
+      ],
+      "exit_code": 0
+    },
+    {
+      "stage": "backend_parity",
+      "command": [
+        "check_cueq.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "stage": "smoke_training",
+      "command": [
+        "train_cueq.py",
+        "--config",
+        "configs/smoke_les_nl2.yaml"
+      ],
+      "exit_code": 0
+    },
+    {
+      "stage": "smoke_verification",
+      "command": [
+        "verify.py",
+        "--smoke"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "gpu": "NVIDIA A100-SXM4-40GB",
+  "torch": "2.7.1+cu128",
+  "finished": "2026-10-16T18:27:58.605925+00:00"
+}

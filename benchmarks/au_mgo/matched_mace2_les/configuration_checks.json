@@ -1,0 +1,21 @@
+{
+  "state": "passed",
+  "seeds": [
+    17,
+    29,
+    41,
+    53,
+    67
+  ],
+  "architecture": {
+    "model_class": "MACELES",
+    "product_irreps": [
+      "128x0e+128x1o",
+      "128x0e+128x1o"
+    ],
+    "parameters": 962336,
+    "cutoff_A": 5.5
+  },
+  "only_training_change": "enable_cueq=True",
+  "input_hashes_verified": true
+}

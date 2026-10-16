@@ -1,0 +1,24 @@
+{
+  "state": "passed",
+  "native_parser": true,
+  "counts": {
+    "train": 4275,
+    "validation": 225,
+    "test": 500
+  },
+  "compositions": {
+    "train": {
+      "Al3Au2Mg51O54": 2152,
+      "Au2Mg54O54": 2123
+    },
+    "validation": {
+      "Al3Au2Mg51O54": 112,
+      "Au2Mg54O54": 113
+    },
+    "test": {
+      "Al3Au2Mg51O54": 236,
+      "Au2Mg54O54": 264
+    }
+  },
+  "byte_identical_parent_splits": true
+}
