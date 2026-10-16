@@ -2,7 +2,7 @@
 
 `centralize.py` builds `~/mace_fno_runs/results/` without moving or modifying
 the original runs. The collection is organized as
-`system/category/model/campaign/run/`; each entry links to the original files,
+`system/category/model/campaign/run/`. Each entry links to the original files,
 configuration and completion evidence and includes a provenance record.
 
 ```bash
@@ -32,15 +32,15 @@ for the manuscript. Completed evaluations of interim checkpoints remain
 evaluations, not completed training runs.
 
 Water splits, G values and LES first-block settings remain separate. Metadata
-is taken from explicit task/configuration fields where available; unknown
+is taken from explicit task/configuration fields where available. Unknown
 values stay blank. The `z_mixing` CSV column is the configuration value, so
-the linear slab's `global` setting must not be interpreted as channel-wise
+the `global` setting of the linear slab must not be interpreted as channel-wise
 mixing: its dispatch can use a full compound channel-height matrix.
 
 The scanner does not deserialize checkpoints, rehash large model/trajectory
 files, submit jobs, or update the manuscript. It verifies completion evidence,
 configuration hashes and every generated link. The live Slurm queue is read
-before each inventory; inability to read it aborts the refresh.
+before each inventory. Inability to read it aborts the refresh.
 
 ## Cross-campaign seed groups
 

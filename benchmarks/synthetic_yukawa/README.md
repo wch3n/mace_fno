@@ -29,7 +29,7 @@ It also provides the analytical reference as an ASE calculator
 
 | dataset | kappa (A^-1) | frames (train/valid/test) | state | used for |
 |---|---|---|---|---|
-| `static/` | 0.05, 0.2, 0.5 | 660/240/300 | 400 K, see caveats | Tables II-III, Figs. 2-3, Appendix B.2 |
+| `static/` | 0.05, 0.2, 0.5 | 660/240/300 | 400 K, see caveats | Static accuracy and spectral comparisons |
 | `md2800/data_k<tag>/` | 0.05, 0.5 | 660/240/300, plus 150/45 close-contact frames | 2800 K fluid | MD models of Fig. 4 |
 
 Both datasets have 40 trajectories of 30 frames each, split by trajectory into
@@ -79,12 +79,27 @@ repository (ignored by Git). On a CPU node with 40 cores:
 digests of the data used in the manuscript. Generation is deterministic for a
 given seed and number of parallel trajectories (`NPROC=40` for the published
 files). The static `metadata.json` is not compared. The published file predates
-the generator's `generation` record, which is the only difference.
+the `generation` record of the generator, which is the only difference.
 
 Verification status:
-- the MD datasets regenerate byte-identically (checked on 2026-09-25);
-- `gen_contacts.py` reproduces all six contact files and `data_contact_summary.json` byte-identically (2026-10-01);
+- the MD datasets regenerate byte-identically (checked on 2026-09-25).
+- `gen_contacts.py` reproduces all six contact files and `data_contact_summary.json` byte-identically (2026-10-01).
 - the static benchmark regenerates byte-identically (2026-10-01).
+
+## Current LES protocol
+
+The manuscript uses the nonresidual first block
+`RealAgnosticInteractionBlock`, matching the synthetic local backbones.
+The [matched LES campaign](../synthetic_les_nonresidual/README.md) supplies
+all twenty static/heterogeneous fits. Each completed 1,200 epochs, switching
+to stage two at epoch 450. Fig. 4 uses separate
+[contact-trained LES fits and MD](nonresidual_les_md/README.md), also with
+1,200 epochs and the nonresidual first block.
+
+The generic `mace.yaml` below does not specify `interaction_first` and depends
+on the installed MACE default. Use the explicit matched campaign for the
+current LES results. The original configurations are available for
+reproducing the earlier comparisons.
 
 ## Train the models
 
@@ -111,12 +126,12 @@ contact-augmented data. Use `RESTART_LATEST=1` to continue an interrupted run.
     sbatch --export=ALL,KAPPA=0.05,MODE=joint  benchmarks/synthetic_yukawa/train_fno.slurm
 
 The default backbone is the MACE1 run with the same dataset, kappa and
-`MACE_SEED`. Override it with `MACE_MODEL`. The settings follow Table I:
-- a 44^3 mesh, m = 11, C = 4 and two Fourier layers;
-- learning rate 1e-3, and 1e-5 for the backbone in joint training;
-- energy and force scales of 0.65/0.50/0.40 eV/atom (set by kappa) and 1.0 eV/A;
-- validation every 100 steps;
-- checkpoints selected by the validation objective;
+`MACE_SEED`. Override it with `MACE_MODEL`. The synthetic FNO settings are:
+- a 44^3 mesh, m = 11, C = 4 and two Fourier layers.
+- learning rate 1e-3, and 1e-5 for the backbone in joint training.
+- energy and force scales of 0.65/0.50/0.40 eV/atom (set by kappa) and 1.0 eV/A.
+- validation every 100 steps.
+- checkpoints selected by the validation objective.
 - early stopping after 2000 steps without improvement.
 
 Frozen runs have a 100k-step budget, about 36 h on one A100. Joint runs have
@@ -125,7 +140,7 @@ continue from the saved training state. The published joint runs were trained
 in two legs: the first to 100k steps, then continued to 200k.
 
 For the static benchmark, the in-training spectral diagnostic samples eight
-validation configurations, which gives the exponents of Table II. The MD
+validation configurations, which gives the exponents of the synthetic spectral table. The MD
 models train without it (`SPECTRAL_DIAGNOSTIC_SAMPLES=0`). The diagnostic uses
 its own random generator and does not change the training trajectory.
 
@@ -145,7 +160,8 @@ with a learned isotropic kernel. The source head and all other settings are
 those of the frozen runs, except that the output starts from zero
 (`output_initialization_scale: 0.0`).
 
-The YAML files reproduce the configurations of the manuscript runs exactly.
+The YAML files reproduce the original configurations. The explicit
+nonresidual-first LES replacements use the campaign linked above.
 - **FNO:** parsing `train_fno_{frozen,joint,linear}.yaml` with the options
   passed by `train_fno.slurm` gives the same resolved configuration as the
   original run for all ten frozen and joint runs (static at three kappa, MD at
@@ -154,7 +170,12 @@ The YAML files reproduce the configurations of the manuscript runs exactly.
   all fifteen MACE, MACE2 and MACE-LES configurations, apart from file paths and
   run names.
 
-## Not yet included
+## Analysis and molecular dynamics
 
-The MD workflow of Fig. 4 is not yet in this directory. Neither are the
-shell-resolved residual analysis of Fig. 2 and the spectral fits of Table II.
+The revised LES MD workflow and Fig. 4 update are in
+[nonresidual_les_md](nonresidual_les_md/README.md). The original reference,
+local-MACE, and FNO trajectories keep their recorded inputs. Shell-resolved
+analysis and spectral-fit plotting data are documented in the local manuscript
+source under `docs/source/data/yukawa_shells/` and `yukawa_spectral/`.
+Extended LES is a separate exploratory calculation and is not included in
+the paper.

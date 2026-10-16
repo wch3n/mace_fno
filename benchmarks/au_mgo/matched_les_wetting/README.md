@@ -20,7 +20,7 @@ Preference means and sample SDs are **941.717 +/- 4.176 meV** (undoped) and
 
 `collect.py CAMPAIGN --data-dir docs/source/data/au2_mgo_converged` verifies
 checkpoint identity against the accuracy snapshot, replaces only the five
-MACE1-LES records, and regenerates Table VII's macros. The previous snapshot
+MACE1-LES records, and regenerates the macros of Table VII. The previous snapshot
 is archived before replacement. All other model records are checked to be
 unchanged. Paired energy differences are computed before calculating seed
 means and sample SDs. All endpoint energies use the same DFT non-wetting zero

@@ -1,14 +1,18 @@
 # Au2/MgO GPU allocation update, 2026-10-14
 
-Dense MACE1 full z-mixing fits in the gpu partition's 40 GB A100 cards at
+This is the migration record of 14 October. The subsequent
+[budget revision](../full_z_budget_20261016/README.md) supersedes the pending
+full-mixing continuations listed below.
+
+Dense MACE1 full z-mixing fits in the 40 GB A100 cards of the gpu partition at
 microbatch size one, accumulation four, and evaluation batch size one.
 The archived training smoke tests measured peak allocated/reserved device
 memory of 15.04/15.67 GiB (frozen) and 15.24/15.68 GiB (joint). Live checks
 near the end of the 48-hour training allocations measured 16.51 and
 16.60 GiB in nvidia-smi, respectively, including CUDA overhead.
 The 64 GiB Slurm memory request is host RAM, independent of GPU memory.
-Measured host MaxRSS was approximately 10.3 GiB frozen and 23.6 GiB joint;
-the existing host-memory requests were retained.
+Measured host MaxRSS was approximately 10.3 GiB frozen and 23.6 GiB joint.
+The host-memory requests were unchanged.
 
 ## Queue changes
 
@@ -25,15 +29,15 @@ the existing host-memory requests were retained.
   and joint training on 40 GB cards. The debug QoS runs one task at a time.
 - MACE2 production array 16208990 and twenty conditional continuations
   16208991–16209010 moved to gpu. Production still requires both smoke tasks
-  to succeed; the smoke checks exercise backbone gradients for joint training
-  and reject a peak allocation above 95% of the card's memory. MACE2's
-  measured memory result was still pending when this migration was prepared.
+  to succeed. The smoke checks exercise backbone gradients for joint training
+  and reject a peak allocation above 95% of the device memory. The measured
+  MACE2 memory result was still pending when this migration was prepared.
 
 Training configurations, full-state resume drivers, seeds, and 240,000-step
 total budgets are unchanged. The continuation wrapper is copied from the
-existing October 12 implementation; the validated October 8/11 drivers are
+existing October 12 implementation. The validated October 8/11 drivers are
 reused for their corresponding tasks. New scheduler records are stored in
-the MACE1 campaign's resume_gpu_20261014 directory. No manuscript results
+the resume_gpu_20261014 directory of the MACE1 campaign. No manuscript results
 were changed.
 
 ## Records

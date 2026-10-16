@@ -21,7 +21,7 @@ two concurrent tasks. The production array uses `gpu`, also at concurrency two,
 and is gated on successful completion of the entire smoke array. Each task
 requests one GPU, four CPUs, 64 GB host memory, and up to 48 hours. The walltime
 limit does not guarantee completion of the 240,000-step budget. Checkpoints for
-explicit continuation are saved every 500 steps; jobs are not automatically
+explicit continuation are saved every 500 steps. Jobs are not automatically
 retried or resubmitted.
 
 Production changes only the spectral rank. Grid 24x24x24, mode cutoff 8,
@@ -35,7 +35,7 @@ then contracted without constructing the full matrix. This maintains the
 rank bound between shell anchors. The rank-32 and rank-64 spectral branches
 contain 835,584 and 1,671,168 parameters per layer, compared with 5,013,504 for
 the dense branch. Their random initialization matches the dense entry variance
-at shell knots; the final output projection remains zero-initialized.
+at shell knots. The final output projection starts at zero.
 
 The fixed split contains 4,275 training, 225 validation, and 500 test structures.
 The primary checkpoint is selected by minimum validation loss. Test labels are

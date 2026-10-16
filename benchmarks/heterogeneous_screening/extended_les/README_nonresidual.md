@@ -6,7 +6,7 @@ of the synthetic local MACE and ordinary LES reruns. All other training settings
 are inherited from the corrected five-seed extended LES campaign: 660/240
 train/validation structures, up to 1200 total epochs, stage two at epoch 450, patience
 50, float64, batch four, EMA, and cuEquivariance. All extra multipole and response
-readouts remain in the optimizer. The scalar/vector product representation and
+readouts are included in the optimizer. The scalar/vector product representation and
 permanent/induced response settings stay unchanged. Matching this block does not
 make extended LES identical in local representation or parameter count to
 ordinary charge-only LES.
@@ -14,7 +14,7 @@ ordinary charge-only LES.
 `prepare_nonresidual.py ROOT --parent PARENT` creates separate configurations,
 preserves the parent manifest and configs, and reuses the pinned environment and
 immutable datasets. It never resumes a residual checkpoint into the changed
-architecture. The new parameter count is 485,376 (previously 337,920); only the
+architecture. The new parameter count is 485,376 (previously 337,920). Only the
 shape of `interactions.0.skip_tp.weight` changes between native model constructors.
 
 The old cuEquivariance certificate is not used to certify the new architecture.

@@ -22,8 +22,7 @@ selection are used. Failed or timed-out runs require inspection.
 
 The final collector requires all 35 results and exports per-seed values and
 sample standard deviations. It never writes the manuscript automatically.
-The manuscript should be switched only after the entire replacement is
-verified, including the following dependent quantities:
+Import requires complete verification of the following dependent quantities:
 
 - Water accuracy table/macros and comparisons, plus the G=1 descriptions
   in the main text and Appendix A.
@@ -33,15 +32,17 @@ verified, including the following dependent quantities:
 - Optional residual parity and standalone spectral/numerical diagnostics,
   regenerated from the new checkpoints before describing them as G=1.
 
-Keep the archived G=4 results identifiable until all replacements exist.
-Do not relabel historical measurements as G=1.
+Archived grouped results keep their original model identities. They do not
+supply the current manuscript entries.
 
-## Current scope, 11 October 2026
+## Completed imports
 
-All water accuracy and GPU cost/interlacing replacements have entered the
-manuscript. Water convergence is omitted until its G=1 fits finish. The user
-has discontinued water spectral checks. Only numerical checks are required
-for the remaining audits, using numerical_only.py and numerical_only.slurm.
-Historical spectral-recovery scripts and immutable submitted snapshots are
-kept for provenance, not for resubmission. See SUBMITTED.md for cancellations
-and the numerical-only replacement array.
+The twenty accuracy fits, GPU costs, and interlacing results were imported on
+11 October. All fifteen convergence variants and three production controls
+completed 120,000 steps and entered the appendix on 12 October. The manuscript
+uses G=1 throughout. Further water spectral checks have been discontinued.
+Use `numerical_only.py` and `numerical_only.slurm` for numerical checks.
+Historical spectral-recovery scripts and submitted snapshots document the
+previous workflow. [SUBMITTED.md](SUBMITTED.md) records its submissions and
+cancellations. The local manuscript evidence is documented in
+`docs/source/data/water_groups1/README.md`.

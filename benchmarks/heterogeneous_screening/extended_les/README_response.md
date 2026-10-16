@@ -6,11 +6,11 @@ dipoles. Seeds: 17, 29, 41, 53, 67. Every seed starts fresh under the same sched
 
 Use the same 660 training / 240 validation structures, local MACE architecture,
 float64, loss weights, EMA, and cuEquivariance 0.6.1 as the pilot. Restore the
-full-protocol stage-two switch at epoch 450. Allow up to 1200 total epochs and retain
+full-protocol stage-two switch at epoch 450. Allow up to 1200 total epochs and use
 validation-loss early stopping after 50 epochs without improvement. A run that
 hits the epoch ceiling is explicitly flagged as needing a convergence review.
 The pilot measured about 40 seconds per full epoch, suggesting about 13 hours at
-the ceiling; every training job requests one A100 GPU and 48 hours on `gpu`.
+the ceiling. Every training job requests one A100 GPU and 48 hours on `gpu`.
 
 ## Optimizer correction
 
@@ -41,7 +41,7 @@ After each fit, select by validation loss and evaluate the original 300 test
 structures, all 40 medium-probe sets from 20 trajectories and 80 ionic null
 variants. Neither test nor probe results control training or checkpoint selection.
 `collect.py` writes per-seed metrics and means/sample standard deviations across
-the five seeds, retaining each seed's convergence status. No manuscript results
+the five seeds, recording the convergence status of each seed. No manuscript results
 are automatically replaced.
 
 ## Submission, 2026-10-11
@@ -54,20 +54,20 @@ and the exported model passed a finite-difference force check (5.8e-10 eV/A).
 Production array **16193549**, tasks 0 through 4, maps to seeds
 17, 29, 41, 53 and 67. All five started on `gpu`. Collector **16193550** depends
 on successful completion of the array. Submission commands and scheduler states
-are recorded in `submission_*.json`; per-run training and convergence states are
+are recorded in `submission_*.json`. Per-run training and convergence states are
 under `runs/les_response_seed*/`.
 
 ## Budget revision, 2026-10-11
 
 The user set all extended-LES fits to the ordinary synthetic LES budget of
-1200 total epochs, retaining stage two at 450. Array 16195546 continues the
+1200 total epochs, keeping stage two at 450. Array 16195546 continues the
 five residual-first checkpoints (saved epochs 523--529), replacing 16193549.
 Collector 16193550 now depends on the replacement array. The archived manifests,
 configs, checkpoints and histories are referenced by `budget_resume.json`.
 
 The guarded restart verifies exact model, optimizer and learning-rate state
 restoration and starts at the saved epoch plus one. The saved model uses EMA
-weights; native checkpoints omit EMA history, random-number state and patience
+weights. Native checkpoints omit EMA history, random-number state and patience
 counters, so those restart afresh. This is not a bitwise continuation. Existing
-GPU architecture checks are retained with their original manifest binding;
-the budget revision is verified separately, without claiming a new GPU certificate.
+GPU architecture checks are stored with their original manifest binding.
+The budget revision is verified separately, without claiming a new GPU certificate.

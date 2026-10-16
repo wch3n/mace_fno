@@ -1,9 +1,8 @@
 # MACE-FNO quick-start tutorial
 
-This tutorial shows how to train a conservative FNO correction on top of an
-existing local MACE model, check that the correction behaves correctly, and use
-the combined model in ASE. Generated data, caches, and checkpoints should be
-kept outside the Git checkout.
+We train a global FNO correction to a local MACE energy, check the resulting
+forces and symmetries, and use the combined model in ASE. Store generated
+data, caches, and checkpoints outside the Git checkout.
 
 The default frozen workflow is:
 
@@ -22,7 +21,7 @@ E = E_{\mathrm{MACE}} + \Delta E_{\mathrm{FNO}},
 \]
 
 MACE supplies the baseline energy and local descriptors. In the default mode,
-its weights remain fixed and only the latent-source head and FNO are optimized.
+its weights are fixed and only the latent-source head and FNO are optimized.
 In joint mode, the same total loss is backpropagated through both branches, so
 the MACE parameters can adapt to information supplied by the FNO loss. Forces
 are obtained by differentiating the complete energy, so either model is
@@ -54,12 +53,12 @@ python3 -c "import torch; print(torch.cuda.is_available())"
 
 Two inputs are required:
 
-1. a trained local MACE checkpoint;
+1. a trained local MACE checkpoint.
 2. extended-XYZ files containing reference total energies and atomic forces.
 
 Use separate training, validation, and test files. For molecular-dynamics data,
-split complete trajectories or contiguous trajectory blocks rather than
-randomly separating neighboring frames.
+assign complete trajectories or contiguous trajectory blocks to each split.
+Keep neighboring frames from the same block in the same subset.
 
 The energy must be an `Atoms.info` value or an ASE calculator result. Forces
 must be an `Atoms.arrays` value or calculator result. For example, custom labels
@@ -122,9 +121,9 @@ mace-fno-evaluate-mace \
   --output /absolute/path/to/run/mace_baseline.json
 ```
 
-This establishes whether the residual problem is meaningful. The output also
-reports constant energy-offset controls; a useful FNO should improve more than
-a trivial fitted offset and should improve forces as well as energies.
+This gives the reference errors for the local model. The output also reports
+constant energy-offset controls. Compare both energy and force errors when
+assessing the FNO correction.
 
 ## 4. Run a small 3D smoke test
 
@@ -136,7 +135,7 @@ mkdir -p "$RUN_ROOT/cache"
 ```
 
 Store the run settings in `$RUN_ROOT/train.yaml`. Paths in YAML may be absolute
-or relative to the YAML file; shell variables are not expanded inside it. A
+or relative to the YAML file. Shell variables are not expanded inside it. A
 short metric-aware EqGINO configuration for heterogeneous bulk cells is:
 
 ```yaml
@@ -163,7 +162,8 @@ model:
   fno_hidden_channels: 16
   fno_layers: 2
   spectral_symmetry: metric_eqgino
-  metric_hidden_channels: 16
+  metric_parameterization: shell_spline
+  spectral_groups: 1
   output_initialization_scale: 0.1
 
 training:
@@ -212,7 +212,7 @@ the FNO learning rate applies to the latent-source and field-operator branches,
 whereas `mace_learning_rate` applies to MACE. Validation selects and restores
 both states together.
 
-Section names such as `data`, `model`, and `training` are organizational; every
+Section names such as `data`, `model`, and `training` organize the file. Every
 leaf key must match a documented command-line option, using underscores or
 hyphens. Unknown and duplicate keys are rejected. An explicit command-line
 option overrides YAML, which is convenient for controlled repeats:
@@ -223,12 +223,13 @@ mace-fno-train --config "$RUN_ROOT/train.yaml" --seed 29 --steps 25000
 
 Two hundred steps only verify that data loading, batching, differentiation, and
 checkpoint writing work. They are not expected to produce a converged model.
-For a serious fit, use the validation curve to choose the training length; the
-current benchmarks typically use about 20,000 steps and at least three random
-seeds. Train the checkpoint with `--dtype float64` when preparing the final
-conservative-force finite-difference audit; float32 is useful for quick
-development runs. Replace `--device cuda` by `--device cpu` when no GPU is
-available.
+For a production fit, follow the validation curve within a declared step budget
+and compare independent seeds. The manuscript uses seeds 17, 29, 41, 53, and
+67 for the main FNO comparisons. Budgets depend on the system and architecture.
+Use the corresponding benchmark records for reproduction. Train with
+`--dtype float64` for the final finite-difference force checks. Float32 is
+useful for short development runs. Replace `--device cuda` by `--device cpu`
+when no GPU is available.
 
 `energy_scale` and `force_scale` normalize the two errors in the loss. Replace
 the illustrative values above by approximate frozen-MACE validation RMSEs in
@@ -237,21 +238,24 @@ interpret.
 
 The main resolution parameters are:
 
-- `grid` and `z-grid`: mesh points along each direction;
-- `modes` and `z-modes`: retained Fourier modes; small values emphasize the
-  longest wavelengths;
-- `channels`: number of latent source fields;
-- `fno-hidden-channels`: internal nonlinear field width;
-- `metric-hidden-channels`: width of the radial network that maps physical
-  \(\lvert\mathbf k\rvert^2\) to spectral channel-mixing weights.
+- `grid` and `z_grid`: mesh points along the lateral and third directions.
+- `modes` and `z_modes`: Fourier cutoff along these directions.
+- `channels`: number of latent source fields.
+- `fno_hidden_channels`: number of hidden channels in the nonlinear operator.
+- `spectral_groups`: number of channel groups in the spectral matrix. Use
+  `1` for coupling among all channels, as in the current physical benchmarks.
+- `metric_parameterization`: `shell_spline` for independent radial-shell
+  matrices. The alternative `radial_mlp` uses a shared radial network whose
+  width is set by `metric_hidden_channels`.
 
 Increase these parameters only after the small run succeeds. Grid density,
 mode count, and channel width should be checked by convergence tests on the
 validation set. Every retained mode count must satisfy
-`2 * modes <= grid`. Once the single-origin model is stable,
+`2 * modes <= grid`, and similarly for `z_modes` and `z_grid`. Once the
+single-origin model is stable,
 `--volume-interlacing 2 --interlacing-training random` can reduce the 3D
 particle-mesh egg-box error without evaluating all eight origins at every
-training step; validation and inference still average all origins.
+training step. Validation and inference still average all origins.
 
 ## 5. Adapt the command to a slab
 
@@ -263,25 +267,41 @@ model:
   cell_mode: fixed
   grid: 24
   modes: 4
-  z_grid: 16
+  z_grid: 24
   z_extent: 22.0
   z_center: mean
-  z_mixing: global
+  z_mixing: full
+  architecture: nonlinear
+  spectral_symmetry: metric_eqgino
+  metric_parameterization: shell_spline
+  spectral_groups: 1
+  planar_symmetry: none
   lateral_interlacing: 1
   channels: 4
   fno_hidden_channels: 16
   fno_layers: 2
 ```
 
-The slab operator Fourier transforms only the periodic x-y plane and retains
-an explicit finite z direction. `z_extent` must contain every atom in every
-configuration.
+The slab operator Fourier transforms only the periodic plane. Full z-mixing
+uses a wavelength-dependent matrix over channels and heights. It therefore
+couples different heights and channels in the spectral branch. A pointwise
+channel branch is added before GELU in each layer. The height direction is
+finite and has no periodic wrapping. `z_extent` must contain every atom in
+every configuration.
 
 Many electronic-structure files mark the vacuum direction as periodic even
 though the learned response should be nonperiodic along z. Add
-`--allow-periodic-z` explicitly in that case. For a square in-plane cell,
-`--planar-symmetry c4` or `d4` can enforce the corresponding discrete planar
-symmetry.
+`--allow-periodic-z` explicitly in that case. The metric-aware operator already
+has D4 symmetry on a square cell with equal in-plane mesh sizes and mode
+cutoffs. Keep `planar_symmetry: none` for this configuration.
+
+The earlier channel-wise height scheme is available as `z_mixing: global`.
+It uses a separate height matrix within each channel and costs less than
+dense full z-mixing. A low-rank factorization is also available for full
+mixing. See the [slab operator description](README.md#2d-fno-for-slabs) for
+the parameter counts and the distinction between the two linear slab
+implementations. The small example here checks the workflow. It does not
+reproduce the full Au₂/MgO training campaign.
 
 ## 6. Evaluate the trained correction
 
@@ -303,7 +323,7 @@ The training command also writes `mace_fno_3d.config.yaml` next to the
 checkpoint and embeds the same resolved configuration in the checkpoint. This
 record contains the effective YAML and command-line values with absolute paths.
 
-## 7. Run the physics audits
+## 7. Check forces and symmetries
 
 For a periodic 3D checkpoint:
 
@@ -321,7 +341,7 @@ For a slab checkpoint, use `mace-fno-audit-2p5d` with the same pattern. These
 audits check source neutrality, periodic translations, conservative forces by
 finite differences, and the relevant energy/force symmetries.
 
-The learned long-wavelength response can be examined separately:
+An optional spectral diagnostic examines the learned long-wavelength response:
 
 ```bash
 mace-fno-audit-spectral \
@@ -333,7 +353,8 @@ mace-fno-audit-spectral \
   --output "$RUN_ROOT/spectral_response.json"
 ```
 
-The spectral result is a diagnostic, not a training target. Agreement with a
+This diagnostic is not required for the current liquid-water workflow.
+It does not enter training or checkpoint selection. Agreement with a
 \(1/k^2\) trend indicates an electrostatic-like low-wavevector component, but
 does not make the latent fields physical charge densities.
 
@@ -390,14 +411,15 @@ provides energy and forces, but not stress.
 The maintained benchmarks provide cluster-ready examples with explicit data
 provenance and validation:
 
-- [Au2-MgO](benchmarks/au_mgo/README.md): 2D slab FNO;
-- [Water-SCAN](benchmarks/water_scan_qnep/README.md): periodic 3D water;
+- [Au2-MgO](benchmarks/au_mgo/README.md): 2D slab FNO.
+- [Water-SCAN](benchmarks/water_scan_qnep/README.md): periodic 3D water.
 - [LLZO](benchmarks/llzo_qnep/README.md): heterogeneous bulk cells with
   metric-aware EqGINO.
 
-Each benchmark keeps its default FNO architecture and optimization settings in
-a tracked `train_fno_*.yaml` file. Its Slurm launcher supplies runtime paths
-and accepts an alternative configuration through `FNO_CONFIG`.
+The introductory launchers read tracked `train_fno_*.yaml` files and accept an
+alternative through `FNO_CONFIG`. These files include earlier configurations.
+For manuscript reproduction, use the campaign links in each benchmark guide
+and the saved resolved configuration of the selected checkpoint.
 
 Their launchers keep all generated files outside the source tree through
 `MACE_FNO_WORK_ROOT`.

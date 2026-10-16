@@ -1,5 +1,9 @@
 # Submitted liquid-water G=1 replacement
 
+**Historical submission record.** Queue states and pending imports below refer
+to their dated entries. The accuracy, cost, interlacing, and convergence G=1
+replacements are now imported. See [README.md](README.md) for the current scope.
+
 Campaign: `/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/water_scan_groups1_complete_20261009`.
 Submitted 9 October 2026. The campaign contains immutable training/source
 snapshots, original and replacement configurations, input hashes, and exact
@@ -33,7 +37,7 @@ are retained for refitting the original spectral windows.
 
 ## Manuscript transition
 
-The current manuscript still contains the existing G=4 water results.
+At submission on 9 October, the manuscript contained the G=4 water results.
 Neither submission nor the result collector relabels them as G=1. After
 the new fits and measurements complete, verify and replace together:
 
@@ -41,7 +45,7 @@ the new fits and measurements complete, verify and replace together:
    Local MACE and LES accuracy results are unchanged.
 2. The six water convergence rows: three production reference seeds
    29/41/53, plus five variants with the same three seeds.
-3. Water parameter counts, GPU costs, and interlacing rows; recalculate
+3. Water parameter counts, GPU costs, and interlacing rows. Recalculate
    any cross-system cost ratios or ranges that include water.
 4. The standalone numerical/spectral rows, optional spectral-window and
    residual-parity plots, and any related claims. Rerun the ASE checkpoint
@@ -52,7 +56,7 @@ the new fits and measurements complete, verify and replace together:
 `analysis/results.json` is produced only after all 35 array tasks complete.
 `measurements/` and `audits/` contain the dependent reports. The existing
 `docs/source/data/water_clean/collect_results.py` still selects the original
-campaigns; its selection must be updated and the old source-data snapshots
+campaigns. Its selection must be updated and the old source-data snapshots
 archived when importing the completed replacement. Compile both manuscript
 and standalone appendix after updating the tables and descriptions.
 
@@ -70,7 +74,7 @@ Audit tasks 16181140_0 through 16181140_4 reached their two-hour walltime
 after writing complete numerical and cosine-sweep reports. All promised
 exact numerical checks passed for these five models. Their sine sweeps
 did not finish. The remaining original audit tasks were extended to eight
-hours using `scontrol update`; the command and result are recorded in
+hours using `scontrol update`. The command and result are recorded in
 `audit_walltime_update_20261010.json` in the campaign.
 
 Recovery array **16182317**, tasks 0--4 with at most two concurrent GPUs,

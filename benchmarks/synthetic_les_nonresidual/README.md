@@ -1,6 +1,10 @@
 # Synthetic LES first-block comparison
 
-Fresh charge-only MACE1–LES fits change `interaction_first` from
+Tables IV and V and Figs. 3, 5, and 6 use these nonresidual-first results.
+The separate [contact-trained MD campaign](../synthetic_yukawa/nonresidual_les_md/README.md)
+supplies the revised LES curves of Fig. 4.
+
+The twenty completed charge-only MACE1–LES fits change `interaction_first` from
 `RealAgnosticResidualInteractionBlock` to `RealAgnosticInteractionBlock`.
 The latter matches the local MACE backbones used by these synthetic benchmarks.
 
@@ -8,7 +12,7 @@ The 20 tasks cover homogeneous kappa = 0.05, 0.2, 0.5 inverse angstrom and
 heterogeneous screening, each at seeds 17, 29, 41, 53, 67. All original data files
 are copied byte-for-byte. The optimizer, losses, stage-two start at epoch 450,
 1,200-epoch maximum, patience 50, batch size four, and charge-only LES defaults
-are retained. The one-layer product output stays scalar (`128x0e`); the existing
+are retained. The one-layer product output stays scalar (`128x0e`). The existing
 `128x0e+128x1o` hidden representation setting is unchanged. Fits start fresh.
 
 Preparation snapshots unmodified installed MACE/LES sources, all 20 original

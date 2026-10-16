@@ -13,17 +13,31 @@ orthogonal, but their three lengths vary independently. The source contains
 a useful test of heterogeneous bulk cells and of long-range contributions in a
 polar solid electrolyte.
 
-## Controlled comparison
+## Current manuscript comparison
 
-The default workflow trains all three held-out comparisons from the same
+The manuscript uses the source-block split of **1,578 training, 200 validation,
+and 200 test structures**. It includes local MACE1/MACE2, charge-only LES, and
+frozen/joint linear and nonlinear FNO models. FNO uses G=1 and five seeds
+(17, 29, 41, 53, 67). The nonlinear settings are a 32³ mesh, mode parameter 8,
+16 source channels, four Fourier layers, and a 160,000-step budget. The
+[linear campaign](../physical_linear_gpu/README.md) uses the same split.
+Completed results are indexed by the [result catalog](../result_catalog/README.md).
+
+The launchers below describe the introductory and earlier three-seed workflows.
+Their default split, architecture, and budget differ from the manuscript campaign.
+Use the archived resolved configurations for manuscript reproduction.
+
+## Introductory comparison
+
+The introductory workflow trains three comparisons from the same
 deterministic split:
 
-1. MACE with a 4.5 A cutoff and one message-passing interaction (`nl0`);
-2. MACE with the same cutoff and two interactions (`nl1`);
+1. MACE with a 4.5 A cutoff and one message-passing interaction (`nl0`).
+2. MACE with the same cutoff and two interactions (`nl1`).
 3. the frozen `nl0` checkpoint plus a learned 3D FNO residual.
 
 The third model isolates the value of the global correction from simply
-increasing the local MACE receptive field. The MACE weights remain fixed during
+increasing the local MACE receptive field. The MACE weights are fixed during
 FNO optimization. Only the latent-source projection and FNO correction are
 updated.
 
@@ -46,12 +60,12 @@ and label, and supports two deterministic protocols. The default reproduces an
 80:10:10 frame-level split stratified by cubic, tetragonal, and orthorhombic
 cell class. The stricter `source-blocked` protocol assigns whole contiguous
 source-order blocks to one split. This is a transparent block-level surrogate
-for trajectory separation; it is not described as a true trajectory split.
+for trajectory separation. It is not described as a true trajectory split.
 
 The default frame-level split with seed 17 contains:
 
-- 1,582 training structures;
-- 198 validation structures;
+- 1,582 training structures.
+- 198 validation structures.
 - 198 held-out test structures.
 
 Prepare without submitting jobs using:
@@ -76,16 +90,16 @@ The prepared XYZ files carry `source_index`, `benchmark_split`, and
 `benchmark_group` metadata. `split_manifest.json` records exact source indices,
 per-class counts, source provenance, and prepared-file checksums.
 
-The cell classes are geometric strata for error reporting; they are not a
+The cell classes are geometric strata for error reporting. They are not a
 crystallographic phase assignment for individual finite-temperature snapshots.
 
-## Running the complete benchmark
+## Running the introductory benchmark
 
 From the repository root:
 
     bash benchmarks/llzo_qnep/submit.sh
 
-The controlled follow-up uses a blocked source-order split, metric-aware
+The earlier follow-up uses a blocked source-order split, metric-aware
 EqGINO, mesh-origin augmentation, full interlaced validation, and FNO seeds 17,
 29, and 41:
 
@@ -99,7 +113,7 @@ dependencies complete.
 
 The launcher creates a timestamped experiment under
 `$MACE_FNO_WORK_ROOT/llzo_qnep/runs/`. Data, logs, MACE checkpoints, FNO caches,
-trained models, and reports all remain outside the Git checkout. Because GPFS
+trained models, and reports stay outside the Git checkout. Because GPFS
 scratch can occasionally be unreliable, the complete runtime root can instead
 be placed in the home filesystem:
 
@@ -132,26 +146,24 @@ The default FNO run uses float64, a 24x24x24 grid, four modes per direction,
 four latent channels, two Fourier layers, and 20,000 steps. Metric-aware
 EqGINO is the default. `INTERLACING_TRAINING=random` samples one of the eight
 mesh origins per optimization batch while validation and inference average all
-eight; this provides mesh-origin augmentation without an eightfold training
+eight. This provides mesh-origin augmentation without an eightfold training
 cost.
-Float64 is intentionally conservative for the finite-difference force audit;
+Float64 is intentionally conservative for the finite-difference force audit.
 `MODEL_DTYPE=float32` is available for a faster exploratory run.
 
 ## Outputs and acceptance criteria
 
 The `reports` directory contains:
 
-- `mace-nl0.json` and `mace-nl1.json`: independent MACE test metrics;
-- `mace-fno.json`: frozen-baseline and corrected validation/test metrics;
-- `mace-fno-audit.json`: conservative-force and periodicity checks;
+- `mace-nl0.json` and `mace-nl1.json`: independent MACE test metrics.
+- `mace-fno.json`: frozen-baseline and corrected validation/test metrics.
+- `mace-fno-audit.json`: conservative-force and periodicity checks.
 - `mace-fno-spectral.json`: scalar low-k and anisotropic inverse-quadratic
-  response diagnostics;
+  response diagnostics.
 - `summary.json` and `summary.md`: the combined comparison.
 
-The summary reports overall and cell-class-resolved energy and force RMSE. A
-credible nonlocal gain requires both held-out energy and force improvement over
-one-interaction MACE, improvement beyond the train-fitted constant energy-offset
-control, and passage of all promised exact checks. The two-interaction MACE
+The summary reports overall and cell-class-resolved energy and force RMSE. We assess the correction through test energy and force errors, the
+constant-offset energy control, and numerical checks of forces and symmetry. The two-interaction MACE
 shows whether the same gain can be obtained by a larger local receptive field.
 The low-k diagnostic is evidence about the learned response, not a training
 loss and not proof that a latent field is physical charge density.

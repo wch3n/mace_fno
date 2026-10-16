@@ -6,12 +6,12 @@ the block found in the published LES checkpoint. The completed scalar–vector
 seed-17 fit is the control. All other training configuration values, data splits,
 and MACE/LES source files are preserved. Only the model name also changes.
 
-The model retains `128x0e+128x1o` product outputs, self-interaction removal,
+The model uses `128x0e+128x1o` product outputs, self-interaction removal,
 Ewald normalization 90.4756, float64, and the native MACE training loop.
 The budget is 1000 epochs, with stage two starting at epoch 500.
 The expected exported parameter count is 266,496.
 This is a controlled interaction-block comparison, not a full reproduction
-of the published training protocol; that checkpoint also differs in LES settings.
+of the published training protocol. That checkpoint also differs in LES settings.
 
 `campaign.py prepare ROOT --parent TRAINING --wetting CONTROL_WETTING
 --published PUBLISHED_EVALUATION` freezes source/data and records checksums.
@@ -35,6 +35,6 @@ validate-cueq` (a short GPU job). This checks float64 energy/force/latent-charge
 parity, conversion round trips, one Adam step, all-parameter optimizer coverage,
 and batch-10 training-step timing. It then exercises both training stages and
 e3nn export. Production `job.slurm ROOT run` requires these checks to pass.
-The process-local converter wrapper preserves explicit LES settings; frozen
-MACE/LES source remains byte-identical to the control. This variant starts fresh
+The process-local converter wrapper preserves explicit LES settings. Frozen
+MACE/LES source is byte-identical to the control. This variant starts fresh
 from seed 17 and does not transfer optimizer state between backends.

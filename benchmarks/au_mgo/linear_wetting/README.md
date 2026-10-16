@@ -1,5 +1,10 @@
 # Linear FNO wetting evaluations for Table VII
 
+**Completed and imported on 13 October:** all twenty models and eighty
+relaxations passed the endpoint checks. The four five-seed groups supply
+the linear rows of Table VII. The submission record below describes their
+original dependencies.
+
 Submitted 13 October 2026 as campaign `au2_mgo_linear_wetting_20261013`.
 Job 16209413 evaluates the thirteen ready checkpoints on four debug GPUs.
 Jobs 16209414--16209420 evaluate tasks 13--19 after training jobs
@@ -14,7 +19,7 @@ incomplete preparation is archived separately. No training inputs were changed.
 
 Twenty Au2/MgO models cover MACE1/MACE2, frozen/joint, and seeds 17/29/41/53/67.
 The campaign evaluates only completed 240000-step training runs. Thirteen
-checkpoints are ready at preparation; the seven remaining MACE2 evaluations
+checkpoints are ready at preparation. The seven remaining MACE2 evaluations
 depend individually on their training tasks in array 16191322.
 
 All fits use G=1 and a single dense linear channel-height matrix. The model
@@ -34,7 +39,7 @@ sign reversal is reported as a result, not imposed as an acceptance criterion.
 The ready job uses four GPUs with one sequential worker per GPU. Each pending
 fit gets a separate one-GPU job after its own training succeeds. Final CPU
 collection depends on all evaluations. Every job stays within the debug-gpu
-two-hour limit; no training is performed by this campaign.
+two-hour limit. No training is performed by this campaign.
 
 Collection records all completed per-seed evaluations, but computes table
 means and sample standard deviations only for complete five-seed groups.

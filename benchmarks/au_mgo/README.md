@@ -1,34 +1,76 @@
-# Au2-MgO surface benchmark
+# Au₂/MgO surface benchmark
 
-This benchmark uses the Au-MgO-Al split and one-interaction local MACE model
-from [`ChengUCB/les_fit`](https://github.com/ChengUCB/les_fit), pinned during
-the original benchmark to commit `a886785caa4182a0effb95d95f0e402881adfc4d`.
-The data contain 4,500 training and 500 independent test structures. The
-tracked `validation_indices_seed123.txt` fixes the model-selection subset.
+We compare local MACE, charge-only LES, and MACE–FNO for Au₂ adsorption on
+MgO(001). Al substitution in the substrate changes the wetting preference,
+providing a test of the response to a remote environment. The benchmark
+reports energy and force errors on 500 test structures and separate Au-only
+relaxations for the wetting comparison.
 
-Generated data, models, caches, checkpoints, and reports live outside the Git
-checkout under `MACE_FNO_WORK_ROOT`. On the original cluster,
-`benchmarks/runtime_paths.sh` sets this to
-`/gpfs/scratch/acad/htbase/wchen/mace_fno/runs`.
+## Data and model comparisons
 
-## Prepare
+The Au–MgO–Al data and original one-interaction MACE model come from
+[`ChengUCB/les_fit`](https://github.com/ChengUCB/les_fit), pinned to commit
+`a886785caa4182a0effb95d95f0e402881adfc4d`. Of the 4,500 structures in the
+training pool, 225 form the fixed validation subset. The resulting split is
+**4,275/225/500** training/validation/test structures.
+`validation_indices_seed123.txt` specifies the validation indices.
 
-Clone the upstream repository, then stage and checksum the required files:
+The current nonlinear slab campaign uses **full z-mixing**: a spectral matrix
+couples hidden channels and heights jointly at each in-plane wavevector.
+Only the plane is Fourier transformed. The height mesh is finite and does
+not connect periodic slab images through the vacuum. The model uses a
+24 × 24 lateral mesh, 24 heights in a 22 Å window, mode parameter 8, 16 source
+and hidden channels, four Fourier layers, one spectral group, and four lateral
+mesh origins. Radial shell-spline weights impose the in-plane metric symmetry.
+
+The earlier channel-wise height scheme is a separate comparison. Its
+configuration key is `z_mixing: global`. The direct **linear** slab model uses
+one dense channel-height matrix even when this historical key is `global`.
+It has no pointwise branch or activation. See the
+[operator description](../../README.md#2d-fno-for-slabs) for the equations,
+parameter counts, and low-rank option.
+
+## Campaign records
+
+| Comparison | Preparation and evaluation records |
+|---|---|
+| Dense full z-mixing, MACE1 | [Test and wetting evaluations](full_z_tables/README.md) |
+| Dense full z-mixing, MACE2 | [Five-seed frozen and joint campaign](full_z_mace2/README.md) |
+| Revised stopping budgets | [16 October finalization](full_z_budget_20261016/README.md) |
+| Direct linear FNO | [Physical linear campaign](../physical_linear_gpu/README.md), [wetting evaluation](linear_wetting/README.md) |
+| Scalar–vector MACE1–LES | [Matched wetting results](matched_les_wetting/README.md) |
+| Scalar–vector MACE2–LES | [Five-seed rerun](matched_mace2_les/README.md) |
+| Scalar–vector local MACE2 | [Matched wetting baseline](matched_mace2_wetting/README.md) |
+| LES first interaction | [Controlled seed-17 comparison](les_interaction_crosscheck/README.md) |
+| Low-rank full z-mixing | [Exploratory seed-17 fits](low_rank_full_z/README.md) |
+
+These records identify the model representation and selected checkpoint.
+The scalar-only and scalar–vector MACE2 backbones have different parameter
+counts. Compare results only after checking which representation was used.
+The original full-mixing budget is 240,000 steps. The
+[finalization record](full_z_budget_20261016/README.md) gives the lower stopping
+budgets adopted after inspecting the validation curves.
+
+## Data preparation
+
+Run from the repository root:
 
 ```bash
+export MACE_FNO_WORK_ROOT=/path/to/external/runs
 source benchmarks/runtime_paths.sh
 python3 benchmarks/au_mgo/prepare_benchmark.py \
   --les-fit-root /path/to/les_fit
 ```
 
 This copies the XYZ files to the ignored `data/les_au_mgo/` directory and the
-published one-interaction MACE model to
-`$MACE_FNO_WORK_ROOT/les_au_mgo/pretrained/`.
+published MACE model to `$MACE_FNO_WORK_ROOT/les_au_mgo/pretrained/`.
+The runtime helper uses a site-specific scratch path if the environment
+variable is unset. Set it explicitly for a new installation.
 
-## Run
+## Introductory launchers
 
-The ordinary local-MACE baseline, planar projection, and slab-resolved 2D FNO
-variants are:
+The original launchers are available for local-MACE evaluation, planar
+projection, and the earlier slab configuration:
 
 ```bash
 sbatch benchmarks/au_mgo/evaluate_mace.slurm
@@ -36,25 +78,17 @@ sbatch benchmarks/au_mgo/train_fno_2d.slurm
 sbatch benchmarks/au_mgo/train_fno_2p5d.slurm
 ```
 
-The FNO launchers read their defaults from
-[`train_fno_2d.yaml`](train_fno_2d.yaml) and
-[`train_fno_2p5d.yaml`](train_fno_2p5d.yaml). Runtime paths, the seed, dtype,
-and checkpoint are supplied by the Slurm wrappers. Set `FNO_CONFIG` to a copied
-and edited YAML file to define a new run without modifying the repository.
+`train_fno_2p5d.yaml` is an introductory channel-wise configuration.
+`train_joint_2p5d.yaml` describes the earlier 20,000-step, symmetry-averaged
+joint run. Neither reproduces the current full z-mixing campaign. Use the
+campaign records above for manuscript reproduction, or supply a separate
+configuration through `FNO_CONFIG` for a new calculation.
 
-[`train_joint_2p5d.yaml`](train_joint_2p5d.yaml) retains the established
-20,000-step float64 slab protocol, including two-way lateral interlacing and
-`D4` averaging, while jointly fine-tuning MACE at `1e-5` after a 500-step
-FNO-only warm-up.
+The slab launcher accepts grid, mode, channel, height, and training overrides.
+Give each run an external `CHECKPOINT` path and a separate Slurm output path.
+The launcher uses `/tmp` for scheduler output when none is supplied.
 
-For convergence studies, the 2D FNO slab launcher
-(`train_fno_2p5d.slurm`) exposes `GRID`, `MODES`, `Z_GRID`, `CHANNELS`,
-`SOURCE_HIDDEN_CHANNELS`, `FNO_HIDDEN_CHANNELS`, and `FNO_LAYERS` as
-environment variables. Set an
-explicit external `CHECKPOINT` and pass an external Slurm `--output` path
-so generated runs remain outside the checkout.
-
-Audit the selected 2D FNO slab checkpoint with:
+## Force and symmetry checks
 
 ```bash
 source benchmarks/runtime_paths.sh
@@ -65,35 +99,29 @@ sbatch --output="$run_root/audit-2p5d-%j.out" \
   benchmarks/au_mgo/audit_2p5d.slurm
 ```
 
-If `--output` is omitted, the launchers fall back to `/tmp` instead of
-creating a `logs/` directory in the source tree.
+The check tests source neutrality, translations, applicable in-plane symmetry,
+and forces against finite differences. Passing these numerical checks does
+not establish predictive accuracy.
 
-## Remote-Al wetting sign reversal
+## Wetting preference
 
-The preparation command also stages the four DFT-optimized endpoints used in
-the published Au2-MgO wetting test. Structures `1` and `3` are the
-non-wetting and wetting endpoints, respectively. The evaluator follows the
-published protocol: the Mg/O/Al substrate is fixed, only Au is relaxed with
-ASE FIRE, and convergence is requested at 0.01 eV/A within 500 steps. It
-reports `Delta E = E(wetting) - E(non-wetting)` for both compositions.
-The protocol-specific evaluator lives beside the benchmark as
-`evaluate_adsorption_switch.py`; it is deliberately not installed as a
-general package command.
-
-Submit a frozen-MACE plus FNO test while keeping all output outside Git:
+The preparation command stages four DFT starting geometries. Structures `1`
+and `3` are the non-wetting and wetting endpoints. The evaluator fixes the
+Mg/O/Al substrate and cell, relaxes only the two Au atoms with ASE FIRE, and
+requests a force tolerance of 0.01 eV/Å within 500 steps. It reports
+`Delta E = E(wetting) - E(non-wetting)` for each composition. DFT gives a
+positive value for undoped MgO and a negative value for Al-doped MgO.
 
 ```bash
 source benchmarks/runtime_paths.sh
 run_root="$MACE_FNO_WORK_ROOT/les_au_mgo/wetting_switch"
+mkdir -p "$run_root"
 sbatch --output="$run_root/fno-%j.out" \
   --export=ALL,MODEL_KIND=mace-fno,MODEL=/path/to/fno.pt,RUN_NAME=fno \
   benchmarks/au_mgo/evaluate_wetting.slurm
 ```
 
-Use `MODEL_KIND=mace` with a MACE `.model` file for the local-model
-controls. The DFT target is a sign reversal from positive (undoped) to
-negative (doped), not merely a low aggregate validation RMSE.
-
-`train_mace.slurm` is retained as the two-interaction local-MACE
-capacity control. All paths and optimization settings can be overridden by
-environment variables.
+Use `MODEL_KIND=mace` for local MACE or MACE–LES `.model` files. The campaign
+wrappers also check convergence, fixed substrate and cell, and the intended
+orientation of Au₂. Form wetting differences for each seed before averaging.
+Test errors and wetting outcomes do not select the checkpoint.
