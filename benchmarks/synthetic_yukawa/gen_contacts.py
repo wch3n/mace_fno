@@ -62,12 +62,18 @@ def reference_calculator(gy, data_dir: Path):
     if g.get("fixed_scale") is None:
         raise SystemExit(f"{data_dir}: not a --fixed-scale dataset")
     a = argparse.Namespace(
-        sigma=meta["sigma"], kmax=meta["kmax"], band_limit=meta["band_limit"],
-        lj_eps=g["lj_eps_eV"], lj_sigma=g["lj_sigma_A"],
-        lj_rcut=g["lj_rcut_A"], lj_ron=g["lj_ron_A"],
+        sigma=meta["sigma"],
+        kmax=meta["kmax"],
+        band_limit=meta["band_limit"],
+        lj_eps=g["lj_eps_eV"],
+        lj_sigma=g["lj_sigma_A"],
+        lj_rcut=g["lj_rcut_A"],
+        lj_ron=g["lj_ron_A"],
     )
     kappa = g["drive_kappa"]
-    calc = gy.YukawaLJCalculator(kappa, a, meta["fixed_cell_angstrom"], scale=g["fixed_scale"])
+    calc = gy.YukawaLJCalculator(
+        kappa, a, meta["fixed_cell_angstrom"], scale=g["fixed_scale"]
+    )
     return calc, kappa
 
 
@@ -79,8 +85,10 @@ def label(gy, calc, at):
     q = at.arrays["ref_charges"]
     pos = at.get_positions()
     a = calc.a
-    e_nl, _ = gy.nl_energy_forces(pos, q, calc.L ** 3, calc.kvec, calc.w, calc.es)
-    e_lj, _ = gy.lj_energy_forces(pos, calc.L, a.lj_eps, a.lj_sigma, a.lj_rcut, a.lj_ron)
+    e_nl, _ = gy.nl_energy_forces(pos, q, calc.L**3, calc.kvec, calc.w, calc.es)
+    e_lj, _ = gy.lj_energy_forces(
+        pos, calc.L, a.lj_eps, a.lj_sigma, a.lj_rcut, a.lj_ron
+    )
     assert abs(e_lj + calc.scale * e_nl - e) < 1e-8
     at.calc = None
     return e, f, e_lj, calc.scale * e_nl
@@ -99,7 +107,7 @@ def contacts(gy, frames, n, calc, rng, kappa):
         L = src.cell.lengths()[0]
         d = x[:, None] - x[None]
         d -= L * np.round(d / L)
-        r = np.sqrt((d ** 2).sum(-1))
+        r = np.sqrt((d**2).sum(-1))
         np.fill_diagonal(r, np.inf)
         mask = (sym[:, None] == t[0]) & (sym[None, :] == t[1])
         if t[0] == t[1]:
@@ -107,7 +115,7 @@ def contacts(gy, frames, n, calc, rng, kappa):
         cand = np.where(mask, r, np.inf)
         rt = rng.uniform(R_LO, R_HI)
         ok = False
-        for flat in np.argsort(cand, axis=None)[:20]:   # closest pair of this type first
+        for flat in np.argsort(cand, axis=None)[:20]:  # closest pair of this type first
             i, j = np.unravel_index(flat, cand.shape)
             v = x[j] - x[i]
             v -= L * np.round(v / L)
@@ -119,7 +127,7 @@ def contacts(gy, frames, n, calc, rng, kappa):
             y[j] = c + 0.5 * rt * u
             dy = y[[i, j]][:, None] - y[None]
             dy -= L * np.round(dy / L)
-            ry = np.sqrt((dy ** 2).sum(-1))
+            ry = np.sqrt((dy**2).sum(-1))
             ry[0, i] = ry[0, j] = ry[1, i] = ry[1, j] = np.inf
             if ry.min() >= R_OTHER:
                 ok = True
@@ -131,9 +139,16 @@ def contacts(gy, frames, n, calc, rng, kappa):
         at.info = {}
         e, f, el, enl = label(gy, calc, at)
         at.info.update(
-            energy=e, e_local=el, e_nonlocal=enl, traj=int(src.info["traj"]), kappa=kappa,
-            config_type="contact", contact_pair=f"{t[0]}-{t[1]}", contact_r=round(float(rt), 4),
-            contact_r0=round(float(r0), 4), source_index=int(idx),
+            energy=e,
+            e_local=el,
+            e_nonlocal=enl,
+            traj=int(src.info["traj"]),
+            kappa=kappa,
+            config_type="contact",
+            contact_pair=f"{t[0]}-{t[1]}",
+            contact_r=round(float(rt), 4),
+            contact_r0=round(float(r0), 4),
+            source_index=int(idx),
             source_energy=float(src.get_potential_energy()),
         )
         at.arrays["forces"] = f
@@ -143,13 +158,28 @@ def contacts(gy, frames, n, calc, rng, kappa):
 
 
 def main() -> None:
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--data-root", type=Path, required=True,
-                    help="directory holding data_k<tag>/ from the fixed-scale generation")
-    ap.add_argument("--out-root", type=Path, default=None,
-                    help="where to write data_k<tag>/ outputs (default: --data-root)")
-    ap.add_argument("--kappa", nargs="+", default=list(SEED_OFFSETS), choices=list(SEED_OFFSETS),
-                    help="kappa tags to process")
+    ap = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    ap.add_argument(
+        "--data-root",
+        type=Path,
+        required=True,
+        help="directory holding data_k<tag>/ from the fixed-scale generation",
+    )
+    ap.add_argument(
+        "--out-root",
+        type=Path,
+        default=None,
+        help="where to write data_k<tag>/ outputs (default: --data-root)",
+    )
+    ap.add_argument(
+        "--kappa",
+        nargs="+",
+        default=list(SEED_OFFSETS),
+        choices=list(SEED_OFFSETS),
+        help="kappa tags to process",
+    )
     args = ap.parse_args()
     out_root = args.out_root or args.data_root
     gy = load_generator()
@@ -159,9 +189,15 @@ def main() -> None:
         out_dir = out_root / f"data_k{k}"
         out_dir.mkdir(parents=True, exist_ok=True)
         calc, kappa = reference_calculator(gy, data_dir)
-        split = {s: [a for a in read(data_dir / f"kappa{k}_{s}.xyz", ":")
-                     if a.info.get("config_type") != "IsolatedAtom"] for s in ("train", "test")}
-        for a in split["train"][:3]:   # the calculator must reproduce the stored labels
+        split = {
+            s: [
+                a
+                for a in read(data_dir / f"kappa{k}_{s}.xyz", ":")
+                if a.info.get("config_type") != "IsolatedAtom"
+            ]
+            for s in ("train", "test")
+        }
+        for a in split["train"][:3]:  # the calculator must reproduce the stored labels
             b = a.copy()
             e, f, _, _ = label(gy, calc, b)
             e0, f0 = a.get_potential_energy(), a.get_forces()
@@ -178,16 +214,37 @@ def main() -> None:
             fm = np.array([np.abs(a.arrays["forces"]).max() for a in s])
             rr = np.array([a.info["contact_r"] for a in s])
             summary[f"{k}_{name}"] = dict(
-                n=len(s), r_range=[float(rr.min()), float(rr.max())],
+                n=len(s),
+                r_range=[float(rr.min()), float(rr.max())],
                 dE_eV=[float(de.min()), float(np.median(de)), float(de.max())],
-                max_abs_force_eV_A=[float(fm.min()), float(np.median(fm)), float(fm.max())],
-                pairs={p: sum(a.info["contact_pair"] == p for a in s) for p in ("Na-Cl", "Na-Na", "Cl-Cl")},
+                max_abs_force_eV_A=[
+                    float(fm.min()),
+                    float(np.median(fm)),
+                    float(fm.max()),
+                ],
+                pairs={
+                    p: sum(a.info["contact_pair"] == p for a in s)
+                    for p in ("Na-Cl", "Na-Na", "Cl-Cl")
+                },
             )
             print(f"kappa {k} contact {name}: {summary[f'{k}_{name}']}")
-        print(f"kappa {k}: wrote kappa{k}_train_contact.xyz with {len(orig)} + {len(tr)} entries")
-    (out_root / "data_contact_summary.json").write_text(json.dumps(
-        dict(R_LO=R_LO, R_HI=R_HI, R_OTHER=R_OTHER, N_TRAIN=N_TRAIN, N_TEST=N_TEST, SEED=SEED, summary=summary),
-        indent=1))
+        print(
+            f"kappa {k}: wrote kappa{k}_train_contact.xyz with {len(orig)} + {len(tr)} entries"
+        )
+    (out_root / "data_contact_summary.json").write_text(
+        json.dumps(
+            dict(
+                R_LO=R_LO,
+                R_HI=R_HI,
+                R_OTHER=R_OTHER,
+                N_TRAIN=N_TRAIN,
+                N_TEST=N_TEST,
+                SEED=SEED,
+                summary=summary,
+            ),
+            indent=1,
+        )
+    )
 
 
 if __name__ == "__main__":

@@ -62,12 +62,8 @@ def main() -> None:
                 "name": name,
                 "evaluation": filename,
                 "best_step": report.get("best_step"),
-                "validation_energy_rmse": float(
-                    validation_values["energy_rmse"]
-                ),
-                "validation_force_rmse": float(
-                    validation_values["force_rmse"]
-                ),
+                "validation_energy_rmse": float(validation_values["energy_rmse"]),
+                "validation_force_rmse": float(validation_values["force_rmse"]),
                 "energy_rmse": energy_rmse,
                 "force_rmse": force_rmse,
                 "energy_reduction_percent": reduction(
@@ -83,12 +79,8 @@ def main() -> None:
         for key in ("energy_rmse", "force_rmse"):
             if abs(float(other[key]) - float(validation_reference[key])) > 1.0e-12:
                 raise ValueError("frozen validation metrics differ between runs")
-    baseline["validation_energy_rmse"] = float(
-        validation_reference["energy_rmse"]
-    )
-    baseline["validation_force_rmse"] = float(
-        validation_reference["force_rmse"]
-    )
+    baseline["validation_energy_rmse"] = float(validation_reference["energy_rmse"])
+    baseline["validation_force_rmse"] = float(validation_reference["force_rmse"])
     ranked = sorted(
         runs,
         key=lambda run: (
@@ -99,9 +91,7 @@ def main() -> None:
     report = {
         "baseline": baseline,
         "runs": runs,
-        "ranking_criterion": (
-            "validation force RMSE, then validation energy RMSE"
-        ),
+        "ranking_criterion": ("validation force RMSE, then validation energy RMSE"),
         "recommended_full_run": ranked[0]["name"],
     }
     args.output_json.parent.mkdir(parents=True, exist_ok=True)

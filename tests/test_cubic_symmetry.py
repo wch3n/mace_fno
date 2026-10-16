@@ -42,9 +42,7 @@ class CubicSymmetryTests(unittest.TestCase):
             ((0.0, 0.0, 8.0), (8.0, 0.0, 0.0), (0.0, 8.0, 0.0)),
             dtype=DTYPE,
         )
-        vectors = torch.tensor(
-            ((1.2, -0.4, 0.7), (-2.1, 1.3, 0.2)), dtype=DTYPE
-        )
+        vectors = torch.tensor(((1.2, -0.4, 0.7), (-2.1, 1.3, 0.2)), dtype=DTYPE)
         group = cubic_signed_permutation_matrices(dtype=DTYPE)[:7]
         batched = transform_in_cell_axis_basis(vectors, cell, group)
         expected = torch.stack(

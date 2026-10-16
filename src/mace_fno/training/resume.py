@@ -147,10 +147,14 @@ def validate_resume_checkpoint(
             (stage == 1 and completed <= transition)
             or (stage == 2 and completed >= transition)
         ):
-            raise ValueError("resume checkpoint has missing or inconsistent optimization stage")
+            raise ValueError(
+                "resume checkpoint has missing or inconsistent optimization stage"
+            )
         if state.get("stage_start_step") != (0 if stage == 1 else transition):
             raise ValueError("resume checkpoint has inconsistent stage_start_step")
-        if state.get("active_loss_settings") != configuration.optimization.loss_settings(stage):
+        if state.get(
+            "active_loss_settings"
+        ) != configuration.optimization.loss_settings(stage):
             raise ValueError("resume checkpoint has inconsistent active loss settings")
     if configuration.optimization.steps < completed:
         raise ValueError(

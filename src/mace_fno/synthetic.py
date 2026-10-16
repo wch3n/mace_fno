@@ -59,4 +59,3 @@ def generate_planar_coulomb_fields(
         potentials.append(analytic_operator(density, cell))
 
     return torch.stack(densities), torch.stack(potentials)
-

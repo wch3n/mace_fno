@@ -62,8 +62,7 @@ def copy_verified(
     source_digest = sha256sum(source)
     if source_digest != expected_sha256:
         raise ValueError(
-            f"checksum mismatch for {source}: "
-            f"{source_digest} != {expected_sha256}"
+            f"checksum mismatch for {source}: {source_digest} != {expected_sha256}"
         )
     if destination.exists() and not force:
         if destination.is_file() and sha256sum(destination) == expected_sha256:

@@ -150,8 +150,12 @@ def load_finetune_checkpoint(
             "parent_kind": "latest_training_state" if latest else "selected_model",
             "mace_reference_sha256": expected_hash,
             "mace_reference_verification": verification,
-            "parent_energy_scale": payload.get("active_loss_settings", optimization)["energy_scale"],
-            "parent_force_scale": payload.get("active_loss_settings", optimization)["force_scale"],
+            "parent_energy_scale": payload.get("active_loss_settings", optimization)[
+                "energy_scale"
+            ],
+            "parent_force_scale": payload.get("active_loss_settings", optimization)[
+                "force_scale"
+            ],
             "optimizer_state": "reset",
             "scheduler_and_selection_history": "reset",
             "step_numbering": "new_optimization_stage",

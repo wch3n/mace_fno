@@ -128,7 +128,9 @@ def optimize_residual(
         if resume_state["device_type"] != device.type:
             raise ValueError("resume requires the same device type (CPU or CUDA)")
     staged = optimization.stage_two_start_step is not None
-    optimization_stage = resume_state.get("optimization_stage", 1) if resume_state else 1
+    optimization_stage = (
+        resume_state.get("optimization_stage", 1) if resume_state else 1
+    )
     stage_start_step = resume_state.get("stage_start_step", 0) if resume_state else 0
     loss_settings = optimization.loss_settings(optimization_stage)
     joint_training = optimization.mace_training == "joint"
@@ -220,7 +222,8 @@ def optimize_residual(
     )
     if resume_state is None:
         initial_validation = evaluate(
-            model, validation_samples,
+            model,
+            validation_samples,
             batch_size=optimization.evaluation_batch_size,
         )
         best_step = 0
@@ -241,10 +244,13 @@ def optimize_residual(
         load_residual_state_dict(model, resume_state["residual_state_dict"])
         if joint_training:
             load_mace_state_dict(model, resume_state["mace_state_dict"])
-            model.backbone.set_trainable(any(
-                enabled for name, enabled in resume_state["requires_grad"].items()
-                if name.startswith("backbone.mace_model.")
-            ))
+            model.backbone.set_trainable(
+                any(
+                    enabled
+                    for name, enabled in resume_state["requires_grad"].items()
+                    if name.startswith("backbone.mace_model.")
+                )
+            )
         for name, parameter in model.named_parameters():
             parameter.requires_grad_(resume_state["requires_grad"][name])
         model.train()
@@ -279,11 +285,15 @@ def optimize_residual(
         )
         if resume_state is not None:
             if resume_state.get("energy_selector") is None:
-                raise ValueError("resume checkpoint is missing energy-selection candidates")
+                raise ValueError(
+                    "resume checkpoint is missing energy-selection candidates"
+                )
             energy_selector.load_state_dict(resume_state["energy_selector"])
         else:
             energy_selector.consider(
-                0, initial_validation, best_objective,
+                0,
+                initial_validation,
+                best_objective,
                 lambda: {
                     "residual_state_dict": best_residual_state,
                     "mace_state_dict": best_mace_state,
@@ -299,9 +309,7 @@ def optimize_residual(
             warmup_learning_rate=warmup_learning_rate,
             final_learning_rate=float(optimizer.param_groups[0]["lr"]),
             final_mace_learning_rate=(
-                float(optimizer.param_groups[1]["lr"])
-                if joint_training
-                else None
+                float(optimizer.param_groups[1]["lr"]) if joint_training else None
             ),
             energy_selection=energy_selector.selected if energy_selector else None,
             optimization_stage=optimization_stage,
@@ -330,14 +338,21 @@ def optimize_residual(
             "best_residual_state_dict": best_residual_state,
             "best_mace_state_dict": best_mace_state,
             "optimizer_state_dict": cpu_snapshot(optimizer.state_dict()),
-            "scheduler_state_dict": deepcopy(scheduler.state_dict()) if scheduler else None,
+            "scheduler_state_dict": deepcopy(scheduler.state_dict())
+            if scheduler
+            else None,
             "sample_generator_state": generator.get_state(),
             "rng_state": capture_rng_state(device),
             "requires_grad": {
-                name: parameter.requires_grad for name, parameter in model.named_parameters()
+                name: parameter.requires_grad
+                for name, parameter in model.named_parameters()
             },
-            "spectral_history": deepcopy(spectral_monitor.history) if spectral_monitor else [],
-            "energy_selector": energy_selector.state_dict() if energy_selector else None,
+            "spectral_history": deepcopy(spectral_monitor.history)
+            if spectral_monitor
+            else [],
+            "energy_selector": energy_selector.state_dict()
+            if energy_selector
+            else None,
         }
         if staged:
             state.update(
@@ -409,14 +424,20 @@ def optimize_residual(
                 flush=True,
             )
 
-        if staged and optimization_stage == 1 and step == optimization.stage_two_start_step:
+        if (
+            staged
+            and optimization_stage == 1
+            and step == optimization.stage_two_start_step
+        ):
             optimization_stage = 2
             stage_start_step = completed_steps
             loss_settings = optimization.loss_settings(2)
-            for index, new_rate in enumerate((
-                optimization.stage_two_learning_rate,
-                optimization.stage_two_mace_learning_rate,
-            )):
+            for index, new_rate in enumerate(
+                (
+                    optimization.stage_two_learning_rate,
+                    optimization.stage_two_mace_learning_rate,
+                )
+            ):
                 if new_rate is not None:
                     optimizer.param_groups[index]["lr"] = new_rate
             if scheduler is not None:
@@ -429,7 +450,8 @@ def optimize_residual(
                 scheduler._last_lr = [group["lr"] for group in optimizer.param_groups]
             evaluations_at_minimum_lr = 0
             transition_metrics = evaluate(
-                model, validation_samples,
+                model,
+                validation_samples,
                 batch_size=optimization.evaluation_batch_size,
             )
             best_objective = validation_objective(transition_metrics, **loss_settings)
@@ -443,7 +465,9 @@ def optimize_residual(
                     optimization.energy_checkpoint_metric,
                 )
                 energy_selector.consider(
-                    completed_steps, transition_metrics, best_objective,
+                    completed_steps,
+                    transition_metrics,
+                    best_objective,
                     lambda: {
                         "residual_state_dict": best_residual_state,
                         "mace_state_dict": best_mace_state,
@@ -451,7 +475,9 @@ def optimize_residual(
                 )
             print(
                 f"stage two starts after step {completed_steps}: "
-                + ", ".join(f"{key}={value:.6e}" for key, value in loss_settings.items())
+                + ", ".join(
+                    f"{key}={value:.6e}" for key, value in loss_settings.items()
+                )
                 + f", learning_rates={[group['lr'] for group in optimizer.param_groups]}"
                 + f", initial validation objective={best_objective:.6e}",
                 flush=True,
@@ -553,10 +579,14 @@ def optimize_residual(
         )
         if energy_selector is not None:
             selection_changed = energy_selector.consider(
-                completed_steps, validation_metrics, score,
+                completed_steps,
+                validation_metrics,
+                score,
                 lambda: {
                     "residual_state_dict": residual_state_dict(model),
-                    "mace_state_dict": mace_state_dict(model) if joint_training else None,
+                    "mace_state_dict": mace_state_dict(model)
+                    if joint_training
+                    else None,
                 },
             )
             if selection_changed and energy_checkpoint_callback is not None:

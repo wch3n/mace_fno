@@ -51,9 +51,7 @@ class FNOTests(unittest.TestCase):
         torch.testing.assert_close(combined, expected, atol=3e-12, rtol=3e-12)
 
     def test_discrete_periodic_translation_equivariance(self) -> None:
-        model = FNO2D(1, 1, (4, 4), hidden_channels=8, n_layers=2).to(
-            dtype=DTYPE
-        )
+        model = FNO2D(1, 1, (4, 4), hidden_channels=8, n_layers=2).to(dtype=DTYPE)
         field = torch.randn((2, 1, 16, 20), dtype=DTYPE)
         translated = torch.roll(field, shifts=(3, -4), dims=(-2, -1))
         expected = torch.roll(model(field), shifts=(3, -4), dims=(-2, -1))
@@ -100,9 +98,7 @@ class FNOTests(unittest.TestCase):
         finite_difference = -(
             model(plus, charges, cell) - model(minus, charges, cell)
         ) / (2.0 * step)
-        torch.testing.assert_close(
-            force[0, 1], finite_difference, atol=2e-8, rtol=2e-5
-        )
+        torch.testing.assert_close(force[0, 1], finite_difference, atol=2e-8, rtol=2e-5)
 
     def test_native_density_api_matches_planar_particle_mesh_forward(self) -> None:
         cell = torch.diag(torch.tensor((10.0, 12.0, 20.0), dtype=DTYPE))

@@ -51,6 +51,8 @@ def direct_planar_coulomb_energy(
         "nc,nk->ck", values.to(dtype=phase_factor.dtype), phase_factor
     )
     kernel = (2.0 * math.pi) / magnitude
-    return 0.5 * (kernel[None, :] * structure_factor.abs().square()).sum() / in_plane_area(
-        cell
+    return (
+        0.5
+        * (kernel[None, :] * structure_factor.abs().square()).sum()
+        / in_plane_area(cell)
     )

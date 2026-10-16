@@ -73,7 +73,8 @@ def _save_checkpoint(
         checkpoint = configuration.energy_checkpoint
         candidate = energy_selection["candidate"]
         result = replace(
-            result, best_step=candidate["step"],
+            result,
+            best_step=candidate["step"],
             best_validation_objective=candidate["validation_objective"],
         )
         # The monitor describes the primary best-loss model, not this selection.
@@ -85,7 +86,8 @@ def _save_checkpoint(
         and result.optimization_stage == 1
     ):
         checkpoint = (
-            configuration.stage_one_energy_checkpoint if energy_selection is not None
+            configuration.stage_one_energy_checkpoint
+            if energy_selection is not None
             else configuration.stage_one_checkpoint
         )
 
@@ -160,14 +162,18 @@ def main() -> None:
     configuration = TrainingConfig.from_namespace(args)
     resume_state = (
         load_resume_checkpoint(configuration.runtime.resume)
-        if configuration.runtime.resume is not None else None
+        if configuration.runtime.resume is not None
+        else None
     )
     fingerprints = (
         input_fingerprints(configuration)
-        if configuration.runtime.last_checkpoint is not None else None
+        if configuration.runtime.last_checkpoint is not None
+        else None
     )
     if resume_state is not None:
-        validate_resume_checkpoint(resume_state, configuration, fingerprints=fingerprints)
+        validate_resume_checkpoint(
+            resume_state, configuration, fingerprints=fingerprints
+        )
     initialization = (
         load_finetune_checkpoint(configuration.runtime.init_from, configuration)
         if configuration.runtime.init_from is not None
@@ -261,7 +267,8 @@ def main() -> None:
         if fine_tuning is not None:
             state["fine_tuning"] = fine_tuning
         state["training_configuration"] = resolved_configuration(
-            args, last_checkpoint=configuration.runtime.last_checkpoint,
+            args,
+            last_checkpoint=configuration.runtime.last_checkpoint,
         )
         save_training_checkpoint(configuration.runtime.last_checkpoint, state)
         print(
@@ -273,7 +280,12 @@ def main() -> None:
     def save_energy_checkpoint(current_result: OptimizationResult) -> None:
         if current_result.energy_selection is not None:
             _save_checkpoint(
-                args, configuration, prepared, current_result, None, model,
+                args,
+                configuration,
+                prepared,
+                current_result,
+                None,
+                model,
                 write_configuration=False,
                 energy_selection=current_result.energy_selection,
                 fingerprints=fingerprints,
@@ -292,7 +304,9 @@ def main() -> None:
         best_checkpoint_callback=best_checkpoint_callback,
         resume_state=resume_state,
         last_checkpoint_callback=(
-            save_last_checkpoint if configuration.runtime.last_checkpoint is not None else None
+            save_last_checkpoint
+            if configuration.runtime.last_checkpoint is not None
+            else None
         ),
         energy_checkpoint_callback=save_energy_checkpoint,
     )
@@ -313,7 +327,8 @@ def main() -> None:
             validation_objective=result.best_validation_objective,
             **(
                 {"optimization_stage": result.optimization_stage}
-                if configuration.optimization.stage_two_start_step is not None else {}
+                if configuration.optimization.stage_two_start_step is not None
+                else {}
             ),
         )
     _save_checkpoint(
@@ -332,7 +347,8 @@ def main() -> None:
         primary_residual = residual_state_dict(model)
         primary_mace = (
             mace_state_dict(model)
-            if configuration.optimization.mace_training == "joint" else None
+            if configuration.optimization.mace_training == "joint"
+            else None
         )
         state = result.energy_selection["candidate"]["state"]
         try:
@@ -340,11 +356,20 @@ def main() -> None:
             if state["mace_state_dict"] is not None:
                 load_mace_state_dict(model, state["mace_state_dict"])
             energy_metrics = evaluate_selected_model(
-                model, prepared.train_samples, prepared.validation_samples,
-                prepared.test_samples, configuration, label="energy-selected",
+                model,
+                prepared.train_samples,
+                prepared.validation_samples,
+                prepared.test_samples,
+                configuration,
+                label="energy-selected",
             )
             _save_checkpoint(
-                args, configuration, prepared, result, None, model,
+                args,
+                configuration,
+                prepared,
+                result,
+                None,
+                model,
                 energy_selection=result.energy_selection,
                 evaluation_metrics=energy_metrics,
                 fingerprints=fingerprints,

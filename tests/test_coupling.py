@@ -394,15 +394,11 @@ class CouplingTests(unittest.TestCase):
             invariant_indices=(0, 2),
             reference_cell=cubic_cell,
         ).to(dtype=DTYPE)
-        planar_report = low_k_response_diagnostic(
-            planar_model, [sample], fit_shells=2
-        )
+        planar_report = low_k_response_diagnostic(planar_model, [sample], fit_shells=2)
         self.assertEqual(planar_report["diagnostic_kind"], "planar_2d")
         self.assertEqual(planar_report["spatial_scheme"], "2d")
         self.assertEqual(len(planar_report["per_sample_response"][0]["modes"]), 4)
-        self.assertNotIn(
-            "mean_low_k_coulomb_template_relative_error", planar_report
-        )
+        self.assertNotIn("mean_low_k_coulomb_template_relative_error", planar_report)
 
         planar_model.long_range = ParticleMeshLongRange(
             (8, 8), deconvolve_assignment=False
@@ -413,12 +409,8 @@ class CouplingTests(unittest.TestCase):
         analytic_fit = analytic_planar_report["low_k_planar_response_fit"]
         self.assertIsNotNone(analytic_fit)
         assert analytic_fit is not None
-        self.assertAlmostEqual(
-            analytic_fit["free_power_exponent_p"], 1.0, places=10
-        )
-        self.assertAlmostEqual(
-            analytic_fit["reference_power_log_r2"], 1.0, places=10
-        )
+        self.assertAlmostEqual(analytic_fit["free_power_exponent_p"], 1.0, places=10)
+        self.assertAlmostEqual(analytic_fit["reference_power_log_r2"], 1.0, places=10)
         amplitude_report = amplitude_convergence_diagnostic(
             planar_model,
             [sample],
@@ -428,15 +420,20 @@ class CouplingTests(unittest.TestCase):
         )
         amplitude_summary = amplitude_report["summary"]
         sine_amplitudes = amplitude_convergence_diagnostic(
-            planar_model, [sample], relative_amplitudes=(0.025, 0.05),
-            max_mode=2, fit_shells=4, probe_phase="sine",
+            planar_model,
+            [sample],
+            relative_amplitudes=(0.025, 0.05),
+            max_mode=2,
+            fit_shells=4,
+            probe_phase="sine",
         )
         self.assertEqual(sine_amplitudes["probe_phase"], "sine")
         for sine_run in sine_amplitudes["runs"]:
             self.assertEqual(sine_run["probe_phase"], "sine")
             self.assertAlmostEqual(
                 sine_run["low_k_planar_response_fit"]["free_power_exponent_p"],
-                1.0, places=10,
+                1.0,
+                places=10,
             )
         self.assertEqual(amplitude_report["estimated_field_evaluations"], 108)
         self.assertTrue(amplitude_summary["curvature_stable_within_tolerance"])
@@ -479,9 +476,7 @@ class CouplingTests(unittest.TestCase):
         monopole_report = low_k_response_diagnostic(
             slab_model, [sample], fit_shells=2, z_profiles=1
         )
-        self.assertIsNone(
-            monopole_report["mean_low_k_coulomb_template_relative_error"]
-        )
+        self.assertIsNone(monopole_report["mean_low_k_coulomb_template_relative_error"])
 
         anisotropic_model = MACEFNOResidual(
             FakeMACE(),
@@ -520,9 +515,7 @@ class CouplingTests(unittest.TestCase):
             invariant_indices=(0, 2),
             reference_cell=cubic_cell,
         ).to(dtype=DTYPE)
-        interlaced_report = low_k_response_diagnostic(
-            interlaced_model, [sample]
-        )
+        interlaced_report = low_k_response_diagnostic(interlaced_model, [sample])
         self.assertEqual(interlaced_report["diagnostic_kind"], "periodic_3d")
 
     def test_3d_reference_cell_guard_includes_third_vector(self) -> None:
@@ -565,9 +558,7 @@ class CouplingTests(unittest.TestCase):
         output = model(data, compute_force=False, compute_residual_force=True)
         self.assertEqual(output["energy"].shape, (2,))
         self.assertTrue(torch.isfinite(output["residual_forces"]).all())
-        self.assertEqual(
-            model.long_range.field_operator.cell_conditioning, "isotropic"
-        )
+        self.assertEqual(model.long_range.field_operator.cell_conditioning, "isotropic")
 
         invalid = {key: value.clone() for key, value in data.items()}
         invalid["cell"][1, 2, 2] = 11.0
@@ -925,9 +916,7 @@ class CouplingTests(unittest.TestCase):
         def backbone():
             model = FakeMACE()
             # Match the four descriptor columns actually emitted by this mock.
-            model.products = nn.ModuleList(
-                [FakeProduct(FakeIrreps([(4, 0, 1)]))]
-            )
+            model.products = nn.ModuleList([FakeProduct(FakeIrreps([(4, 0, 1)]))])
             return model
 
         for parameterization in ("shell_spline", "radial_mlp"):
@@ -979,16 +968,12 @@ class CouplingTests(unittest.TestCase):
                     # files explicitly declare it and persist spline anchors.
                     if parameterization == "shell_spline":
                         checkpoint["metric_parameterization"] = parameterization
-                    restored = build_mace_fno_model(
-                        checkpoint, backbone(), dtype=DTYPE
-                    )
+                    restored = build_mace_fno_model(checkpoint, backbone(), dtype=DTYPE)
                     self.assertEqual(
                         restored.long_range.field_operator.metric_parameterization,
                         parameterization,
                     )
-                    expected = original(
-                        batch_data(), training=True, compute_force=True
-                    )
+                    expected = original(batch_data(), training=True, compute_force=True)
                     actual = restored(batch_data(), training=True, compute_force=True)
                     for key in ("energy", "forces"):
                         torch.testing.assert_close(
@@ -1057,9 +1042,7 @@ class CouplingTests(unittest.TestCase):
                 / "pretrained"
                 / model.name
             )
-            self.assertEqual(
-                resolve_checkpoint_model_path(stored, checkpoint), model
-            )
+            self.assertEqual(resolve_checkpoint_model_path(stored, checkpoint), model)
 
 
 if __name__ == "__main__":

@@ -28,9 +28,7 @@ class SpectralEnergyTests(unittest.TestCase):
         )
 
     def test_planar_operator_batches_different_cell_areas(self) -> None:
-        operator = PlanarCoulombOperator(
-            max_modes=(4, 4), deconvolve_assignment=False
-        )
+        operator = PlanarCoulombOperator(max_modes=(4, 4), deconvolve_assignment=False)
         densities = torch.randn((2, 1, 20, 24), dtype=DTYPE)
         cells = torch.stack((self.cell, 1.2 * self.cell))
         batched = operator(densities, cells)
@@ -75,9 +73,7 @@ class SpectralEnergyTests(unittest.TestCase):
         finite_difference = -(
             model(plus, self.charges, self.cell) - model(minus, self.charges, self.cell)
         ) / (2.0 * step)
-        torch.testing.assert_close(
-            force[0, 0], finite_difference, atol=2e-7, rtol=2e-6
-        )
+        torch.testing.assert_close(force[0, 0], finite_difference, atol=2e-7, rtol=2e-6)
 
     def test_mesh_energy_converges_to_direct_reciprocal_reference(self) -> None:
         max_modes = (4, 4)

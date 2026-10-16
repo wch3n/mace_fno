@@ -207,8 +207,10 @@ def save_sample_cache(
         return
     cache_file.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(
-        prefix=f".{cache_file.name}.", suffix=".tmp",
-        dir=cache_file.parent, delete=False,
+        prefix=f".{cache_file.name}.",
+        suffix=".tmp",
+        dir=cache_file.parent,
+        delete=False,
     ) as handle:
         temporary = Path(handle.name)
     try:

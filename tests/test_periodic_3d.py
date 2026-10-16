@@ -109,9 +109,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         torch.manual_seed(37)
 
     def test_nonlinear_shape_and_gradients(self) -> None:
-        model = FNO3D(
-            2, 3, (3, 3, 4), hidden_channels=5, n_layers=2
-        ).to(dtype=DTYPE)
+        model = FNO3D(2, 3, (3, 3, 4), hidden_channels=5, n_layers=2).to(dtype=DTYPE)
         field = torch.randn((2, 2, 10, 12, 14), dtype=DTYPE, requires_grad=True)
         output = model(field)
         self.assertEqual(output.shape, (2, 3, 10, 12, 14))
@@ -128,17 +126,11 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         torch.testing.assert_close(model(field), field, atol=0.0, rtol=0.0)
 
     def test_discrete_translation_equivariance_in_all_directions(self) -> None:
-        model = FNO3D(1, 1, (3, 3, 3), hidden_channels=4, n_layers=2).to(
-            dtype=DTYPE
-        )
+        model = FNO3D(1, 1, (3, 3, 3), hidden_channels=4, n_layers=2).to(dtype=DTYPE)
         field = torch.randn((2, 1, 10, 12, 14), dtype=DTYPE)
         translated = torch.roll(field, shifts=(2, -3, 4), dims=(-3, -2, -1))
-        expected = torch.roll(
-            model(field), shifts=(2, -3, 4), dims=(-3, -2, -1)
-        )
-        torch.testing.assert_close(
-            model(translated), expected, atol=4e-12, rtol=4e-12
-        )
+        expected = torch.roll(model(field), shifts=(2, -3, 4), dims=(-3, -2, -1))
+        torch.testing.assert_close(model(translated), expected, atol=4e-12, rtol=4e-12)
 
     def test_linear_operator_obeys_superposition(self) -> None:
         model = LinearFNO3D(1, 2, (3, 3, 3)).to(dtype=DTYPE)
@@ -157,9 +149,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
             n_layers=1,
             cell_conditioning="isotropic",
         ).to(dtype=DTYPE)
-        density = torch.randn(
-            (2, 2, 8, 8, 8), dtype=DTYPE, requires_grad=True
-        )
+        density = torch.randn((2, 2, 8, 8, 8), dtype=DTYPE, requires_grad=True)
         cells = torch.stack(
             (8.0 * torch.eye(3, dtype=DTYPE), 10.0 * torch.eye(3, dtype=DTYPE))
         )
@@ -175,9 +165,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "requires cubic"):
             model(
                 density.detach(),
-                torch.stack(
-                    (cells[0], torch.diag(torch.tensor((10.0, 10.0, 11.0))))
-                ),
+                torch.stack((cells[0], torch.diag(torch.tensor((10.0, 10.0, 11.0))))),
             )
 
         with self.assertRaisesRegex(ValueError, "requires architecture"):
@@ -193,9 +181,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
             n_layers=1,
             cell_conditioning="anisotropic",
         ).to(dtype=DTYPE)
-        density = torch.randn(
-            (2, 2, 8, 8, 8), dtype=DTYPE, requires_grad=True
-        )
+        density = torch.randn((2, 2, 8, 8, 8), dtype=DTYPE, requires_grad=True)
         cells = torch.stack(
             (
                 torch.diag(torch.tensor((8.0, 9.0, 10.0), dtype=DTYPE)),
@@ -300,7 +286,9 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         density_energy, density_potential = model.energy_from_density(
             density, cell, return_potential=True
         )
-        torch.testing.assert_close(density_energy, particle_energy, atol=3e-14, rtol=3e-14)
+        torch.testing.assert_close(
+            density_energy, particle_energy, atol=3e-14, rtol=3e-14
+        )
         torch.testing.assert_close(
             density_potential, particle_potential, atol=3e-14, rtol=3e-14
         )
@@ -323,18 +311,16 @@ class FullyPeriodicFNOTests(unittest.TestCase):
             hidden_channels=4,
             n_layers=1,
         )
-        plain = LearnedParticleMeshLongRange3D(
-            **common, volume_interlacing=1
-        ).to(dtype=DTYPE)
-        interlaced = LearnedParticleMeshLongRange3D(
-            **common, volume_interlacing=2
-        ).to(dtype=DTYPE)
+        plain = LearnedParticleMeshLongRange3D(**common, volume_interlacing=1).to(
+            dtype=DTYPE
+        )
+        interlaced = LearnedParticleMeshLongRange3D(**common, volume_interlacing=2).to(
+            dtype=DTYPE
+        )
         interlaced.load_state_dict(plain.state_dict())
 
         offsets = tuple(
-            iz * 0.5 * cell[2] / 8
-            + ix * 0.5 * cell[0] / 10
-            + iy * 0.5 * cell[1] / 12
+            iz * 0.5 * cell[2] / 8 + ix * 0.5 * cell[0] / 10 + iy * 0.5 * cell[1] / 12
             for iz in range(2)
             for ix in range(2)
             for iy in range(2)
@@ -371,9 +357,7 @@ class FullyPeriodicFNOTests(unittest.TestCase):
         random_origin.load_state_dict(plain.state_dict())
 
         offsets = tuple(
-            iz * 0.5 * cell[2] / 8
-            + ix * 0.5 * cell[0] / 8
-            + iy * 0.5 * cell[1] / 8
+            iz * 0.5 * cell[2] / 8 + ix * 0.5 * cell[0] / 8 + iy * 0.5 * cell[1] / 8
             for iz in range(2)
             for ix in range(2)
             for iy in range(2)
@@ -434,15 +418,10 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
             groups=2,
             radial_hidden_channels=5,
         ).to(dtype=DTYPE)
-        field = torch.randn(
-            (2, 4, 8, 10, 12), dtype=DTYPE, requires_grad=True
-        )
+        field = torch.randn((2, 4, 8, 10, 12), dtype=DTYPE, requires_grad=True)
         output = layer(field, self.cells)
         expected = torch.cat(
-            [
-                layer(field[index : index + 1], self.cells[index])
-                for index in range(2)
-            ],
+            [layer(field[index : index + 1], self.cells[index]) for index in range(2)],
             dim=0,
         )
         self.assertEqual(output.shape, field.shape)
@@ -470,9 +449,7 @@ class MetricEqGINOSpectralConv3DTests(unittest.TestCase):
         self.assertNotEqual(squared[0, 0, 1, 0], squared[0, 0, 0, 1])
 
     def test_rigid_cartesian_cell_rotation_leaves_operator_unchanged(self) -> None:
-        layer = MetricEqGINOSpectralConv3D(
-            2, 2, (3, 3, 3), groups=2
-        ).to(dtype=DTYPE)
+        layer = MetricEqGINOSpectralConv3D(2, 2, (3, 3, 3), groups=2).to(dtype=DTYPE)
         field = torch.randn((2, 2, 8, 8, 8), dtype=DTYPE)
         rotation, _ = torch.linalg.qr(torch.randn((3, 3), dtype=DTYPE))
         rotation = rotation * torch.linalg.det(rotation)

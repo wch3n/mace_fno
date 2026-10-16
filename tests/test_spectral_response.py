@@ -49,10 +49,10 @@ class SpectralResponseTests(unittest.TestCase):
     def test_wavevector_norm_uses_zxy_layout(self) -> None:
         cell = torch.diag(torch.tensor((10.0, 12.0, 15.0), dtype=DTYPE))
         observed = wavevector_norm(cell, (1, 2, 3))
-        expected = 2.0 * math.pi * math.sqrt(
-            (2.0 / 10.0) ** 2
-            + (3.0 / 12.0) ** 2
-            + (1.0 / 15.0) ** 2
+        expected = (
+            2.0
+            * math.pi
+            * math.sqrt((2.0 / 10.0) ** 2 + (3.0 / 12.0) ** 2 + (1.0 / 15.0) ** 2)
         )
         self.assertAlmostEqual(float(observed), expected, places=12)
 
@@ -79,32 +79,22 @@ class SpectralResponseTests(unittest.TestCase):
             )
         )
         observed_basis = quadratic_basis_response(density, basis, 0.2, energy)
-        torch.testing.assert_close(
-            observed_basis, kernel, atol=1.0e-12, rtol=1.0e-12
-        )
+        torch.testing.assert_close(observed_basis, kernel, atol=1.0e-12, rtol=1.0e-12)
 
-        planar_mode = unit_rms_cosine_mode_2d(
-            (8, 8), (1, 0), device="cpu", dtype=DTYPE
-        )
+        planar_mode = unit_rms_cosine_mode_2d((8, 8), (1, 0), device="cpu", dtype=DTYPE)
         planar_density = torch.zeros((3, 8, 8), dtype=DTYPE)
 
         def planar_energy(fields: torch.Tensor) -> torch.Tensor:
             amplitudes = (fields * planar_mode).mean(dim=(-2, -1))
-            return 0.5 * torch.einsum(
-                "bi,ij,bj->b", amplitudes, kernel, amplitudes
-            )
+            return 0.5 * torch.einsum("bi,ij,bj->b", amplitudes, kernel, amplitudes)
 
         observed_planar = quadratic_mode_response(
             planar_density, planar_mode, 0.2, planar_energy
         )
-        torch.testing.assert_close(
-            observed_planar, kernel, atol=1.0e-12, rtol=1.0e-12
-        )
+        torch.testing.assert_close(observed_planar, kernel, atol=1.0e-12, rtol=1.0e-12)
 
     def test_power_law_fit_recovers_coulomb_shape(self) -> None:
-        fit = fit_power_law_response(
-            [(0.25, 32.0), (0.5, 8.0), (1.0, 2.0), (2.0, 0.5)]
-        )
+        fit = fit_power_law_response([(0.25, 32.0), (0.5, 8.0), (1.0, 2.0), (2.0, 0.5)])
         self.assertIsNotNone(fit)
         assert fit is not None
         self.assertAlmostEqual(fit["free_power_exponent_p"], 2.0, places=12)
@@ -141,9 +131,7 @@ class SpectralResponseTests(unittest.TestCase):
         self.assertIsNotNone(fit)
         assert fit is not None
         torch.testing.assert_close(
-            torch.tensor(
-                fit["dielectric_over_prefactor_matrix"], dtype=DTYPE
-            ),
+            torch.tensor(fit["dielectric_over_prefactor_matrix"], dtype=DTYPE),
             tensor,
             atol=1.0e-12,
             rtol=1.0e-12,

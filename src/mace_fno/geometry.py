@@ -30,13 +30,12 @@ def fractional_coordinates(positions: Tensor, cell: Tensor) -> Tensor:
     """Convert Cartesian positions to fractional row-vector coordinates."""
     if positions.ndim != 2 or positions.shape[-1] != 3:
         raise ValueError(
-            "positions must have shape (n_atoms, 3); "
-            f"received {tuple(positions.shape)}"
+            f"positions must have shape (n_atoms, 3); received {tuple(positions.shape)}"
         )
     validate_cell(cell)
-    return torch.linalg.solve(cell.transpose(0, 1), positions.transpose(0, 1)).transpose(
-        0, 1
-    )
+    return torch.linalg.solve(
+        cell.transpose(0, 1), positions.transpose(0, 1)
+    ).transpose(0, 1)
 
 
 def reciprocal_vectors_2d(cell: Tensor) -> tuple[Tensor, Tensor]:
@@ -58,4 +57,3 @@ def mesh_cell_area(cell: Tensor, grid_shape: tuple[int, int]) -> Tensor:
     """Return the real-space area represented by one mesh point."""
     nx, ny = grid_shape
     return in_plane_area(cell) / (nx * ny)
-

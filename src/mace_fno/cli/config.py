@@ -301,34 +301,50 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument("--energy-weight", type=float, default=1.0)
     parser.add_argument(
-        "--energy-checkpoint-tolerance", type=float, default=None,
-        help=("Also save the minimum-energy validation model within this relative "
-              "tolerance of the best validation loss/force RMSE (0.01 means 1%%)"),
+        "--energy-checkpoint-tolerance",
+        type=float,
+        default=None,
+        help=(
+            "Also save the minimum-energy validation model within this relative "
+            "tolerance of the best validation loss/force RMSE (0.01 means 1%%)"
+        ),
     )
     parser.add_argument(
-        "--energy-checkpoint-constraint", choices=("loss", "forces"), default="loss",
+        "--energy-checkpoint-constraint",
+        choices=("loss", "forces"),
+        default="loss",
         help="Quantity constrained by --energy-checkpoint-tolerance",
     )
     parser.add_argument(
-        "--energy-checkpoint-metric", choices=("raw", "centered"), default="raw",
+        "--energy-checkpoint-metric",
+        choices=("raw", "centered"),
+        default="raw",
         help="Energy RMSE used to rank eligible checkpoints (no energy shift is applied)",
     )
     parser.add_argument("--force-weight", type=float, default=10.0)
     parser.add_argument("--energy-scale", type=float, default=1.0)
     parser.add_argument("--force-scale", type=float, default=1.0)
     parser.add_argument(
-        "--stage-two-start-step", type=int, default=None,
-        help=("Optional two-stage optimization: perform this many first-stage "
-              "updates, then switch loss settings before the next update"),
+        "--stage-two-start-step",
+        type=int,
+        default=None,
+        help=(
+            "Optional two-stage optimization: perform this many first-stage "
+            "updates, then switch loss settings before the next update"
+        ),
     )
     for name in ("energy-scale", "force-scale", "energy-weight", "force-weight"):
         parser.add_argument(
-            f"--stage-two-{name}", type=float, default=None,
+            f"--stage-two-{name}",
+            type=float,
+            default=None,
             help=f"Second-stage {name}; defaults to the first-stage value",
         )
     for name in ("learning-rate", "mace-learning-rate"):
         parser.add_argument(
-            f"--stage-two-{name}", type=float, default=None,
+            f"--stage-two-{name}",
+            type=float,
+            default=None,
             help=f"Second-stage {name}; defaults to the current (possibly decayed) rate",
         )
     parser.add_argument("--validation-fraction", type=float, default=0.2)
@@ -445,24 +461,31 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
             "reference energies in float64"
         ),
     )
-    parser.add_argument("--checkpoint", type=Path, help="Best-model output for inference")
     parser.add_argument(
-        "--last-checkpoint", type=Path,
+        "--checkpoint", type=Path, help="Best-model output for inference"
+    )
+    parser.add_argument(
+        "--last-checkpoint",
+        type=Path,
         help="Resumable training-state output (default: <checkpoint stem>.last.pt)",
     )
     parser.add_argument(
-        "--resume", type=Path,
+        "--resume",
+        type=Path,
         help="Continue from a latest training-state checkpoint, not a best-model file",
     )
     parser.add_argument(
-        "--init-from", type=Path,
+        "--init-from",
+        type=Path,
         help=(
             "Initialize from a MACE-FNO checkpoint with fresh optimization state; "
             "allows changed loss scales and is mutually exclusive with --resume"
         ),
     )
     parser.add_argument(
-        "--checkpoint-interval", type=int, default=0,
+        "--checkpoint-interval",
+        type=int,
+        default=0,
         help="Save training state every N steps, also at validation/end (0: validation only)",
     )
     return parse_args_with_config(parser, argv)

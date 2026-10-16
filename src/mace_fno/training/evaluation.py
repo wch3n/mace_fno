@@ -281,6 +281,5 @@ def validation_objective(
     return (
         float(energy_weight)
         * (float(metrics["energy_rmse"]) / float(energy_scale)) ** 2
-        + float(force_weight)
-        * (float(metrics["force_rmse"]) / float(force_scale)) ** 2
+        + float(force_weight) * (float(metrics["force_rmse"]) / float(force_scale)) ** 2
     )

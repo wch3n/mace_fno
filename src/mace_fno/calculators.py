@@ -123,9 +123,13 @@ class MACEFNOCalculator(Calculator):
                 graph[key] = value
                 continue
             target_dtype = self.dtype if value.is_floating_point() else value.dtype
-            graph[key] = value.detach().clone().to(
-                device=self.device,
-                dtype=target_dtype,
+            graph[key] = (
+                value.detach()
+                .clone()
+                .to(
+                    device=self.device,
+                    dtype=target_dtype,
+                )
             )
         return graph
 
@@ -160,9 +164,7 @@ class MACEFNOCalculator(Calculator):
         self.results = {
             "energy": energy,
             "free_energy": energy,
-            "mace_energy": float(
-                output["base_energy"].detach().cpu().reshape(-1)[0]
-            ),
+            "mace_energy": float(output["base_energy"].detach().cpu().reshape(-1)[0]),
             "residual_energy": float(
                 output["residual_energy"].detach().cpu().reshape(-1)[0]
             ),

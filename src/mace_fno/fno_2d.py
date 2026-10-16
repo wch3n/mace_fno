@@ -223,8 +223,7 @@ class FNOFieldOperator2D(nn.Module):
         """Store per-channel RMS scales from batched training fields."""
         if inputs.ndim != 4 or targets.shape != inputs.shape:
             raise ValueError(
-                "inputs and targets must have matching "
-                "(batch, channels, nx, ny) shapes"
+                "inputs and targets must have matching (batch, channels, nx, ny) shapes"
             )
         input_rms = inputs.square().mean(dim=(0, 2, 3), keepdim=True).sqrt()
         output_rms = targets.square().mean(dim=(0, 2, 3), keepdim=True).sqrt()

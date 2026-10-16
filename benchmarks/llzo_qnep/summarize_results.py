@@ -166,9 +166,9 @@ def main() -> None:
         "group_comparison": group_comparison,
         "constant_offset_control": {
             "energy_rmse": float(
-                mace_one_report["test_global_offset"]["overall"][
-                    "energy_eV_per_atom"
-                ]["rmse"]
+                mace_one_report["test_global_offset"]["overall"]["energy_eV_per_atom"][
+                    "rmse"
+                ]
             )
         },
         "audit": {
@@ -181,7 +181,8 @@ def main() -> None:
             "anisotropic_inverse_quadratic_fit": tensor_fit,
         },
         "assessment": {
-            "held_out_energy_improved": mace_fno["energy_rmse"] < mace_one["energy_rmse"],
+            "held_out_energy_improved": mace_fno["energy_rmse"]
+            < mace_one["energy_rmse"],
             "held_out_force_improved": mace_fno["force_rmse"] < mace_one["force_rmse"],
             "beats_train_fitted_constant_energy_offset": (
                 mace_fno["energy_rmse"]

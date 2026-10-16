@@ -63,9 +63,7 @@ def maximum_cubic_metric(audit: dict[str, Any], key: str) -> float | None:
     return max(float(values[key]) for values in transformations.values())
 
 
-def parse_run(
-    fields: list[str], baseline: dict[str, float]
-) -> dict[str, Any]:
+def parse_run(fields: list[str], baseline: dict[str, float]) -> dict[str, Any]:
     seed_text, fno_path, audit_path, spectral_path = fields
     seed = int(seed_text)
     evaluation = load_json(fno_path)
@@ -84,12 +82,8 @@ def parse_run(
         "best_step": evaluation.get("best_step"),
         "energy_rmse": energy_rmse,
         "force_rmse": force_rmse,
-        "energy_reduction_percent": reduction(
-            baseline["energy_rmse"], energy_rmse
-        ),
-        "force_reduction_percent": reduction(
-            baseline["force_rmse"], force_rmse
-        ),
+        "energy_reduction_percent": reduction(baseline["energy_rmse"], energy_rmse),
+        "force_reduction_percent": reduction(baseline["force_rmse"], force_rmse),
         "by_benchmark_group": test.get("by_benchmark_group", {}),
         "all_promised_exact_checks_passed": all(
             bool(check["passed"]) for check in exact_checks.values()
@@ -112,22 +106,14 @@ def parse_run(
 
 
 def aggregate_groups(runs: list[dict[str, Any]]) -> dict[str, Any]:
-    group_names = set.intersection(
-        *(set(run["by_benchmark_group"]) for run in runs)
-    )
+    group_names = set.intersection(*(set(run["by_benchmark_group"]) for run in runs))
     return {
         group: {
             "energy_rmse": distribution(
-                [
-                    float(run["by_benchmark_group"][group]["energy_rmse"])
-                    for run in runs
-                ]
+                [float(run["by_benchmark_group"][group]["energy_rmse"]) for run in runs]
             ),
             "force_rmse": distribution(
-                [
-                    float(run["by_benchmark_group"][group]["force_rmse"])
-                    for run in runs
-                ]
+                [float(run["by_benchmark_group"][group]["force_rmse"]) for run in runs]
             ),
         }
         for group in sorted(group_names)
@@ -199,20 +185,20 @@ def main() -> None:
         "| Model or seed | E RMSE (meV/atom) | F RMSE (meV/A) | E reduction | F reduction |",
         "|---|---:|---:|---:|---:|",
         (
-            f"| MACE, one interaction | {1000*mace_one['energy_rmse']:.3f} | "
-            f"{1000*mace_one['force_rmse']:.3f} | -- | -- |"
+            f"| MACE, one interaction | {1000 * mace_one['energy_rmse']:.3f} | "
+            f"{1000 * mace_one['force_rmse']:.3f} | -- | -- |"
         ),
         (
-            f"| MACE, two interactions | {1000*mace_two['energy_rmse']:.3f} | "
-            f"{1000*mace_two['force_rmse']:.3f} | "
+            f"| MACE, two interactions | {1000 * mace_two['energy_rmse']:.3f} | "
+            f"{1000 * mace_two['force_rmse']:.3f} | "
             f"{reduction(mace_one['energy_rmse'], mace_two['energy_rmse']):+.1f}% | "
             f"{reduction(mace_one['force_rmse'], mace_two['force_rmse']):+.1f}% |"
         ),
     ]
     for run in runs:
         lines.append(
-            f"| MACE+FNO, seed {run['seed']} | {1000*run['energy_rmse']:.3f} | "
-            f"{1000*run['force_rmse']:.3f} | "
+            f"| MACE+FNO, seed {run['seed']} | {1000 * run['energy_rmse']:.3f} | "
+            f"{1000 * run['force_rmse']:.3f} | "
             f"{run['energy_reduction_percent']:+.1f}% | "
             f"{run['force_reduction_percent']:+.1f}% |"
         )

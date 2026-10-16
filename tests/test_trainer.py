@@ -69,9 +69,7 @@ class _ToyJointModel(torch.nn.Module):
     def __init__(self) -> None:
         super().__init__()
         self.backbone = _ToyBackbone()
-        self.residual_scale = torch.nn.Parameter(
-            torch.tensor(0.0, dtype=torch.float64)
-        )
+        self.residual_scale = torch.nn.Parameter(torch.tensor(0.0, dtype=torch.float64))
 
     def forward(self, graph, **kwargs):
         del kwargs

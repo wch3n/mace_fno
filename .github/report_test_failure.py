@@ -11,9 +11,7 @@ def main() -> None:
     path = Path(sys.argv[1])
     lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
     excerpt = "\n".join(lines[-120:])
-    escaped = (
-        excerpt.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-    )
+    escaped = excerpt.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
     print(f"::error title=Unit test failure::{escaped}")
 
 

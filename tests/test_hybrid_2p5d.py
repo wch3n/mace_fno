@@ -23,9 +23,7 @@ class SlabParticleMeshTests(unittest.TestCase):
             dtype=DTYPE,
         )
         self.values = torch.tensor((1.0, -0.4, -0.6), dtype=DTYPE)
-        self.assignment = SlabParticleMesh(
-            (8, 16, 20), z_extent=8.0, z_center="mean"
-        )
+        self.assignment = SlabParticleMesh((8, 16, 20), z_extent=8.0, z_center="mean")
 
     def test_integrated_density_conserves_all_channels(self) -> None:
         values = torch.stack((self.values, 2.0 * self.values), dim=-1)
@@ -169,7 +167,9 @@ class HybridFNOTests(unittest.TestCase):
                 )
 
     def test_one_operator_accepts_multiple_lateral_resolutions(self) -> None:
-        model = SlabFNO2D(1, 2, 5, (3, 3), hidden_channels=4, n_layers=1).to(dtype=DTYPE)
+        model = SlabFNO2D(1, 2, 5, (3, 3), hidden_channels=4, n_layers=1).to(
+            dtype=DTYPE
+        )
         first = model(torch.randn((1, 5, 12, 12), dtype=DTYPE))
         second = model(torch.randn((1, 5, 16, 20), dtype=DTYPE))
         self.assertEqual(first.shape, (2, 5, 12, 12))

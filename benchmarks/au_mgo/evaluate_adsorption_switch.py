@@ -40,9 +40,7 @@ def parse_arguments() -> argparse.Namespace:
         help="Directory containing 1/3-doped.xyz and 1/3-undoped.xyz",
     )
     parser.add_argument("--model", type=Path, required=True)
-    parser.add_argument(
-        "--model-kind", choices=("mace-fno", "mace"), required=True
-    )
+    parser.add_argument("--model-kind", choices=("mace-fno", "mace"), required=True)
     parser.add_argument("--mace-head")
     parser.add_argument("--device", choices=("cpu", "cuda"), default="cuda")
     parser.add_argument("--dtype", choices=("float32", "float64"), default="float64")
@@ -153,9 +151,7 @@ def relax_state(
 
     saved = atoms.copy()
     saved.set_constraint()
-    saved.calc = SinglePointCalculator(
-        saved, energy=final_energy, forces=final_forces
-    )
+    saved.calc = SinglePointCalculator(saved, energy=final_energy, forces=final_forces)
     write(args.output_dir / f"{state}-relaxed.xyz", saved, format="extxyz")
 
     record: dict[str, Any] = {
@@ -173,9 +169,7 @@ def relax_state(
         "final_fmax_eV_per_A": force_max(final_forces, moving),
         "optimizer_steps": int(optimizer.get_number_of_steps()),
         "converged": converged,
-        "movable_rms_displacement_A": float(
-            np.sqrt(np.mean(np.square(displacement)))
-        ),
+        "movable_rms_displacement_A": float(np.sqrt(np.mean(np.square(displacement)))),
         "initial_components_eV": initial_components,
         "final_components_eV": final_components,
     }

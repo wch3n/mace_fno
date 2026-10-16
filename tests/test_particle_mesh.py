@@ -26,7 +26,9 @@ class ParticleMeshTests(unittest.TestCase):
         integrated = density.sum(dim=(-2, -1)) * mesh_cell_area(
             self.cell, self.assignment.grid_shape
         )
-        torch.testing.assert_close(integrated, values.sum(dim=0), atol=2e-14, rtol=2e-14)
+        torch.testing.assert_close(
+            integrated, values.sum(dim=0), atol=2e-14, rtol=2e-14
+        )
 
     def test_atom_permutation_does_not_change_density(self) -> None:
         permutation = torch.tensor((2, 0, 1))
@@ -46,7 +48,9 @@ class ParticleMeshTests(unittest.TestCase):
         torch.testing.assert_close(density_left, density_right, atol=2e-13, rtol=2e-13)
 
     def test_translation_by_one_grid_cell_rolls_density(self) -> None:
-        shifted_positions = self.positions + self.cell[0] / self.assignment.grid_shape[0]
+        shifted_positions = (
+            self.positions + self.cell[0] / self.assignment.grid_shape[0]
+        )
         original = self.assignment(self.positions, self.values, self.cell)
         shifted = self.assignment(shifted_positions, self.values, self.cell)
         torch.testing.assert_close(

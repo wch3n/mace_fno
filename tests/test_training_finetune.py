@@ -155,8 +155,10 @@ class FineTuneTests(FineTuneFixtures):
             with self.subTest(latest=latest):
                 path, payload, _ = self.parent(latest=latest)
                 payload["active_loss_settings"] = {
-                    "energy_scale": 0.1, "force_scale": 2.0,
-                    "energy_weight": 1.0, "force_weight": 10.0,
+                    "energy_scale": 0.1,
+                    "force_scale": 2.0,
+                    "energy_weight": 1.0,
+                    "force_weight": 10.0,
                 }
                 torch.save(payload, path)
                 parent = load_finetune_checkpoint(path, self.configuration())

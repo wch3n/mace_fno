@@ -35,9 +35,7 @@ class _WarmupToy(torch.nn.Module):
         self.long_range.field_operator = torch.nn.Module()
         self.long_range.field_operator.architecture = "nonlinear"
         self.long_range.field_operator.fno = torch.nn.Module()
-        self.long_range.field_operator.fno.hidden = torch.nn.Linear(
-            3, 4, bias=False
-        )
+        self.long_range.field_operator.fno.hidden = torch.nn.Linear(3, 4, bias=False)
         self.long_range.field_operator.fno.projection_output = torch.nn.Linear(
             4, 1, bias=False
         )
@@ -70,11 +68,7 @@ class ReferenceLabelTests(unittest.TestCase):
 
         scaled_model = _WarmupToy()
         scaled_model.load_state_dict(state)
-        original_projection = (
-            scaled_model.long_range.field_operator.fno.projection_output.weight
-            .detach()
-            .clone()
-        )
+        original_projection = scaled_model.long_range.field_operator.fno.projection_output.weight.detach().clone()
         initialize_scaled_residual_output(scaled_model, scale=0.1)
         torch.testing.assert_close(
             scaled_model.long_range.field_operator.fno.projection_output.weight,
@@ -96,7 +90,9 @@ class ReferenceLabelTests(unittest.TestCase):
         self.assertEqual(len(projection_parameters), 1)
         self.assertTrue(projection_parameters[0].requires_grad)
         self.assertFalse(model.source_head.weight.requires_grad)
-        self.assertFalse(model.long_range.field_operator.fno.hidden.weight.requires_grad)
+        self.assertFalse(
+            model.long_range.field_operator.fno.hidden.weight.requires_grad
+        )
         self.assertFalse(model.backbone.weight.requires_grad)
 
         optimizer = torch.optim.Adam(parameters, lr=1.0e-2)
@@ -110,9 +106,7 @@ class ReferenceLabelTests(unittest.TestCase):
         model(torch.ones((2, 2))).square().mean().backward()
         optimizer.step()
         self.assertIsNotNone(model.source_head.weight.grad)
-        self.assertIsNotNone(
-            model.long_range.field_operator.fno.hidden.weight.grad
-        )
+        self.assertIsNotNone(model.long_range.field_operator.fno.hidden.weight.grad)
         self.assertFalse(model.backbone.weight.requires_grad)
         self.assertEqual(optimizer.state[projection_parameters[0]]["step"], 2)
 
@@ -239,12 +233,17 @@ class ReferenceLabelTests(unittest.TestCase):
             self.assertTrue(cache_hit)
             self.assertEqual(loaded[0]["formula"], "H")
             torch.testing.assert_close(loaded_cell, reference_cell)
-            self.assertEqual(sorted(p.name for p in root.iterdir()),
-                             ["mace.model", "samples.pt", "source.xyz"])
+            self.assertEqual(
+                sorted(p.name for p in root.iterdir()),
+                ["mace.model", "samples.pt", "source.xyz"],
+            )
 
     def test_failed_cache_write_removes_only_its_temporary_file(self) -> None:
         for existing_cache in (False, True):
-            with self.subTest(existing_cache=existing_cache), TemporaryDirectory() as td:
+            with (
+                self.subTest(existing_cache=existing_cache),
+                TemporaryDirectory() as td,
+            ):
                 root = Path(td)
                 cache = root / "samples.pt"
                 other_temporary = root / ".samples.pt.other.tmp"

@@ -63,9 +63,7 @@ def parse_arguments() -> argparse.Namespace:
         "--work-root",
         type=Path,
         default=(
-            Path(configured_work_root) / "les_au_mgo"
-            if configured_work_root
-            else None
+            Path(configured_work_root) / "les_au_mgo" if configured_work_root else None
         ),
         help="Runtime Au2-MgO directory; defaults to MACE_FNO_WORK_ROOT/les_au_mgo",
     )

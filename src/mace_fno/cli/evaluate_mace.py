@@ -109,8 +109,7 @@ def predict(
         record = {
             "formula": source.get_chemical_formula(),
             "num_atoms": len(source),
-            "energy_error_per_atom": (predicted_energy - target_energy)
-            / len(source),
+            "energy_error_per_atom": (predicted_energy - target_energy) / len(source),
             "force_errors": (predicted_forces - target_forces).reshape(-1),
         }
         if group_key is not None:
@@ -158,15 +157,12 @@ def summarize(
         for record in records:
             benchmark_groups[record["benchmark_group"]].append(record)
         result["by_benchmark_group"] = {
-            name: one_group(group)
-            for name, group in sorted(benchmark_groups.items())
+            name: one_group(group) for name, group in sorted(benchmark_groups.items())
         }
     return result
 
 
-def fitted_shifts(
-    records: list[dict[str, Any]], by_formula: bool
-) -> dict[str, float]:
+def fitted_shifts(records: list[dict[str, Any]], by_formula: bool) -> dict[str, float]:
     if not by_formula:
         correction = -float(
             np.mean([record["energy_error_per_atom"] for record in records])

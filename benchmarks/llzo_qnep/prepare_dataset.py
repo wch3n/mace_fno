@@ -222,7 +222,9 @@ def audit_structures(filename: Path) -> tuple[list[Any], list[str], dict[str, An
         if forces.shape != (192, 3):
             raise ValueError(f"{filename}: frame {index} force shape is {forces.shape}")
         if virial.shape != (3, 3):
-            raise ValueError(f"{filename}: frame {index} virial shape is {virial.shape}")
+            raise ValueError(
+                f"{filename}: frame {index} virial shape is {virial.shape}"
+            )
         if not (
             np.isfinite(energy)
             and np.isfinite(forces).all()
@@ -359,9 +361,7 @@ def source_blocked_split_indices(
     }
     split_indices = {
         split: sorted(
-            index
-            for block_index in selected_blocks
-            for index in blocks[block_index]
+            index for block_index in selected_blocks for index in blocks[block_index]
         )
         for split, selected_blocks in block_assignments.items()
     }
@@ -427,8 +427,7 @@ def main() -> None:
 
     prepared = data_root / args.prepared_name
     outputs = {
-        split: prepared / f"{split}.xyz"
-        for split in ("train", "validation", "test")
+        split: prepared / f"{split}.xyz" for split in ("train", "validation", "test")
     }
     manifest_file = prepared / "split_manifest.json"
     if not args.force and any(path.exists() for path in outputs.values()):
@@ -469,9 +468,7 @@ def main() -> None:
         write(filename, prepared_structures[split], format="extxyz")
 
     split_group_counts = {
-        split: dict(
-            sorted(Counter(groups[index] for index in indices).items())
-        )
+        split: dict(sorted(Counter(groups[index] for index in indices).items()))
         for split, indices in split_indices.items()
     }
     manifest = {
@@ -495,9 +492,7 @@ def main() -> None:
             "seed": args.seed,
             "validation_fraction": args.validation_fraction,
             "test_fraction": args.test_fraction,
-            "counts": {
-                split: len(indices) for split, indices in split_indices.items()
-            },
+            "counts": {split: len(indices) for split, indices in split_indices.items()},
             "cell_class_counts": split_group_counts,
             "indices": split_indices,
         },

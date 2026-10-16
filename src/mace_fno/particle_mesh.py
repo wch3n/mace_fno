@@ -43,9 +43,7 @@ class PeriodicParticleMesh2D(nn.Module):
         if values.ndim == 1:
             values = values[:, None]
         if values.ndim != 2 or values.shape[0] != positions.shape[0]:
-            raise ValueError(
-                "values must have shape (n_atoms,) or (n_atoms, channels)"
-            )
+            raise ValueError("values must have shape (n_atoms,) or (n_atoms, channels)")
         if not torch.is_floating_point(values):
             raise TypeError("values must be a floating-point tensor")
         if values.device != positions.device or cell.device != positions.device:
@@ -73,7 +71,9 @@ class PeriodicParticleMesh2D(nn.Module):
             cells = cell
         num_graphs = cells.shape[0]
         if batch.numel() == 0 or int(batch.min().detach().cpu()) != 0:
-            raise ValueError("batch must contain consecutive non-negative graph indices")
+            raise ValueError(
+                "batch must contain consecutive non-negative graph indices"
+            )
         if int(batch.max().detach().cpu()) + 1 != num_graphs:
             raise ValueError("batch graph count must match the number of cells")
 
@@ -97,9 +97,9 @@ class PeriodicParticleMesh2D(nn.Module):
         iy = (lower_index[:, 1, None] + offsets[None, :]) % ny
 
         graph_offsets = batch[:, None, None] * (nx * ny)
-        flat_indices = (
-            graph_offsets + ix[:, :, None] * ny + iy[:, None, :]
-        ).reshape(-1)
+        flat_indices = (graph_offsets + ix[:, :, None] * ny + iy[:, None, :]).reshape(
+            -1
+        )
         weights = (wx[:, :, None] * wy[:, None, :]).reshape(values.shape[0], 16)
 
         normals = torch.linalg.cross(cells[:, 0], cells[:, 1])
@@ -108,15 +108,11 @@ class PeriodicParticleMesh2D(nn.Module):
             raise ValueError("every in-plane cell must span a non-zero area")
         atom_point_areas = point_areas.index_select(0, batch)
         source = (
-            values[:, :, None]
-            * weights[:, None, :]
-            / atom_point_areas[:, None, None]
+            values[:, :, None] * weights[:, None, :] / atom_point_areas[:, None, None]
         )
         source = source.permute(1, 0, 2).reshape(values.shape[1], -1)
 
-        density_flat = positions.new_zeros(
-            (values.shape[1], num_graphs * nx * ny)
-        )
+        density_flat = positions.new_zeros((values.shape[1], num_graphs * nx * ny))
         density_flat = density_flat.index_add(1, flat_indices, source)
         density = density_flat.reshape(values.shape[1], num_graphs, nx, ny)
         density = density.permute(1, 0, 2, 3)
@@ -156,9 +152,7 @@ class PeriodicParticleMesh3D(nn.Module):
         if values.ndim == 1:
             values = values[:, None]
         if values.ndim != 2 or values.shape[0] != positions.shape[0]:
-            raise ValueError(
-                "values must have shape (n_atoms,) or (n_atoms, channels)"
-            )
+            raise ValueError("values must have shape (n_atoms,) or (n_atoms, channels)")
         if not torch.is_floating_point(values):
             raise TypeError("values must be a floating-point tensor")
         if values.device != positions.device or cell.device != positions.device:
@@ -187,7 +181,9 @@ class PeriodicParticleMesh3D(nn.Module):
 
         num_graphs = cells.shape[0]
         if batch.numel() == 0 or int(batch.min().detach().cpu()) != 0:
-            raise ValueError("batch must contain consecutive non-negative graph indices")
+            raise ValueError(
+                "batch must contain consecutive non-negative graph indices"
+            )
         if int(batch.max().detach().cpu()) + 1 != num_graphs:
             raise ValueError("batch graph count must match the number of cells")
 
@@ -224,27 +220,21 @@ class PeriodicParticleMesh3D(nn.Module):
             + iy[:, None, None, :]
         ).reshape(-1)
         weights = (
-            wz[:, :, None, None]
-            * wx[:, None, :, None]
-            * wy[:, None, None, :]
+            wz[:, :, None, None] * wx[:, None, :, None] * wy[:, None, None, :]
         ).reshape(values.shape[0], 64)
 
         point_volumes = volumes / (nz * nx * ny)
         atom_point_volumes = point_volumes.index_select(0, batch)
         source = (
-            values[:, :, None]
-            * weights[:, None, :]
-            / atom_point_volumes[:, None, None]
+            values[:, :, None] * weights[:, None, :] / atom_point_volumes[:, None, None]
         )
         source = source.permute(1, 0, 2).reshape(values.shape[1], -1)
 
-        density_flat = positions.new_zeros(
-            (values.shape[1], num_graphs * nz * nx * ny)
-        )
+        density_flat = positions.new_zeros((values.shape[1], num_graphs * nz * nx * ny))
         density_flat = density_flat.index_add(1, flat_indices, source)
-        density = density_flat.reshape(
-            values.shape[1], num_graphs, nz, nx, ny
-        ).permute(1, 0, 2, 3, 4)
+        density = density_flat.reshape(values.shape[1], num_graphs, nz, nx, ny).permute(
+            1, 0, 2, 3, 4
+        )
         return density[0] if unbatched else density
 
 
@@ -307,9 +297,7 @@ class SlabParticleMesh(nn.Module):
         if values.ndim == 1:
             values = values[:, None]
         if values.ndim != 2 or values.shape[0] != positions.shape[0]:
-            raise ValueError(
-                "values must have shape (n_atoms,) or (n_atoms, channels)"
-            )
+            raise ValueError("values must have shape (n_atoms,) or (n_atoms, channels)")
         if not torch.is_floating_point(values):
             raise TypeError("values must be a floating-point tensor")
         if values.device != positions.device or cell.device != positions.device:
@@ -338,7 +326,9 @@ class SlabParticleMesh(nn.Module):
 
         num_graphs = cells.shape[0]
         if batch.numel() == 0 or int(batch.min().detach().cpu()) != 0:
-            raise ValueError("batch must contain consecutive non-negative graph indices")
+            raise ValueError(
+                "batch must contain consecutive non-negative graph indices"
+            )
         if int(batch.max().detach().cpu()) + 1 != num_graphs:
             raise ValueError("batch graph count must match the number of cells")
 
@@ -380,9 +370,7 @@ class SlabParticleMesh(nn.Module):
             centers = 0.5 * (cells[:, 2] * unit_normals).sum(dim=1)
         relative_heights = heights - centers.index_select(0, batch)
         half_extent = 0.5 * self.z_extent
-        tolerance = 16.0 * torch.finfo(positions.dtype).eps * max(
-            self.z_extent, 1.0
-        )
+        tolerance = 16.0 * torch.finfo(positions.dtype).eps * max(self.z_extent, 1.0)
         if bool(
             (relative_heights.abs() > half_extent + tolerance).any().detach().cpu()
         ):
@@ -391,9 +379,7 @@ class SlabParticleMesh(nn.Module):
                 f"an atom lies outside the finite z window: |z-z_center|={maximum:.6g} "
                 f"> z_extent/2={half_extent:.6g}"
             )
-        z_coordinates = (
-            (relative_heights / self.z_extent + 0.5) * nz - 0.5
-        )
+        z_coordinates = (relative_heights / self.z_extent + 0.5) * nz - 0.5
 
         mesh_coordinates = torch.cat((z_coordinates[:, None], xy_coordinates), dim=1)
         lower = torch.floor(mesh_coordinates)
@@ -416,25 +402,19 @@ class SlabParticleMesh(nn.Module):
             + iy[:, None, None, :]
         ).reshape(-1)
         weights = (
-            wz[:, :, None, None]
-            * wx[:, None, :, None]
-            * wy[:, None, None, :]
+            wz[:, :, None, None] * wx[:, None, :, None] * wy[:, None, None, :]
         ).reshape(values.shape[0], 64)
 
         point_volumes = areas * self.z_extent / (nz * nx * ny)
         atom_point_volumes = point_volumes.index_select(0, batch)
         source = (
-            values[:, :, None]
-            * weights[:, None, :]
-            / atom_point_volumes[:, None, None]
+            values[:, :, None] * weights[:, None, :] / atom_point_volumes[:, None, None]
         )
         source = source.permute(1, 0, 2).reshape(values.shape[1], -1)
 
-        density_flat = positions.new_zeros(
-            (values.shape[1], num_graphs * nz * nx * ny)
-        )
+        density_flat = positions.new_zeros((values.shape[1], num_graphs * nz * nx * ny))
         density_flat = density_flat.index_add(1, flat_indices, source)
-        density = density_flat.reshape(
-            values.shape[1], num_graphs, nz, nx, ny
-        ).permute(1, 0, 2, 3, 4)
+        density = density_flat.reshape(values.shape[1], num_graphs, nz, nx, ny).permute(
+            1, 0, 2, 3, 4
+        )
         return density[0] if unbatched else density

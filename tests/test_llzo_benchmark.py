@@ -123,9 +123,7 @@ class LLZOBenchmarkTests(unittest.TestCase):
             block_size=10,
         )
         self.assertEqual(split, repeated)
-        owner = {
-            index: name for name, indices in split.items() for index in indices
-        }
+        owner = {index: name for name, indices in split.items() for index in indices}
         self.assertEqual(sorted(owner), list(range(len(groups))))
         for start in range(0, len(groups), 10):
             assignments = {
@@ -349,9 +347,7 @@ class LLZOBenchmarkTests(unittest.TestCase):
                 MULTISEED.main()
             report = json.loads(output_json.read_text())
             self.assertEqual(report["aggregate"]["energy_rmse"]["count"], 3)
-            self.assertGreater(
-                report["aggregate"]["energy_rmse"]["sample_std"], 0.0
-            )
+            self.assertGreater(report["aggregate"]["energy_rmse"]["sample_std"], 0.0)
             self.assertTrue(report["assessment"]["all_seeds_improve_energy"])
             self.assertIn("mean +/- s.d.", output_markdown.read_text())
 

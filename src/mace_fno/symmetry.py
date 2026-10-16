@@ -77,7 +77,9 @@ def transform_in_cell_axis_basis(
         raise ValueError("cell must have shape (3, 3)")
     if transformations.shape[-2:] != (3, 3) or transformations.ndim not in {2, 3}:
         raise ValueError("transformations must have shape (3, 3) or (group, 3, 3)")
-    if not all(torch.is_floating_point(value) for value in (vectors, cell, transformations)):
+    if not all(
+        torch.is_floating_point(value) for value in (vectors, cell, transformations)
+    ):
         raise TypeError("vectors, cell and transformations must be floating point")
     if not (vectors.device == cell.device == transformations.device):
         raise ValueError("vectors, cell and transformations must share a device")
@@ -88,7 +90,5 @@ def transform_in_cell_axis_basis(
     if transformations.ndim == 2:
         cartesian = basis.T @ transformations @ basis
         return torch.einsum("ij,...j->...i", cartesian, vectors)
-    cartesian = torch.einsum(
-        "ia,gab,bj->gij", basis.T, transformations, basis
-    )
+    cartesian = torch.einsum("ia,gab,bj->gij", basis.T, transformations, basis)
     return torch.einsum("gij,...j->g...i", cartesian, vectors)

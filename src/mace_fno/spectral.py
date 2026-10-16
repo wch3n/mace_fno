@@ -57,10 +57,9 @@ class PlanarCoulombOperator(nn.Module):
             # Cubic cardinal B-spline assignment has the main-lobe transfer
             # function sinc(m/n)^4 along each grid direction. Density appears
             # twice in the bilinear energy, hence the squared deconvolution.
-            assignment_window = (
-                torch.sinc(mx[:, None] / nx).pow(4)
-                * torch.sinc(my[None, :] / ny).pow(4)
-            )
+            assignment_window = torch.sinc(mx[:, None] / nx).pow(4) * torch.sinc(
+                my[None, :] / ny
+            ).pow(4)
             safe_window = torch.where(
                 nonzero, assignment_window, torch.ones_like(assignment_window)
             )
@@ -104,9 +103,7 @@ def mesh_interaction_energy(density: Tensor, potential: Tensor, cell: Tensor) ->
         return 0.5 * (density * potential).sum() * point_area
     if cell.ndim != 3 or cell.shape != (density.shape[0], 3, 3):
         raise ValueError("batched cells must have shape (batch, 3, 3)")
-    areas = torch.linalg.vector_norm(
-        torch.linalg.cross(cell[:, 0], cell[:, 1]), dim=1
-    )
+    areas = torch.linalg.vector_norm(torch.linalg.cross(cell[:, 0], cell[:, 1]), dim=1)
     point_areas = areas / (grid_shape[0] * grid_shape[1])
     return 0.5 * (density * potential).sum(dim=(1, 2, 3)) * point_areas
 
@@ -131,9 +128,7 @@ def slab_mesh_interaction_energy(
         return 0.5 * (density * potential).sum() * point_volume
     if cell.ndim != 3 or cell.shape != (density.shape[0], 3, 3):
         raise ValueError("batched cells must have shape (batch, 3, 3)")
-    areas = torch.linalg.vector_norm(
-        torch.linalg.cross(cell[:, 0], cell[:, 1]), dim=1
-    )
+    areas = torch.linalg.vector_norm(torch.linalg.cross(cell[:, 0], cell[:, 1]), dim=1)
     point_volumes = areas * float(z_extent) / (nz * nx * ny)
     return 0.5 * (density * potential).sum(dim=(1, 2, 3, 4)) * point_volumes
 
