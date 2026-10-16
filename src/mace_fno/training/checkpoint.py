@@ -119,6 +119,7 @@ def training_checkpoint_payload(
             else 16
         ),
         "metric_parameterization": model_config.metric_parameterization,
+        "spectral_rank": model_config.spectral_rank,
         "z_kernel_size": (
             model_config.z_kernel_size
             if model_config.spatial_scheme == "2.5d"
@@ -128,6 +129,7 @@ def training_checkpoint_payload(
             "spectral"
             if model_config.spatial_scheme == "2.5d"
             and model_config.architecture == "linear"
+            and model_config.z_mixing != "full"
             else model_config.z_mixing
             if model_config.spatial_scheme == "2.5d"
             else None
@@ -257,7 +259,7 @@ def checkpoint_dtype(
 def infer_checkpoint_z_mixing(checkpoint: Mapping[str, Any]) -> str:
     """Recover 2.5D z mixing for checkpoints predating that metadata."""
     configured = checkpoint.get("z_mixing")
-    if configured in {"local", "global"}:
+    if configured in {"local", "global", "full"}:
         return str(configured)
     if configured == "spectral" or checkpoint.get("architecture") == "linear":
         return "local"
@@ -323,6 +325,7 @@ def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]
         "reference_cell": _required(checkpoint, "reference_cell"),
         "cell_mode": str(checkpoint.get("cell_mode") or "fixed"),
         "mace_training": str(checkpoint.get("mace_training") or "frozen"),
+        "fno_spectral_rank": int(checkpoint.get("spectral_rank", 0)),
     }
     if scheme == "2.5d":
         parameters.update(

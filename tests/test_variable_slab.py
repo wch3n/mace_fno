@@ -105,7 +105,6 @@ class VariableSlabTests(unittest.TestCase):
         for extra in (
             ("--cell-mode", "isotropic"),
             ("--spectral-symmetry", "none"),
-            ("--architecture", "linear"),
             ("--planar-symmetry", "d4"),
         ):
             with self.subTest(extra=extra), self.assertRaises(ValueError):

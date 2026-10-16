@@ -70,6 +70,7 @@ class ModelConfig:
     fno_hidden_channels: int
     fno_layers: int
     architecture: str
+    spectral_rank: int = 0
 
     @classmethod
     def from_mapping(cls, values: Mapping[str, Any]) -> ModelConfig:
@@ -102,6 +103,7 @@ class ModelConfig:
             fno_hidden_channels=int(values["fno_hidden_channels"]),
             fno_layers=int(values["fno_layers"]),
             architecture=str(values["architecture"]),
+            spectral_rank=int(values.get("spectral_rank", 0)),
         )
 
     def validate(self) -> None:
@@ -111,8 +113,29 @@ class ModelConfig:
             raise ValueError("require 2*modes <= grid")
         if self.z_grid < 0 or self.z_modes < 0:
             raise ValueError("z_grid and z_modes must be non-negative")
+        if self.z_mixing not in {"local", "global", "full"}:
+            raise ValueError("z_mixing must be 'local', 'global', or 'full'")
         if self.spectral_groups < 1:
             raise ValueError("spectral_groups must be positive")
+        if self.spectral_rank < 0:
+            raise ValueError("spectral_rank must be non-negative (zero means dense)")
+        if self.spectral_rank:
+            if not (
+                self.spatial_scheme == "2.5d"
+                and self.z_mixing == "full"
+                and self.spectral_symmetry == "metric_eqgino"
+                and self.metric_parameterization == "shell_spline"
+            ):
+                raise ValueError(
+                    "spectral_rank requires 2.5d, z_mixing full, metric_eqgino, "
+                    "and shell_spline"
+                )
+            if self.spectral_rank > (
+                self.fno_hidden_channels * self.z_grid // self.spectral_groups
+            ):
+                raise ValueError(
+                    "spectral_rank exceeds the channel-height size per group"
+                )
         if self.metric_hidden_channels < 1:
             raise ValueError("metric_hidden_channels must be positive")
         if self.metric_parameterization not in {"shell_spline", "radial_mlp"}:
@@ -139,8 +162,12 @@ class ModelConfig:
                 "variable --cell-mode requires 3d, or 2.5d with "
                 "--cell-mode anisotropic and --spectral-symmetry metric_eqgino"
             )
-        if self.cell_mode != "fixed" and self.architecture != "nonlinear":
-            raise ValueError("variable --cell-mode requires --architecture nonlinear")
+        if (
+            self.cell_mode != "fixed"
+            and self.architecture == "linear"
+            and self.spectral_symmetry != "metric_eqgino"
+        ):
+            raise ValueError("variable-cell linear FNO requires metric_eqgino")
 
         if self.spatial_scheme == "2d":
             self._validate_planar()
@@ -159,7 +186,7 @@ class ModelConfig:
         if self.z_modes:
             raise ValueError("--z-modes applies only to the 3D scheme")
         if self.z_mixing != "local":
-            raise ValueError("--z-mixing global requires the 2.5D scheme")
+            raise ValueError("--z-mixing global/full requires the 2.5D scheme")
         if self.lateral_interlacing != 1:
             raise ValueError("--lateral-interlacing applies only to the 2.5D scheme")
         if self.volume_interlacing != 1:
@@ -170,6 +197,13 @@ class ModelConfig:
             raise ValueError("--spectral-symmetry requires the 2.5D or 3D scheme")
 
     def _validate_slab(self) -> None:
+        if (
+            self.z_mixing == "full"
+            and min(self.fno_hidden_channels, self.fno_layers) < 1
+        ):
+            raise ValueError(
+                "full height coupling requires positive FNO width and layers"
+            )
         if self.z_grid < 4:
             raise ValueError("the 2.5D scheme requires z_grid >= 4")
         if self.z_extent is None or self.z_extent <= 0:
@@ -177,11 +211,14 @@ class ModelConfig:
         if self.z_modes:
             raise ValueError("--z-modes applies only to the 3D scheme")
         if self.spectral_symmetry == "metric_eqgino":
-            if self.architecture != "nonlinear":
-                raise ValueError("slab metric_eqgino requires --architecture nonlinear")
             if self.planar_symmetry != "none":
                 raise ValueError("slab metric_eqgino requires --planar-symmetry none")
-            if self.fno_hidden_channels % self.spectral_groups:
+            grouped_channels = (
+                self.channels
+                if self.architecture == "linear" and self.z_mixing != "full"
+                else self.fno_hidden_channels
+            )
+            if grouped_channels % self.spectral_groups:
                 raise ValueError(
                     "metric-aware EqGINO channels must be divisible by spectral_groups"
                 )
@@ -383,7 +420,9 @@ class OptimizationConfig:
         ):
             raise ValueError("stage_two_mace_learning_rate requires joint training")
 
-    def validate(self, architecture: str) -> None:
+    def validate(
+        self, architecture: str, *, has_output_projection: bool = False
+    ) -> None:
         self._validate_stages()
         if self.energy_checkpoint_tolerance is not None and (
             not math.isfinite(self.energy_checkpoint_tolerance)
@@ -417,13 +456,16 @@ class OptimizationConfig:
             raise ValueError("output_warmup_learning_rate must be non-negative")
         if self.output_initialization_scale < 0.0:
             raise ValueError("output_initialization_scale must be non-negative")
-        if self.output_warmup_steps and architecture != "nonlinear":
+        supports_projection = architecture == "nonlinear" or has_output_projection
+        if self.output_warmup_steps and not supports_projection:
             raise ValueError(
-                "output-projection warm-up requires --architecture nonlinear"
+                "output-projection warm-up requires a nonlinear FNO or stacked "
+                "linear slab FNO (--z-mixing full)"
             )
-        if self.output_initialization_scale and architecture != "nonlinear":
+        if self.output_initialization_scale and not supports_projection:
             raise ValueError(
-                "scaled output initialization requires --architecture nonlinear"
+                "scaled output initialization requires a nonlinear FNO or stacked "
+                "linear slab FNO (--z-mixing full)"
             )
         if self.output_initialization_scale and self.random_residual_initialization:
             raise ValueError(
@@ -657,7 +699,12 @@ class TrainingConfig:
     def validate(self) -> None:
         self.data.validate()
         self.model.validate()
-        self.optimization.validate(self.model.architecture)
+        self.optimization.validate(
+            self.model.architecture,
+            has_output_projection=(
+                self.model.spatial_scheme == "2.5d" and self.model.z_mixing == "full"
+            ),
+        )
         self.diagnostic.validate(self.model)
         self.runtime.validate()
         if self.runtime.init_from is not None:

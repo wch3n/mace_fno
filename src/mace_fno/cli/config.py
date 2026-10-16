@@ -168,7 +168,7 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default="none",
         help=(
             "Use physical reciprocal-metric EqGINO radial weights in 3D or "
-            "nonlinear 2.5D (with planar-symmetry none); 'none' retains the "
+            "2.5D (with planar-symmetry none); 'none' retains the "
             "unconstrained Fourier weights"
         ),
     )
@@ -179,6 +179,16 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help=(
             "Block-diagonal channel groups in metric-aware EqGINO; one retains "
             "dense channel mixing"
+        ),
+    )
+    parser.add_argument(
+        "--spectral-rank",
+        type=int,
+        default=0,
+        help=(
+            "Rank per channel group for full slab channel-height mixing; zero "
+            "keeps dense weights. Requires z-mixing full, metric_eqgino, and "
+            "shell_spline. Both factors vary with in-plane wavelength."
         ),
     )
     parser.add_argument(
@@ -204,11 +214,12 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--z-mixing",
-        choices=("local", "global"),
+        choices=("local", "global", "full"),
         default="local",
         help=(
-            "Use a zero-padded local z CNN or channel-wise dense global "
-            "nonperiodic z mixing"
+            "Slab height coupling: local z CNN, channel-wise global matrix, "
+            "or full wavevector-dependent channel-height matrices in stacked "
+            "Fourier layers (GELU for nonlinear architecture, identity for linear)"
         ),
     )
     parser.add_argument("--channels", type=int, default=4)

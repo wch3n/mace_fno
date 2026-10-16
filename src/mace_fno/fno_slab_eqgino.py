@@ -37,6 +37,7 @@ class MetricEqGINOSpectralConv2D(nn.Module):
         radial_hidden_channels: int = 16,
         parameterization: str = "shell_spline",
         reference_length: float = 1.0,
+        rank: int = 0,
     ) -> None:
         super().__init__()
         if min(in_channels, out_channels) < 1:
@@ -60,6 +61,13 @@ class MetricEqGINOSpectralConv2D(nn.Module):
         self.parameterization = parameterization
         self.in_channels_per_group = self.in_channels // groups
         self.out_channels_per_group = self.out_channels // groups
+        if isinstance(rank, bool) or not isinstance(rank, int) or rank < 0:
+            raise ValueError("rank must be a non-negative integer (zero means dense)")
+        if rank and parameterization != "shell_spline":
+            raise ValueError("low-rank spectral mixing requires shell_spline")
+        if rank > min(self.in_channels_per_group, self.out_channels_per_group):
+            raise ValueError("rank cannot exceed the channel dimension per group")
+        self.rank = rank
         signed_axes = tuple(
             torch.cat((torch.arange(mode), torch.arange(-mode + 1, 0)))
             for mode in self.n_modes
@@ -79,9 +87,23 @@ class MetricEqGINOSpectralConv2D(nn.Module):
                     (2 * math.pi / reference_length) ** 2, dtype=torch.float64
                 ),
             )
-            self.radial_weight = nn.Parameter(
-                scale * torch.randn(*matrix_shape, radii.numel())
-            )
+            if rank:
+                # Match the dense matrix's entry variance at the reference knots:
+                # rank * Var(input) * Var(output) = 1 / (in/group * out/group).
+                self.radial_input_factor = nn.Parameter(
+                    torch.randn(groups, self.in_channels_per_group, rank, radii.numel())
+                    / math.sqrt(self.in_channels_per_group)
+                )
+                self.radial_output_factor = nn.Parameter(
+                    torch.randn(
+                        groups, rank, self.out_channels_per_group, radii.numel()
+                    )
+                    / math.sqrt(rank * self.out_channels_per_group)
+                )
+            else:
+                self.radial_weight = nn.Parameter(
+                    scale * torch.randn(*matrix_shape, radii.numel())
+                )
         else:
             self.radial_network = nn.Sequential(
                 nn.Linear(1, radial_hidden_channels),
@@ -95,7 +117,10 @@ class MetricEqGINOSpectralConv2D(nn.Module):
             nn.init.normal_(self.radial_network[-1].bias, std=scale)
 
     def radial_weights(self, squared_wavevectors: Tensor) -> Tensor:
-        """Return matrices ``(*q.shape, groups, in/group, out/group)``."""
+        """Return matrices for inspection; low-rank forward never forms these."""
+        if self.rank:
+            left, right = self.radial_factors(squared_wavevectors)
+            return left @ right
         if self.parameterization == "shell_spline":
             return self.shell_spline(
                 squared_wavevectors / self.reference_wavenumber_squared,
@@ -108,6 +133,22 @@ class MetricEqGINOSpectralConv2D(nn.Module):
             self.groups,
             self.in_channels_per_group,
             self.out_channels_per_group,
+        )
+
+    def radial_factors(self, squared_wavevectors: Tensor) -> tuple[Tensor, Tensor]:
+        """Interpolate factors separately, preserving rank at every wavevector.
+
+        This defines a factorized radial function, not a spline interpolation
+        of reconstructed dense matrices (which need not preserve their rank).
+        Shapes are ``(*q.shape, groups, in/group, rank)`` and
+        ``(*q.shape, groups, rank, out/group)``.
+        """
+        if not self.rank:
+            raise ValueError("radial_factors requires a positive rank")
+        query = squared_wavevectors / self.reference_wavenumber_squared
+        return (
+            self.shell_spline(query, self.radial_input_factor.movedim(-1, 0)),
+            self.shell_spline(query, self.radial_output_factor.movedim(-1, 0)),
         )
 
     def _physical_squared_wavevectors(self, cells: Tensor) -> Tensor:
@@ -170,13 +211,29 @@ class MetricEqGINOSpectralConv2D(nn.Module):
             iy.numel(),
         )
         # Evaluate the metric once per structure, not once per z layer.
-        weights = self.radial_weights(
-            self._physical_squared_wavevectors(cells)
-        ).permute(0, 3, 4, 5, 1, 2)
-        transformed = torch.complex(
-            torch.einsum("bgizxy,bgioxy->bgozxy", retained.real, weights),
-            torch.einsum("bgizxy,bgioxy->bgozxy", retained.imag, weights),
-        ).reshape(field.shape[0], self.out_channels, nz, ix.numel(), iy.numel())
+        squared_wavevectors = self._physical_squared_wavevectors(cells)
+        if self.rank:
+            left, right = (
+                factor.permute(0, 3, 4, 5, 1, 2)
+                for factor in self.radial_factors(squared_wavevectors)
+            )
+
+            def contract(values: Tensor) -> Tensor:
+                reduced = torch.einsum("bgizxy,bgirxy->bgrzxy", values, left)
+                return torch.einsum("bgrzxy,bgroxy->bgozxy", reduced, right)
+
+            transformed = torch.complex(
+                contract(retained.real), contract(retained.imag)
+            )
+        else:
+            weights = self.radial_weights(squared_wavevectors).permute(0, 3, 4, 5, 1, 2)
+            transformed = torch.complex(
+                torch.einsum("bgizxy,bgioxy->bgozxy", retained.real, weights),
+                torch.einsum("bgizxy,bgioxy->bgozxy", retained.imag, weights),
+            )
+        transformed = transformed.reshape(
+            field.shape[0], self.out_channels, nz, ix.numel(), iy.numel()
+        )
         output_k = field_k.new_zeros((field.shape[0], self.out_channels, nz, nx, ny))
         output_k[:, :, :, ix[:, None], iy[None, :]] = transformed
         return torch.fft.ifft2(output_k, dim=(-2, -1)).real

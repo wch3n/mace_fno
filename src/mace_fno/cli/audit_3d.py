@@ -39,6 +39,12 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--translation", type=float, default=0.1)
     parser.add_argument("--fd-step", type=float, default=1.0e-4)
     parser.add_argument("--fd-components", type=int, default=12)
+    parser.add_argument(
+        "--fd-batch-size",
+        type=int,
+        default=4,
+        help="Maximum displaced structures per finite-difference energy call.",
+    )
     parser.add_argument("--seed", type=int, default=947)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--output", type=Path)
@@ -311,8 +317,10 @@ def spatial_exact_checks(
 
 def main() -> None:
     args = parse_arguments()
-    if min(args.samples, args.fd_components) < 1:
-        raise ValueError("--samples and --fd-components must be positive")
+    if min(args.samples, args.fd_components, args.fd_batch_size) < 1:
+        raise ValueError(
+            "--samples, --fd-components and --fd-batch-size must be positive"
+        )
     if min(args.translation, args.fd_step) <= 0.0:
         raise ValueError("translation and finite-difference steps must be positive")
 
@@ -502,8 +510,16 @@ def main() -> None:
             pair.append(len(fd_graphs))
             fd_graphs.append(graph)
         fd_pairs.append((atom, axis, pair))
-    fd_output = model(batch_graphs(fd_graphs), training=False, compute_force=False)
-    fd_energies = fd_output["residual_energy"].detach().cpu()
+    fd_energy_batches = []
+    for start in range(0, len(fd_graphs), args.fd_batch_size):
+        fd_output = model(
+            batch_graphs(fd_graphs[start : start + args.fd_batch_size]),
+            training=False,
+            compute_force=False,
+        )
+        fd_energy_batches.append(fd_output["residual_energy"].detach().cpu())
+        del fd_output
+    fd_energies = torch.cat(fd_energy_batches)
     fd_errors = []
     for atom, axis, (minus_index, plus_index) in fd_pairs:
         finite_force = -(fd_energies[plus_index] - fd_energies[minus_index]) / (
@@ -570,6 +586,7 @@ def main() -> None:
         "interlacing_training": checkpoint.get("interlacing_training", "full"),
         "sample_cache": str(cache_path),
         "samples": len(samples),
+        "fd_batch_size": args.fd_batch_size,
         "sample_indices": sample_indices,
         "grid_shape_zxy": [
             int(checkpoint["z_grid_size"]),

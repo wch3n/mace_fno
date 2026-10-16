@@ -283,6 +283,7 @@ class Audit3DIntegrationTests(unittest.TestCase):
         modes=(2, 2, 2),
         interlacing=1,
         cell_mode="anisotropic",
+        fd_batch_size=4,
     ):
         torch.manual_seed(91)
         model = _ParticleMeshResidual(
@@ -332,6 +333,7 @@ class Audit3DIntegrationTests(unittest.TestCase):
                 translation=0.1,
                 fd_step=1e-4,
                 fd_components=3,
+                fd_batch_size=fd_batch_size,
                 seed=17,
                 device="cpu",
                 strict=True,
@@ -352,6 +354,18 @@ class Audit3DIntegrationTests(unittest.TestCase):
                 else:
                     audit_3d.main()
             return json.loads(args.output.read_text())
+
+    def test_finite_difference_chunking_preserves_errors(self) -> None:
+        full = self.run_audit(fd_batch_size=6)
+        chunked = self.run_audit(fd_batch_size=2)
+        for key in (
+            "residual_force_fd_rms_mev_per_angstrom",
+            "residual_force_fd_max_mev_per_angstrom",
+        ):
+            self.assertAlmostEqual(full[key], chunked[key], delta=1e-8)
+        self.assertTrue(
+            all(c["passed"] for c in chunked["promised_exact_checks"].values())
+        )
 
     def test_strict_pass_keeps_anisotropic_mesh_errors_visible(self) -> None:
         report = self.run_audit()

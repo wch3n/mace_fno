@@ -176,7 +176,6 @@ class SlabEqGINOSpectralTests(unittest.TestCase):
 
     def test_invalid_settings_and_cells_fail_explicitly(self):
         for settings in (
-            {"architecture": "linear"},
             {"planar_symmetry": "d4"},
             {"spectral_groups": 3},
         ):
@@ -443,12 +442,11 @@ class SlabEqGINOIntegrationTests(unittest.TestCase):
                         torch.tensor(atoms.get_forces()), direct["forces"]
                     )
 
-    def test_yaml_rejects_linear_or_ensemble_slab_eqgino(self):
+    def test_yaml_rejects_ensemble_slab_eqgino_and_invalid_groups(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "train.yaml"
             self._configuration(path, "frozen")
             for option in (
-                ["--architecture", "linear"],
                 ["--planar-symmetry", "d4"],
                 ["--spectral-groups", "3"],
             ):

@@ -422,8 +422,9 @@ section of a training YAML (the same options work with frozen or joint MACE):
   planar_symmetry: none
 ```
 
-This replaces each lateral spectral convolution by a real radial channel
-matrix `W(|k_parallel|^2)`, shared over the finite z layers. With row vectors
+With `z_mixing: local` or `global`, this replaces the lateral spectral
+convolution by a real radial channel matrix `W(|k_parallel|^2)`, shared over
+the finite z layers. With row vectors
 `A = cell[:2]`, the physical squared wavevector is
 `(2*pi)^2 n.T @ inverse(A @ A.T) @ n`: neither the third cell vector nor the
 vacuum thickness enters the lateral kernel. Independent shell matrices are
@@ -446,10 +447,75 @@ size range. This does not imply accuracy for unseen sizes, adaptive meshing,
 or variable slab thickness beyond the chosen height window. The standalone
 field operator accepts a shared cell or one per field in a batch.
 For grouped spectral matrices, `spectral_groups` must divide
-`fno_hidden_channels`; pointwise layers still mix the groups.
+`fno_hidden_channels` in a stacked operator, where pointwise layers still
+mix the groups. In the direct linear operator it must divide the source `channels`.
 
-This path currently requires `architecture: nonlinear`. Existing vanilla and
-C4/D4-averaged slab checkpoints retain their original architecture and load
+With `architecture: linear` and the existing `z_mixing: local` or `global`
+settings, a single radial matrix acts on the combined source-channel and
+finite-height indices, implementing
+`R(|k_parallel|, z, z')` without activation or a pointwise branch. This dense
+height coupling can cost more memory than the separable nonlinear slab operator.
+
+For full wavevector-dependent height coupling inside a stack of Fourier layers,
+set the following options in the slab model section:
+
+```yaml
+  z_mixing: full
+  spectral_symmetry: metric_eqgino
+  architecture: nonlinear
+  fno_hidden_channels: 16
+  fno_layers: 2
+```
+
+The spectral matrix in layer `l` is now `R_l(|k_parallel|, z, z')`, coupling
+hidden channels and height points jointly. Only the lateral directions are
+Fourier transformed. There is no height wrapping and no separate z-mixing
+branch. A pointwise channel matrix and GELU complete the layer, with learned
+lifting and output projections around the stack. Heights correspond to the
+configured fixed window and `z_grid`, not an adaptive height basis.
+
+For a matched linear control, keep `z_mixing: full` and change only
+`architecture: linear`. This replaces the GELU activations in the layers and
+output projection with identity functions. Width, depth, spectral grouping,
+pointwise branch, parameter count, and height coupling are unchanged. The
+field-to-field map is linear at fixed cell, but the source head and atomic
+energy model are not thereby linear. Zero-residual initialization zeros only
+the final projection so the stack can learn. Scaled output initialization
+and projection warm-up are also available, separately as in nonlinear training.
+
+Full height coupling is opt-in and requires a new fit. For shell-spline
+weights, the spectral parameter count per layer scales as
+`(fno_hidden_channels * z_grid)^2 * number_of_shells / spectral_groups`.
+Intermediate mode-dependent matrices also increase memory usage, so check
+memory and runtime before choosing production widths and depths. Without
+`metric_eqgino`, `z_mixing: full` instead learns a dense complex height-channel
+matrix per in-plane mode, with the same linear/nonlinear activation choice.
+
+For low-rank full height coupling, add `spectral_rank: 32` (or
+`--spectral-rank 32`) with `z_mixing: full`, `spectral_symmetry: metric_eqgino`,
+and `metric_parameterization: shell_spline`. The default `spectral_rank: 0`
+preserves the dense operator and existing checkpoints. The positive rank is
+per channel group and cannot exceed `fno_hidden_channels * z_grid /
+spectral_groups`. Both linear and nonlinear full-height stacks support it.
+
+Each shell learns two factors of the joint channel-height matrix. The factors
+are independently interpolated in squared in-plane wavevector magnitude, then
+contracted sequentially with the field without constructing a dense matrix.
+All channel-height pairs within a group can interact, with wavelength-dependent
+weights, but the matrix rank is limited. This is a spline of the factors, not
+a spline of their dense products; the rank bound also holds between shells.
+Initialization matches the dense entry variance at the reference shell knots.
+No FFT or periodic wrapping is introduced along z.
+
+With hidden width 16, 24 heights, one group, and mode count 8 (34 shells),
+each layer has 835,584 spectral parameters at rank 32 or 1,671,168 at rank 64,
+compared with 5,013,504 for the dense operator. Lifting, pointwise channel
+mixing, and output projections are unchanged. A positive rank requires a new
+fit; dense checkpoints are not silently converted. Rank is recorded in both
+inference checkpoints and the strict training-resume contract.
+
+Existing vanilla and C4/D4-averaged slab checkpoints keep their original
+architecture and load
 unchanged. Switching an existing YAML to EqGINO requires a new FNO fit, not a
 reinterpretation of old weights. Intrinsic symmetry removes the evaluation
 ensemble but does not eliminate mesh-discretization forces, guarantee a
@@ -511,6 +577,12 @@ accepts positive uniform scalings of a cubic reference cell and conditions the
 nonlinear operator on cell length. Use `--cell-mode anisotropic` when cell sizes
 or shapes vary within the dataset. The unconstrained 3D FNO remains available
 with `--spectral-symmetry none` as an ablation.
+
+The linear metric-aware operator also supports variable cells. Its radial
+weights depend on the physical reciprocal metric, but no cell-feature channels
+are appended to the source field. It therefore remains homogeneous and linear
+in that field at a fixed cell. The source head and the atomic energy model are
+not thereby made linear. Existing nonlinear checkpoints are unchanged.
 
 `mace-fno-audit-3d --strict` distinguishes two symmetry checks. For a cubic
 cell held fixed, an EqGINO signed-axis transformation is exact only if it

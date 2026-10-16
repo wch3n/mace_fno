@@ -56,9 +56,13 @@ def resume_configuration(configuration: TrainingConfig) -> dict[str, Any]:
             optimization.pop(name)
     diagnostic = asdict(configuration.diagnostic)
     diagnostic.pop("output")
+    model = asdict(configuration.model)
+    if model["spectral_rank"] == 0:
+        # Keep the historical dense-model resume contract byte-for-byte compatible.
+        model.pop("spectral_rank")
     return {
         "data": data,
-        "model": asdict(configuration.model),
+        "model": model,
         "optimization": optimization,
         "diagnostic": diagnostic,
         "seed": configuration.runtime.seed,

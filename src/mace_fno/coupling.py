@@ -343,6 +343,7 @@ class MACEFNOResidual(nn.Module):
         fno_planar_symmetry: str = "none",
         fno_spectral_symmetry: str = "none",
         fno_spectral_groups: int = 1,
+        fno_spectral_rank: int = 0,
         fno_metric_hidden_channels: int = 16,
         fno_metric_parameterization: str = "shell_spline",
         invariant_indices: Sequence[int] | None = None,
@@ -385,6 +386,8 @@ class MACEFNOResidual(nn.Module):
             raise ValueError("fno_spectral_symmetry requires the 2.5D or 3D scheme")
         if fno_spectral_groups < 1:
             raise ValueError("fno_spectral_groups must be positive")
+        if fno_spectral_rank and resolved_scheme != "2.5d":
+            raise ValueError("fno_spectral_rank applies only to full 2.5D mixing")
         if fno_metric_hidden_channels < 1:
             raise ValueError("fno_metric_hidden_channels must be positive")
         if fno_metric_parameterization not in {"shell_spline", "radial_mlp"}:
@@ -404,15 +407,19 @@ class MACEFNOResidual(nn.Module):
             raise ValueError(
                 "variable-cell modes require 3D, or an anisotropic metric_eqgino slab"
             )
-        if cell_mode != "fixed" and fno_architecture != "nonlinear":
-            raise ValueError("variable-cell mode requires a nonlinear FNO")
+        if (
+            cell_mode != "fixed"
+            and fno_architecture == "linear"
+            and fno_spectral_symmetry != "metric_eqgino"
+        ):
+            raise ValueError("variable-cell linear FNO requires metric_eqgino")
         if resolved_scheme == "2d":
             if z_grid_size is not None:
                 raise ValueError("z_grid_size is incompatible with spatial_scheme='2d'")
             if z_extent is not None:
                 raise ValueError("z_extent requires z_grid_size")
             if fno_z_mixing != "local":
-                raise ValueError("global z mixing requires z_grid_size")
+                raise ValueError("global/full z mixing requires z_grid_size")
             self.long_range = LearnedParticleMeshLongRange(
                 grid_shape,
                 channels,
@@ -453,6 +460,7 @@ class MACEFNOResidual(nn.Module):
                 lateral_interlacing=fno_lateral_interlacing,
                 z_kernel_size=fno_z_kernel_size,
                 z_mixing=fno_z_mixing,
+                spectral_rank=fno_spectral_rank,
                 planar_symmetry=fno_planar_symmetry,
                 spectral_symmetry=fno_spectral_symmetry,
                 spectral_groups=fno_spectral_groups,
@@ -506,7 +514,10 @@ class MACEFNOResidual(nn.Module):
                 metric_parameterization=fno_metric_parameterization,
                 metric_reference_length=metric_reference_length,
                 cell_conditioning=(
-                    cell_mode if cell_mode in {"isotropic", "anisotropic"} else "none"
+                    cell_mode
+                    if fno_architecture == "nonlinear"
+                    and cell_mode in {"isotropic", "anisotropic"}
+                    else "none"
                 ),
                 volume_interlacing=fno_volume_interlacing,
                 interlacing_training=fno_interlacing_training,

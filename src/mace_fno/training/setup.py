@@ -186,6 +186,7 @@ def build_training_model(
         fno_planar_symmetry=model_config.planar_symmetry,
         fno_spectral_symmetry=model_config.spectral_symmetry,
         fno_spectral_groups=model_config.spectral_groups,
+        fno_spectral_rank=model_config.spectral_rank,
         fno_metric_hidden_channels=model_config.metric_hidden_channels,
         fno_metric_parameterization=model_config.metric_parameterization,
         reference_cell=reference_cell,

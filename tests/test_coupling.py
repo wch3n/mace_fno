@@ -565,7 +565,7 @@ class CouplingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "uniform scaling"):
             model(invalid, compute_force=False)
 
-        with self.assertRaisesRegex(ValueError, "requires a nonlinear"):
+        with self.assertRaisesRegex(ValueError, "requires metric_eqgino"):
             MACEFNOResidual(
                 FakeMACE(),
                 (8, 8),

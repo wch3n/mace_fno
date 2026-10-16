@@ -6,10 +6,17 @@ import math
 
 import torch
 from torch import Tensor, nn
-from torch.nn import functional as F
 
 from .fno_2d import SpectralConv2D
 from .fno_slab_eqgino import MetricEqGINOSpectralConv2D
+
+
+def _field_activation(name: str) -> nn.Module:
+    if name == "gelu":
+        return nn.GELU()
+    if name == "identity":
+        return nn.Identity()
+    raise ValueError("field activation must be 'gelu' or 'identity'")
 
 
 class SlabSpectralConv2D(nn.Module):
@@ -152,7 +159,12 @@ class GlobalZMixing(nn.Module):
 
 
 class SlabFNOBlock2D(nn.Module):
-    """In-plane spectral mixing plus local or global nonperiodic z mixing."""
+    """Spectral and pointwise mixing with explicit, nonperiodic heights.
+
+    With ``z_mixing='full'``, the spectral matrix couples (channel, height)
+    indices jointly at every in-plane wavevector. Otherwise height mixing
+    is a separate, wavevector-independent branch, as in earlier checkpoints.
+    """
 
     def __init__(
         self,
@@ -164,28 +176,55 @@ class SlabFNOBlock2D(nn.Module):
         z_mixing: str = "local",
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        spectral_rank: int = 0,
         metric_hidden_channels: int = 16,
         metric_parameterization: str = "shell_spline",
         metric_reference_length: float = 1.0,
+        activation: str = "gelu",
     ) -> None:
         super().__init__()
-        if z_mixing not in {"local", "global"}:
-            raise ValueError("z_mixing must be 'local' or 'global'")
+        if spectral_rank and not (
+            z_mixing == "full"
+            and spectral_symmetry == "metric_eqgino"
+            and metric_parameterization == "shell_spline"
+        ):
+            raise ValueError(
+                "spectral_rank requires full z-mixing, metric_eqgino, and shell_spline"
+            )
+        if z_mixing not in {"local", "global", "full"}:
+            raise ValueError("z_mixing must be 'local', 'global', or 'full'")
         self.spectral_symmetry = spectral_symmetry
         if spectral_symmetry == "metric_eqgino":
-            self.spectral = MetricEqGINOSpectralConv2D(
-                channels,
-                channels,
-                n_modes,
-                groups=spectral_groups,
-                radial_hidden_channels=metric_hidden_channels,
-                parameterization=metric_parameterization,
-                reference_length=metric_reference_length,
-            )
+            if z_mixing == "full":
+                self.spectral = LinearMetricSlabFNO2D(
+                    channels,
+                    n_z,
+                    n_modes,
+                    spectral_groups=spectral_groups,
+                    spectral_rank=spectral_rank,
+                    metric_hidden_channels=metric_hidden_channels,
+                    metric_parameterization=metric_parameterization,
+                    metric_reference_length=metric_reference_length,
+                )
+            else:
+                self.spectral = MetricEqGINOSpectralConv2D(
+                    channels,
+                    channels,
+                    n_modes,
+                    groups=spectral_groups,
+                    rank=spectral_rank,
+                    radial_hidden_channels=metric_hidden_channels,
+                    parameterization=metric_parameterization,
+                    reference_length=metric_reference_length,
+                )
         elif spectral_symmetry == "none":
             if spectral_groups != 1:
                 raise ValueError("spectral_groups applies only to metric-aware EqGINO")
-            self.spectral = SlabPlanarSpectralConv2D(channels, channels, n_modes)
+            self.spectral = (
+                SlabSpectralConv2D(channels, channels, n_z, n_modes)
+                if z_mixing == "full"
+                else SlabPlanarSpectralConv2D(channels, channels, n_modes)
+            )
         else:
             raise ValueError("spectral_symmetry must be 'none' or 'metric_eqgino'")
         if z_mixing == "local":
@@ -198,9 +237,12 @@ class SlabFNOBlock2D(nn.Module):
                 padding=(z_kernel_size // 2, 0, 0),
                 bias=False,
             )
-        else:
+        elif z_mixing == "global":
             self.z_mixing = GlobalZMixing(channels, n_z)
+        else:
+            self.z_mixing = None
         self.local = nn.Conv3d(channels, channels, kernel_size=1, bias=False)
+        self.activation = _field_activation(activation)
 
     def forward(self, field: Tensor, cell: Tensor | None = None) -> Tensor:
         if self.spectral_symmetry == "metric_eqgino":
@@ -209,7 +251,9 @@ class SlabFNOBlock2D(nn.Module):
             spectral = self.spectral(field, cell)
         else:
             spectral = self.spectral(field)
-        return F.gelu(spectral + self.z_mixing(field) + self.local(field))
+        if self.z_mixing is not None:
+            spectral = spectral + self.z_mixing(field)
+        return self.activation(spectral + self.local(field))
 
 
 class LinearSlabFNO2D(nn.Module):
@@ -245,13 +289,67 @@ class LinearSlabFNO2D(nn.Module):
         return output.squeeze(0) if unbatched else output
 
 
+class LinearMetricSlabFNO2D(nn.Module):
+    """Radial ``R(|k_parallel|, z, z')`` with unrestricted finite-height mixing.
+
+    Treat (channel, height) as a compound index for the radial matrix. Only
+    x/y are Fourier transformed. The height endpoints remain independent,
+    with no wrapping or z translation symmetry imposed. Groups partition
+    feature channels, not heights (source channels for the direct map, hidden
+    channels when used inside a block). This is linear in the field at fixed cell,
+    even when the radial weights depend on the physical cell metric.
+    """
+
+    def __init__(
+        self,
+        channels: int,
+        n_z: int,
+        n_modes: tuple[int, int],
+        *,
+        spectral_groups: int = 1,
+        spectral_rank: int = 0,
+        metric_hidden_channels: int = 16,
+        metric_parameterization: str = "shell_spline",
+        metric_reference_length: float = 1.0,
+    ) -> None:
+        super().__init__()
+        if min(channels, n_z, spectral_groups) < 1 or channels % spectral_groups:
+            raise ValueError("positive spectral_groups must divide feature channels")
+        self.channels = int(channels)
+        self.n_z = int(n_z)
+        self.spectral = MetricEqGINOSpectralConv2D(
+            channels * n_z,
+            channels * n_z,
+            n_modes,
+            groups=spectral_groups,
+            rank=spectral_rank,
+            radial_hidden_channels=metric_hidden_channels,
+            parameterization=metric_parameterization,
+            reference_length=metric_reference_length,
+        )
+
+    def forward(self, field: Tensor, cell: Tensor | None = None) -> Tensor:
+        if cell is None:
+            raise ValueError("metric-aware linear slab FNO requires cell")
+        unbatched = field.ndim == 4
+        values = field.unsqueeze(0) if unbatched else field
+        if values.ndim != 5 or values.shape[1:3] != (self.channels, self.n_z):
+            raise ValueError("field must have matching (channels, nz, nx, ny) axes")
+        batch, _, _, nx, ny = values.shape
+        flattened = values.reshape(batch, self.channels * self.n_z, 1, nx, ny)
+        output = self.spectral(flattened, cell).reshape(values.shape)
+        return output.squeeze(0) if unbatched else output
+
+
 class SlabFNO2D(nn.Module):
     """Hybrid slab FNO with 2D FFTs and finite, nonperiodic z mixing.
 
     z remains an explicit axis throughout. Consequently the model is periodic
     and discretely translation equivariant only in x/y; the top and bottom z
-    boundaries are distinct. z mixing can be either a zero-padded local CNN or
-    a dense global response; neither uses an FFT or circular padding.
+    boundaries are distinct. Height mixing is local, global, or embedded in
+    the full spectral matrix. None uses an FFT or circular padding along z.
+    Identity activations give a stacked linear field map with the same
+    parameters as the GELU model.
     """
 
     def __init__(
@@ -268,15 +366,25 @@ class SlabFNO2D(nn.Module):
         z_mixing: str = "local",
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        spectral_rank: int = 0,
         metric_hidden_channels: int = 16,
         metric_parameterization: str = "shell_spline",
         metric_reference_length: float = 1.0,
+        activation: str = "gelu",
     ) -> None:
         super().__init__()
         if min(in_channels, out_channels, n_z, hidden_channels, n_layers) < 1:
             raise ValueError("channel counts, n_z, and n_layers must be positive")
-        if z_mixing not in {"local", "global"}:
-            raise ValueError("z_mixing must be 'local' or 'global'")
+        if spectral_rank and not (
+            z_mixing == "full"
+            and spectral_symmetry == "metric_eqgino"
+            and metric_parameterization == "shell_spline"
+        ):
+            raise ValueError(
+                "spectral_rank requires full z-mixing, metric_eqgino, and shell_spline"
+            )
+        if z_mixing not in {"local", "global", "full"}:
+            raise ValueError("z_mixing must be 'local', 'global', or 'full'")
         projection_channels = projection_channels or hidden_channels
         self.in_channels = int(in_channels)
         self.out_channels = int(out_channels)
@@ -296,9 +404,11 @@ class SlabFNO2D(nn.Module):
                 z_mixing=z_mixing,
                 spectral_symmetry=spectral_symmetry,
                 spectral_groups=spectral_groups,
+                spectral_rank=spectral_rank,
                 metric_hidden_channels=metric_hidden_channels,
                 metric_parameterization=metric_parameterization,
                 metric_reference_length=metric_reference_length,
+                activation=activation,
             )
             for _ in range(n_layers)
         )
@@ -308,6 +418,7 @@ class SlabFNO2D(nn.Module):
         self.projection_output = nn.Conv3d(
             projection_channels, self.out_channels, kernel_size=1, bias=False
         )
+        self.projection_activation = _field_activation(activation)
 
     def forward(self, field: Tensor, cell: Tensor | None = None) -> Tensor:
         unbatched = field.ndim == 4
@@ -327,7 +438,9 @@ class SlabFNO2D(nn.Module):
         hidden = self.lifting(field)
         for block in self.blocks:
             hidden = block(hidden, cell)
-        output = self.projection_output(F.gelu(self.projection_hidden(hidden)))
+        output = self.projection_output(
+            self.projection_activation(self.projection_hidden(hidden))
+        )
         return output.squeeze(0) if unbatched else output
 
 
@@ -336,8 +449,8 @@ class SlabFNOFieldOperator2D(nn.Module):
 
     C4/D4 ensemble averaging requires a square physical in-plane cell and a
     square lateral mesh. Alternatively, ``spectral_symmetry='metric_eqgino'``
-    uses intrinsic radial weights with no ensemble (nonlinear architecture
-    only). Pass ``cell`` for either path; one cell may be shared by all fields
+    uses intrinsic radial weights with no ensemble. Pass ``cell`` for either
+    path; one cell may be shared by all fields
     or supplied per field in the batch. The metric path accepts nonsquare cells.
     """
 
@@ -356,6 +469,7 @@ class SlabFNOFieldOperator2D(nn.Module):
         architecture: str = "nonlinear",
         spectral_symmetry: str = "none",
         spectral_groups: int = 1,
+        spectral_rank: int = 0,
         metric_hidden_channels: int = 16,
         metric_parameterization: str = "shell_spline",
         metric_reference_length: float = 1.0,
@@ -363,17 +477,21 @@ class SlabFNOFieldOperator2D(nn.Module):
         super().__init__()
         if architecture not in {"linear", "nonlinear"}:
             raise ValueError("architecture must be 'linear' or 'nonlinear'")
-        if z_mixing not in {"local", "global"}:
-            raise ValueError("z_mixing must be 'local' or 'global'")
+        if spectral_rank and not (
+            z_mixing == "full"
+            and spectral_symmetry == "metric_eqgino"
+            and metric_parameterization == "shell_spline"
+        ):
+            raise ValueError(
+                "spectral_rank requires full z-mixing, metric_eqgino, and shell_spline"
+            )
+        if z_mixing not in {"local", "global", "full"}:
+            raise ValueError("z_mixing must be 'local', 'global', or 'full'")
         if planar_symmetry not in {"none", "c4", "d4"}:
             raise ValueError("planar_symmetry must be 'none', 'c4', or 'd4'")
         if spectral_symmetry not in {"none", "metric_eqgino"}:
             raise ValueError("spectral_symmetry must be 'none' or 'metric_eqgino'")
         if spectral_symmetry == "metric_eqgino":
-            if architecture != "nonlinear":
-                raise ValueError(
-                    "slab metric_eqgino currently requires architecture='nonlinear'"
-                )
             if planar_symmetry != "none":
                 raise ValueError(
                     "slab metric_eqgino requires planar_symmetry='none'; no ensemble is needed"
@@ -386,11 +504,24 @@ class SlabFNOFieldOperator2D(nn.Module):
         self.architecture = architecture
         self.channels = int(channels)
         self.n_z = int(n_z)
-        self.z_mixing = "spectral" if architecture == "linear" else z_mixing
+        direct_linear = architecture == "linear" and z_mixing != "full"
+        self.z_mixing = "spectral" if direct_linear else z_mixing
         self.planar_symmetry = planar_symmetry
         self._training_symmetry_index = 0
-        if architecture == "linear":
-            self.fno = LinearSlabFNO2D(channels, channels, n_z, n_modes)
+        if direct_linear:
+            if spectral_symmetry == "metric_eqgino":
+                self.fno = LinearMetricSlabFNO2D(
+                    channels,
+                    n_z,
+                    n_modes,
+                    spectral_groups=spectral_groups,
+                    spectral_rank=spectral_rank,
+                    metric_hidden_channels=metric_hidden_channels,
+                    metric_parameterization=metric_parameterization,
+                    metric_reference_length=metric_reference_length,
+                )
+            else:
+                self.fno = LinearSlabFNO2D(channels, channels, n_z, n_modes)
         else:
             self.fno = SlabFNO2D(
                 channels,
@@ -404,9 +535,11 @@ class SlabFNOFieldOperator2D(nn.Module):
                 z_mixing=z_mixing,
                 spectral_symmetry=spectral_symmetry,
                 spectral_groups=spectral_groups,
+                spectral_rank=spectral_rank,
                 metric_hidden_channels=metric_hidden_channels,
                 metric_parameterization=metric_parameterization,
                 metric_reference_length=metric_reference_length,
+                activation="identity" if architecture == "linear" else "gelu",
             )
         self.register_buffer("input_scale", torch.ones(1, channels, 1, 1, 1))
         self.register_buffer("output_scale", torch.ones(1, channels, 1, 1, 1))
