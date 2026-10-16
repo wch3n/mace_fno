@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from unittest import mock
 
 import torch
 
@@ -221,6 +222,60 @@ class FullyPeriodicFNOTests(unittest.TestCase):
                 architecture="linear",
                 cell_conditioning="anisotropic",
             )
+
+    def test_anisotropic_conditioning_rejects_determinant_roundoff(self) -> None:
+        for dtype in (torch.float32, torch.float64):
+            model = FNOFieldOperator3D(
+                1,
+                (1, 1, 1),
+                hidden_channels=2,
+                n_layers=1,
+                cell_conditioning="anisotropic",
+            ).to(dtype=dtype)
+            density = torch.zeros((2, 1, 4, 4, 4), dtype=dtype)
+            for scale in (1e-4, 1.0, 1e4):
+                cells = scale * torch.stack(
+                    [torch.diag(torch.tensor((8.0, 9.0, 10.0), dtype=dtype))] * 2
+                )
+                cells[1, 2] = cells[1, 1]
+                determinants = torch.linalg.det(cells)
+                volume_scale = torch.linalg.vector_norm(cells[1], dim=-1).prod()
+                for sign in (-1, 1):
+                    with self.subTest(dtype=dtype, scale=scale, sign=sign):
+                        # A singular LU determinant can be small but nonzero on
+                        # some backends. Reproduce this without relying on BLAS.
+                        determinants[1] = sign * torch.finfo(dtype).eps * volume_scale
+                        with (
+                            mock.patch("torch.linalg.det", return_value=determinants),
+                            self.assertRaisesRegex(ValueError, "requires finite cells"),
+                        ):
+                            model(density, cells)
+
+    def test_anisotropic_conditioning_accepts_rescaled_nonsingular_cells(self) -> None:
+        for dtype in (torch.float32, torch.float64):
+            model = FNOFieldOperator3D(
+                1,
+                (1, 1, 1),
+                hidden_channels=2,
+                n_layers=1,
+                cell_conditioning="anisotropic",
+            ).to(dtype=dtype)
+            density = torch.ones((2, 1, 4, 4, 4), dtype=dtype)
+            cell = torch.tensor(
+                ((8.2, 0.1, 0.0), (0.4, 9.1, 0.2), (0.0, -0.3, 10.4)),
+                dtype=dtype,
+            )
+            reflection = torch.diag(torch.tensor((-1.0, 1.0, 1.0), dtype=dtype))
+            for scale in (1e-4, 1.0, 1e4):
+                with self.subTest(dtype=dtype, scale=scale):
+                    cells = (
+                        scale * torch.stack((cell, cell @ reflection))
+                    ).requires_grad_()
+                    output = model(density, cells)
+                    self.assertTrue(torch.isfinite(output).all())
+                    torch.testing.assert_close(output[0], output[1])
+                    gradient = torch.autograd.grad(output.square().sum(), cells)[0]
+                    self.assertTrue(torch.isfinite(gradient).all())
 
     def test_energy_has_conservative_force_along_third_lattice_direction(self) -> None:
         cell = torch.tensor(

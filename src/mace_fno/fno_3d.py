@@ -637,9 +637,16 @@ class FNOFieldOperator3D(nn.Module):
             valid = torch.isfinite(cells).all(dim=(-2, -1)) & torch.isfinite(
                 volume_lengths
             )
-            valid = valid & (volume_lengths > 0)
+            # A singular LU determinant can be tiny but nonzero. Compare it
+            # with the cell's volume scale so the check is independent of units.
+            volume_scale = torch.linalg.vector_norm(cells, dim=-1).prod(dim=-1)
+            tolerance = cells.shape[-1] * torch.finfo(cells.dtype).eps * volume_scale
+            valid = valid & (determinants.abs() > tolerance)
             if not bool(valid.all().detach().cpu()):
-                raise ValueError("anisotropic cell conditioning requires finite cells")
+                raise ValueError(
+                    "anisotropic cell conditioning requires finite cells "
+                    "with nondegenerate lattice vectors"
+                )
             metric = cells @ cells.transpose(-2, -1)
             metric = metric / volume_lengths.square().reshape(-1, 1, 1)
             condition_values = torch.stack(
