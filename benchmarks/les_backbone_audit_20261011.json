@@ -1,0 +1,1980 @@
+{
+  "date": "2026-10-11",
+  "scope": "Checkpoint class inspection only; no inference or retraining",
+  "models": [
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p5/maceles1200_seed29/models/les1_kappa0p5_stagetwo.model",
+      "sha256": "7b5c1a9acec8edca46f65fd9fa536249b47947aa08f8a6370304071ab5874458",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p5/maceles1200_seed67/models/les1_kappa0p5_stagetwo.model",
+      "sha256": "b5b0e6fb94d87428bcc5eae1fad7e986270debcfb546d5ed06baaf689a143b5f",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p5/maceles1200_seed41/models/les1_kappa0p5_stagetwo.model",
+      "sha256": "6fdf95a16041e11123d36faf6b711b7de416ec8ac89c8b706a421dd4724b780a",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p5/maceles1200_seed17/models/les1_kappa0p5_stagetwo.model",
+      "sha256": "0a70de4c2b0f0915d63da1460897dbdc02a78d0a624cb89534e719fe3b9922f6",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p5/maceles1200_seed53/models/les1_kappa0p5_stagetwo.model",
+      "sha256": "6c4cd73d7c36ab251243e3d3600127b2cc2c14c0857cf3814d0f3c9867872301",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p05/maceles1200_seed29/models/mace1_kappa0p05_stagetwo.model",
+      "sha256": "41a8a4dae71a0cb685aa827ba83761ab9b94863cf7ceb9ebb7822433df54e56c",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p05/maceles1200_seed67/models/mace1_kappa0p05_stagetwo.model",
+      "sha256": "9cbea63300d98ab9563135d0be3358d54ad2f78c057b019431af070ee5a4b8e0",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p05/maceles1200_seed41/models/mace1_kappa0p05_stagetwo.model",
+      "sha256": "0bbcfe7dd7ab2116250d66ac920d67b895411df17150eeb8e22516872863aa01",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p05/maceles1200_seed17/models/mace1_kappa0p05_stagetwo.model",
+      "sha256": "61ce1cef38db992099f04516f4139933d5fda778fd20acb8877f94d22b27b205",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p05/maceles1200_seed53/models/mace1_kappa0p05_stagetwo.model",
+      "sha256": "863119b7005d2218094700c5e8c83493a52fc4a4cf3531079cdcd07324e5dbca",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p2/maceles1200_seed29/models/mace1_kappa0p2_stagetwo.model",
+      "sha256": "1ce49c250a64fdcd3c8889ffc39dcd37745feb29ae097636a9374285737c16f6",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p2/maceles1200_seed67/models/mace1_kappa0p2_stagetwo.model",
+      "sha256": "41ddf8f928606844eccfd7243033e7a2082b66553f63b7c9918bab2eff72cd0f",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p2/maceles1200_seed41/models/mace1_kappa0p2_stagetwo.model",
+      "sha256": "d519f78638cb84fbd0a8b0eb2f60205eba3aa04d22430f20edfa1841ccd0c501",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p2/maceles1200_seed17/models/mace1_kappa0p2_stagetwo.model",
+      "sha256": "3a8b20debd25eb65f0ed73590506b6656db4b2fe3c0d816eb3d217f4136cf475",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p2/maceles1200_seed53/models/mace1_kappa0p2_stagetwo.model",
+      "sha256": "3519820cba48e0d255d9cbac369a8c1b8fb9c65363c673a6c8f77006837e486a",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 180224,
+      "local_parameters": 180096,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 32768,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          32768
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "heterogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/hetscreen_v2/maceles1200_seed29/models/les1_hetscreen_stagetwo.model",
+      "sha256": "7802996d933e2578740e82fc4846d2ba3fdf47f49d99fb5fb75710e4329e41b0",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 200320,
+      "local_parameters": 200192,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17,
+        18
+      ],
+      "first_selector_parameters": 49152,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          384
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          49152
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          3,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          3,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "heterogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/hetscreen_v2/maceles1200_seed67/models/les1_hetscreen_stagetwo.model",
+      "sha256": "daf8061c8c00ed80735b22cc7e1040dcba645a6322befa8b265e14684b8583c9",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 200320,
+      "local_parameters": 200192,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17,
+        18
+      ],
+      "first_selector_parameters": 49152,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          384
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          49152
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          3,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          3,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "heterogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/hetscreen_v2/maceles1200_seed41/models/les1_hetscreen_stagetwo.model",
+      "sha256": "f4e1e069b5c27dfec8846d17abaaab9af4406061c8af8d61d978719a07e7469a",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 200320,
+      "local_parameters": 200192,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17,
+        18
+      ],
+      "first_selector_parameters": 49152,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          384
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          49152
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          3,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          3,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "heterogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/hetscreen_v2/maceles1200_seed17/models/les1_hetscreen_stagetwo.model",
+      "sha256": "ed16765bb8d2ec9919a08ffe0eca69be242a14645399140a1134b441ee012736",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 200320,
+      "local_parameters": 200192,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17,
+        18
+      ],
+      "first_selector_parameters": 49152,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          384
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          49152
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          3,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          3,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "heterogeneous_LES",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/hetscreen_v2/maceles1200_seed53/models/les1_hetscreen_stagetwo.model",
+      "sha256": "37c11b52c6284d83dc1dc66d170feda1023f4a47e98c75fe94a2f2b0a595b844",
+      "blocks": [
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 200320,
+      "local_parameters": 200192,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17,
+        18
+      ],
+      "first_selector_parameters": 49152,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          384
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          49152
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          3,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          3,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "les_readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_local",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p5/seed17/mace/models/mace1_kappa0p5_stagetwo.model",
+      "sha256": "a7378aea5d83ed36750766d7f16e05af4b49cf17edd0161fd371f65339f8fb04",
+      "blocks": [
+        "RealAgnosticInteractionBlock"
+      ],
+      "parameters": 278400,
+      "local_parameters": 278400,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 131072,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          131072
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_local",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p05/seed17/mace/models/mace1_kappa0p05_stagetwo.model",
+      "sha256": "83e9459751f889b2bd164ff88901b00955a196fb15ae841dd3a0e7ec011f5ca0",
+      "blocks": [
+        "RealAgnosticInteractionBlock"
+      ],
+      "parameters": 278400,
+      "local_parameters": 278400,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 131072,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          131072
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "homogeneous_local",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_kappa_production/kappa_0p2/seed17/mace/models/mace1_kappa0p2_stagetwo.model",
+      "sha256": "a9eb236fb46ed1a47132b183f28f0a961c753cc04c99f426ad7cdd8a8d8dde35",
+      "blocks": [
+        "RealAgnosticInteractionBlock"
+      ],
+      "parameters": 278400,
+      "local_parameters": 278400,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17
+      ],
+      "first_selector_parameters": 131072,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          256
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          131072
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          2,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          2,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          2,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "heterogeneous_local",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/hetscreen_v2/mace1_seed17/models/mace1_hetscreen_stagetwo.model",
+      "sha256": "3580ee361de6f69fa595c32226d0b3162f9c2c2734d50ff3f6bdf71cdceae565",
+      "blocks": [
+        "RealAgnosticInteractionBlock"
+      ],
+      "parameters": 347648,
+      "local_parameters": 347648,
+      "product_irreps": [
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17,
+        18
+      ],
+      "first_selector_parameters": 196608,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          384
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          196608
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          3,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          3,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ]
+      }
+    },
+    {
+      "group": "heterogeneous_local",
+      "path": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/hetscreen_v2/mace2_seed17/models/mace2_hetscreen_stagetwo.model",
+      "sha256": "20007b91f93b632c7d9fb7e34b54245bb448313aab9979cec771b3a5154ca58f",
+      "blocks": [
+        "RealAgnosticInteractionBlock",
+        "RealAgnosticResidualInteractionBlock"
+      ],
+      "parameters": 751888,
+      "local_parameters": 751888,
+      "product_irreps": [
+        "128x0e+128x1o",
+        "128x0e"
+      ],
+      "readouts": [
+        "LinearReadoutBlock",
+        "NonLinearReadoutBlock"
+      ],
+      "cutoff_A": 4.5,
+      "elements": [
+        11,
+        17,
+        18
+      ],
+      "first_selector_parameters": 196608,
+      "parameter_shapes": {
+        "node_embedding.linear.weight": [
+          384
+        ],
+        "interactions.0.linear_up.weight": [
+          16384
+        ],
+        "interactions.0.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.0.conv_tp_weights.layer3.weight": [
+          64,
+          512
+        ],
+        "interactions.0.linear.weight": [
+          65536
+        ],
+        "interactions.0.skip_tp.weight": [
+          196608
+        ],
+        "interactions.1.linear_up.weight": [
+          32768
+        ],
+        "interactions.1.conv_tp_weights.layer0.weight": [
+          8,
+          64
+        ],
+        "interactions.1.conv_tp_weights.layer1.weight": [
+          64,
+          64
+        ],
+        "interactions.1.conv_tp_weights.layer2.weight": [
+          64,
+          64
+        ],
+        "interactions.1.conv_tp_weights.layer3.weight": [
+          64,
+          1280
+        ],
+        "interactions.1.linear.weight": [
+          163840
+        ],
+        "interactions.1.skip_tp.weight": [
+          49152
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights_max": [
+          3,
+          23,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.0": [
+          3,
+          4,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.0.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.1.weights_max": [
+          3,
+          51,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.1.weights.0": [
+          3,
+          6,
+          128
+        ],
+        "products.0.symmetric_contractions.contractions.1.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.0.linear.weight": [
+          32768
+        ],
+        "products.1.symmetric_contractions.contractions.0.weights_max": [
+          3,
+          23,
+          128
+        ],
+        "products.1.symmetric_contractions.contractions.0.weights.0": [
+          3,
+          4,
+          128
+        ],
+        "products.1.symmetric_contractions.contractions.0.weights.1": [
+          3,
+          1,
+          128
+        ],
+        "products.1.linear.weight": [
+          16384
+        ],
+        "readouts.0.linear.weight": [
+          128
+        ],
+        "readouts.1.linear_1.weight": [
+          2048
+        ],
+        "readouts.1.linear_2.weight": [
+          16
+        ]
+      }
+    }
+  ],
+  "finding": "All 15 homogeneous and five heterogeneous synthetic LES models use a residual first block. Their one-layer local references use a nonresidual first block. The compared seed17 local parameter-shape maps differ only at interactions.0.skip_tp.weight.",
+  "manuscript_status": "The just-added clarification was reverted at the user request; no manuscript change is part of this audit.",
+  "accuracy_implication": "The architecture differs. Its effect on numerical accuracy or method ranking has not been measured by this audit.",
+  "counts": {
+    "homogeneous": {
+      "local_backbone": 278400,
+      "les_backbone": 180096,
+      "les_charge_head": 128
+    },
+    "inhomogeneous": {
+      "local_backbone": 347648,
+      "les_backbone": 200192,
+      "les_charge_head": 128
+    }
+  }
+}

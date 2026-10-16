@@ -1,0 +1,13 @@
+{
+  "status": "passed",
+  "checks": [
+    "TIMEOUT follow-on forwards the unchanged root and task index to the resume driver",
+    "COMPLETED parent skips follow-on",
+    "FAILED and CANCELLED parents are refused",
+    "All four native configuration/input fingerprint preflights passed",
+    "Optimizer, scheduler, RNG and energy-selection states are present",
+    "Validation history and best objective agree with each saved training state",
+    "All six unique job IDs recorded in both campaign directories",
+    "Deployed driver and shell-script hashes match the reviewed copies"
+  ]
+}

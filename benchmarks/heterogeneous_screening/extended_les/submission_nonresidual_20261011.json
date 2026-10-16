@@ -1,0 +1,21 @@
+{
+  "campaign": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_nonresidual_5seed_20261011",
+  "validation_job": "16194802",
+  "production_job": "16195547",
+  "collection_job": "16194804",
+  "first_interaction": "RealAgnosticInteractionBlock",
+  "seeds": [
+    17,
+    29,
+    41,
+    53,
+    67
+  ],
+  "residual_array_retained": "16195546",
+  "collection_dependency": "afterok:16195547:16193550",
+  "preflight": "passed",
+  "gpu_validation_at_submission": "pending: QOSMaxNodePerUserLimit",
+  "previous_production_job": "16194803",
+  "total_epoch_budget": 1200,
+  "budget_revision_record": "submission_budget1200_20261011.json"
+}

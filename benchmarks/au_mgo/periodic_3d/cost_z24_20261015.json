@@ -1,0 +1,73 @@
+{
+  "campaign": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/inference_au_periodic_3d_z24_20261015",
+  "job": 16254727,
+  "scope": "Architecture cost using an interim production checkpoint; accuracy not converged. Not added to manuscript.",
+  "checkpoint_sha256": "6542a44f8bc2bd33ac5903518969aa7a010938a02930a703414a8ac0b1474269",
+  "best_step": 3000,
+  "checkpoint_completed_steps": 3000,
+  "grid_xyz": [
+    24,
+    24,
+    24
+  ],
+  "modes_xyz": [
+    8,
+    8,
+    8
+  ],
+  "mesh_origins": 8,
+  "parameters": {
+    "total": 564416,
+    "backbone": 462976,
+    "spectral": 90112,
+    "height": 0,
+    "added": 101440
+  },
+  "timing": {
+    "calls": 90,
+    "median_ms": 35.0559305,
+    "mean_ms": 35.119643377777784,
+    "std_ms": 0.34564222344335593,
+    "p10_ms": 34.9614587,
+    "p90_ms": 35.2733248
+  },
+  "cached_graph_timing": {
+    "calls": 90,
+    "median_ms": 29.8803345,
+    "mean_ms": 29.904044677777783,
+    "std_ms": 0.1920813169353388,
+    "p10_ms": 29.7233129,
+    "p90_ms": 30.059108900000002
+  },
+  "peak_tensor_MiB": 857.70068359375,
+  "gpu": "NVIDIA A100-SXM4-40GB",
+  "dtype": "float64",
+  "cpu_threads": 4,
+  "test_indices": [
+    0,
+    249,
+    499
+  ],
+  "atoms": [
+    110,
+    110,
+    110
+  ],
+  "comparison_source": "/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno/docs/source/data/au2_mgo_z_mixing/latest_reference.json",
+  "slab_comparisons": {
+    "channelwise_joint_seed17": {
+      "median_ms": 32.4489565,
+      "peak_tensor_MiB": 462.86669921875
+    },
+    "full_joint_seed17": {
+      "median_ms": 175.05486150000002,
+      "peak_tensor_MiB": 7683.154296875
+    }
+  },
+  "slab_mesh_origins": 4,
+  "speedup_vs_full_z": 4.9935876470316485,
+  "memory_reduction_vs_full_z_percent": 88.83660733010912,
+  "time_increase_vs_channelwise_percent": 8.034076534941882,
+  "mace1_timing_control_change_percent": -0.619974144165103,
+  "checks": "Source/checkpoint hashes, identical test frames and hardware/protocol, raw 90-call median/mean/sample-std, nine-call tensor peak, ASE energy-force agreement"
+}

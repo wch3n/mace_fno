@@ -1,0 +1,441 @@
+{
+  "jobs": [
+    {
+      "key": "smoke",
+      "job_id": "16208989",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-fullz-check",
+        "--time=02:00:00",
+        "--array=0-1",
+        "--output=logs/smoke-%A_%a.out",
+        "--error=logs/smoke-%A_%a.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "smoke"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.388688+00:00"
+    },
+    {
+      "key": "production",
+      "job_id": "16208990",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-full-z",
+        "--array=0-9",
+        "--dependency=afterok:16208989",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/train-%A_%a.out",
+        "--error=logs/train-%A_%a.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "train"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.424338+00:00"
+    },
+    {
+      "key": "resume1_task0",
+      "job_id": "16208991",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s17-r1",
+        "--dependency=afterany:16208990_0",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task0-%j.out",
+        "--error=logs/resume1_task0-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "0",
+        "16208990_0"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.448999+00:00"
+    },
+    {
+      "key": "resume2_task0",
+      "job_id": "16208992",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s17-r2",
+        "--dependency=afterany:16208991",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task0-%j.out",
+        "--error=logs/resume2_task0-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "0",
+        "16208991"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.482554+00:00"
+    },
+    {
+      "key": "resume1_task1",
+      "job_id": "16208993",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s29-r1",
+        "--dependency=afterany:16208990_1",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task1-%j.out",
+        "--error=logs/resume1_task1-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "1",
+        "16208990_1"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.498383+00:00"
+    },
+    {
+      "key": "resume2_task1",
+      "job_id": "16208994",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s29-r2",
+        "--dependency=afterany:16208993",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task1-%j.out",
+        "--error=logs/resume2_task1-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "1",
+        "16208993"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.545582+00:00"
+    },
+    {
+      "key": "resume1_task2",
+      "job_id": "16208995",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s41-r1",
+        "--dependency=afterany:16208990_2",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task2-%j.out",
+        "--error=logs/resume1_task2-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "2",
+        "16208990_2"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.573652+00:00"
+    },
+    {
+      "key": "resume2_task2",
+      "job_id": "16208996",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s41-r2",
+        "--dependency=afterany:16208995",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task2-%j.out",
+        "--error=logs/resume2_task2-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "2",
+        "16208995"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.598155+00:00"
+    },
+    {
+      "key": "resume1_task3",
+      "job_id": "16208997",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s53-r1",
+        "--dependency=afterany:16208990_3",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task3-%j.out",
+        "--error=logs/resume1_task3-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "3",
+        "16208990_3"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.620457+00:00"
+    },
+    {
+      "key": "resume2_task3",
+      "job_id": "16208998",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s53-r2",
+        "--dependency=afterany:16208997",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task3-%j.out",
+        "--error=logs/resume2_task3-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "3",
+        "16208997"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.636913+00:00"
+    },
+    {
+      "key": "resume1_task4",
+      "job_id": "16208999",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s67-r1",
+        "--dependency=afterany:16208990_4",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task4-%j.out",
+        "--error=logs/resume1_task4-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "4",
+        "16208990_4"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.653582+00:00"
+    },
+    {
+      "key": "resume2_task4",
+      "job_id": "16209000",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-frozen-s67-r2",
+        "--dependency=afterany:16208999",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task4-%j.out",
+        "--error=logs/resume2_task4-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "4",
+        "16208999"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.670789+00:00"
+    },
+    {
+      "key": "resume1_task5",
+      "job_id": "16209001",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s17-r1",
+        "--dependency=afterany:16208990_5",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task5-%j.out",
+        "--error=logs/resume1_task5-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "5",
+        "16208990_5"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.694672+00:00"
+    },
+    {
+      "key": "resume2_task5",
+      "job_id": "16209002",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s17-r2",
+        "--dependency=afterany:16209001",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task5-%j.out",
+        "--error=logs/resume2_task5-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "5",
+        "16209001"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.723746+00:00"
+    },
+    {
+      "key": "resume1_task6",
+      "job_id": "16209003",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s29-r1",
+        "--dependency=afterany:16208990_6",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task6-%j.out",
+        "--error=logs/resume1_task6-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "6",
+        "16208990_6"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.748388+00:00"
+    },
+    {
+      "key": "resume2_task6",
+      "job_id": "16209004",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s29-r2",
+        "--dependency=afterany:16209003",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task6-%j.out",
+        "--error=logs/resume2_task6-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "6",
+        "16209003"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.772612+00:00"
+    },
+    {
+      "key": "resume1_task7",
+      "job_id": "16209005",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s41-r1",
+        "--dependency=afterany:16208990_7",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task7-%j.out",
+        "--error=logs/resume1_task7-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "7",
+        "16208990_7"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.796530+00:00"
+    },
+    {
+      "key": "resume2_task7",
+      "job_id": "16209006",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s41-r2",
+        "--dependency=afterany:16209005",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task7-%j.out",
+        "--error=logs/resume2_task7-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "7",
+        "16209005"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.819695+00:00"
+    },
+    {
+      "key": "resume1_task8",
+      "job_id": "16209007",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s53-r1",
+        "--dependency=afterany:16208990_8",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task8-%j.out",
+        "--error=logs/resume1_task8-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "8",
+        "16208990_8"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.844552+00:00"
+    },
+    {
+      "key": "resume2_task8",
+      "job_id": "16209008",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s53-r2",
+        "--dependency=afterany:16209007",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task8-%j.out",
+        "--error=logs/resume2_task8-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "8",
+        "16209007"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.868003+00:00"
+    },
+    {
+      "key": "resume1_task9",
+      "job_id": "16209009",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s67-r1",
+        "--dependency=afterany:16208990_9",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume1_task9-%j.out",
+        "--error=logs/resume1_task9-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "9",
+        "16208990_9"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.895378+00:00"
+    },
+    {
+      "key": "resume2_task9",
+      "job_id": "16209010",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "--job-name=au-nl2-joint-s67-r2",
+        "--dependency=afterany:16209009",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/resume2_task9-%j.out",
+        "--error=logs/resume2_task9-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+        "resume",
+        "9",
+        "16209009"
+      ],
+      "submitted_utc": "2026-10-13T05:24:56.925078+00:00"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "state": "passed",
+  "campaign": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl2_5seed_20261013",
+  "checks": [
+    "Native CPU preflight: matched MACE2 checkpoint, two interactions, nonresidual first block, cutoff 5.5 A",
+    "Frozen MACE1 full-z software snapshot retained; model/data/config hashes checked",
+    "Ten seeds/modes preserve all undeclared MACE2 reference settings",
+    "G=1, dense full z-mixing, 240000 total steps, effective batch four",
+    "Both GPU smoke tasks use complete production inputs; joint backbone gradients exercised",
+    "Submission is idempotent; all 22 unique receipts recorded",
+    "Production depends on both smoke tasks; each follow-on depends on its own preceding task",
+    "Continuation guards tested: skip COMPLETED, refuse FAILED/CANCELLED, resume TIMEOUT"
+  ],
+  "gpu_smoke_status": "queued; results pending",
+  "production_array": "16208990",
+  "smoke_array": "16208989"
+}

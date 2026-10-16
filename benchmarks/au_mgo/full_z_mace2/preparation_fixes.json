@@ -1,0 +1,5 @@
+{
+  "preflight_only": "Correct expected backbone cutoff to the archived Au2/MgO value, 5.5 A; inputs and training configurations unchanged",
+  "previous_preflight_sha256": "2acbf64a18d9454bd43015d53e41f08a0cea2edf5b80fb2a7be99ca520c48f70",
+  "current_preflight_sha256": "5444606a58f2bdde5b259f288ac89df0b63bfe690414e374397a37fbdf0532a2"
+}

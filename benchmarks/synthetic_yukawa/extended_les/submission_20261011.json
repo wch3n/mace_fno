@@ -1,0 +1,69 @@
+{
+  "check": "16195342",
+  "commands": [
+    [
+      "sbatch",
+      "--parsable",
+      "--partition=debug-gpu",
+      "--qos=debug-gpu",
+      "--time=02:00:00",
+      "--job-name=yukawa-extles-check",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/logs/check_%j.log",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/job.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011",
+      "check"
+    ],
+    [
+      "sbatch",
+      "--parsable",
+      "--job-name=yukawa-extles-training",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/logs/training_%A_%a.log",
+      "--array=0-1",
+      "--dependency=afterok:16195342",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/job.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011",
+      "train"
+    ],
+    [
+      "sbatch",
+      "--parsable",
+      "--job-name=yukawa-extles-md",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/logs/md_%A_%a.log",
+      "--dependency=afterok:16195345_1",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/job.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011",
+      "md"
+    ],
+    [
+      "sbatch",
+      "--parsable",
+      "--job-name=yukawa-extles-nve",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/logs/nve_%A_%a.log",
+      "--dependency=afterok:16195346",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/job.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011",
+      "nve"
+    ]
+  ],
+  "submitted_utc": "2026-10-11T20:08:51.847945+00:00",
+  "training": "16195548",
+  "updated_utc": "2026-10-11T20:11:59.434394+00:00",
+  "md": "16195346",
+  "nve": "16195347",
+  "campaign": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011",
+  "validation": {
+    "status": "passed",
+    "manifest_sha256": "6e55b5ea6b75c5c224e102c7e709e027891dbfae07d0a75a835e8924a9a58629",
+    "checks": "Both datasets: four epochs, stage two, all readout updates, native/cuEq parity, finite-difference forces; MD driver completion"
+  },
+  "szz_validation": {
+    "status": "passed",
+    "legacy_run": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/yukawa_L32_md2800/md/macelesc/kappa_0p5/nvt_1ns",
+    "positions_sha256": "5412b0693d0dce6d48e6b640c17b7d70c40f9ed2f560bd7a62c2a024330b6ed6",
+    "checks": "All 15 shell means and sampling SE reproduce the existing ordinary LES CSV"
+  },
+  "observed_state": "Both 1200-epoch checkpoint continuations running; MD and NVE pending dependencies",
+  "previous_training_job": "16195345",
+  "total_epoch_budget": 1200,
+  "budget_revision_record": "/gpfs/home/acad/ucl-modl/wchen/mxene_proj/mace_fno/benchmarks/heterogeneous_screening/extended_les/submission_budget1200_20261011.json"
+}

@@ -1,0 +1,258 @@
+{
+  "time": "2026-10-11T20:52:08.208532+00:00",
+  "campaigns": {
+    "residual": {
+      "root": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_5seed_20261011",
+      "archive": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_5seed_20261011/provenance/budget_1200_revision_20261011T205208Z",
+      "old_job": "16193549",
+      "new_job": "16195546",
+      "n": 5,
+      "epochs": {
+        "les_response_seed17": 526,
+        "les_response_seed29": 527,
+        "les_response_seed41": 529,
+        "les_response_seed53": 523,
+        "les_response_seed67": 524
+      },
+      "new_manifest_sha256": "37e2e8629b5d8c765926b93b0bc38fd5373d08532b776bb3df5ae59416c0e3f7",
+      "preflight": "passed",
+      "released": true,
+      "resume_verification": {
+        "les_response_seed29": {
+          "status": "passed",
+          "checkpoint_epoch": 527,
+          "next_epoch": 528,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_seed53": {
+          "status": "passed",
+          "checkpoint_epoch": 523,
+          "next_epoch": 524,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_seed41": {
+          "status": "passed",
+          "checkpoint_epoch": 529,
+          "next_epoch": 530,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_seed67": {
+          "status": "passed",
+          "checkpoint_epoch": 524,
+          "next_epoch": 525,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_seed17": {
+          "status": "passed",
+          "checkpoint_epoch": 526,
+          "next_epoch": 527,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        }
+      },
+      "queue": [
+        "16195546_4|RUNNING|gpu|cna023",
+        "16195546_3|RUNNING|gpu|cna033",
+        "16195546_2|RUNNING|gpu|cna033",
+        "16195546_1|RUNNING|gpu|cna027",
+        "16195546_0|RUNNING|gpu|cna002"
+      ]
+    },
+    "nonresidual": {
+      "root": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_nonresidual_5seed_20261011",
+      "archive": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_nonresidual_5seed_20261011/provenance/budget_1200_revision_20261011T205208Z",
+      "old_job": "16194803",
+      "new_job": "16195547",
+      "n": 5,
+      "epochs": {
+        "les_response_nonres_seed17": 152,
+        "les_response_nonres_seed29": 149,
+        "les_response_nonres_seed41": 86,
+        "les_response_nonres_seed53": 86,
+        "les_response_nonres_seed67": 84
+      },
+      "new_manifest_sha256": "728a3710096a28d6b37e43397956bb8e155d5bffb0db89b10c82947461b5c8b9",
+      "preflight": "passed",
+      "released": true,
+      "resume_verification": {
+        "les_response_nonres_seed53": {
+          "status": "passed",
+          "checkpoint_epoch": 86,
+          "next_epoch": 87,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_nonres_seed17": {
+          "status": "passed",
+          "checkpoint_epoch": 152,
+          "next_epoch": 153,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_nonres_seed41": {
+          "status": "passed",
+          "checkpoint_epoch": 86,
+          "next_epoch": 87,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_nonres_seed29": {
+          "status": "passed",
+          "checkpoint_epoch": 149,
+          "next_epoch": 150,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_nonres_seed67": {
+          "status": "passed",
+          "checkpoint_epoch": 84,
+          "next_epoch": 85,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        }
+      },
+      "queue": [
+        "16195547_4|RUNNING|gpu|cna001",
+        "16195547_3|RUNNING|gpu|cna001",
+        "16195547_2|RUNNING|gpu|cna025",
+        "16195547_1|RUNNING|gpu|cna023",
+        "16195547_0|RUNNING|gpu|cna023"
+      ]
+    },
+    "yukawa": {
+      "root": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011",
+      "archive": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/provenance/budget_1200_revision_20261011T205208Z",
+      "old_job": "16195345",
+      "new_job": "16195548",
+      "n": 2,
+      "epochs": {
+        "les_response_k0p5_static_seed17": 44,
+        "les_response_k0p5_md_seed17": 36
+      },
+      "new_manifest_sha256": "670a0462080723a091828f0de219f64fdc178a8faacbe58d4d0e3efe9e215c4b",
+      "preflight": "passed",
+      "released": true,
+      "resume_verification": {
+        "les_response_k0p5_md_seed17": {
+          "status": "passed",
+          "checkpoint_epoch": 36,
+          "next_epoch": 37,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        },
+        "les_response_k0p5_static_seed17": {
+          "status": "passed",
+          "checkpoint_epoch": 44,
+          "next_epoch": 45,
+          "max_num_epochs": 1200,
+          "stage_two_start": 450,
+          "model_optimizer_scheduler_restored_exactly": true,
+          "restart_semantics": "Native saved EMA model and optimizer/LR state; EMA accumulator, RNG and patience history are not checkpointed and restart afresh."
+        }
+      },
+      "queue": [
+        "16195548_1|RUNNING|gpu|cna009",
+        "16195548_0|RUNNING|gpu|cna001"
+      ]
+    }
+  },
+  "commands": [
+    [
+      "sbatch",
+      "--parsable",
+      "--hold",
+      "--job-name=extles-residual-1200",
+      "--array=0-4",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_5seed_20261011/logs/resume1200_%A_%a.log",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_5seed_20261011/resume_budget.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_5seed_20261011"
+    ],
+    [
+      "sbatch",
+      "--parsable",
+      "--hold",
+      "--job-name=extles-nonresidual-1200",
+      "--array=0-4",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_nonresidual_5seed_20261011/logs/resume1200_%A_%a.log",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_nonresidual_5seed_20261011/resume_budget.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_response_nonresidual_5seed_20261011"
+    ],
+    [
+      "sbatch",
+      "--parsable",
+      "--hold",
+      "--job-name=extles-yukawa-1200",
+      "--array=0-1",
+      "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/logs/resume1200_%A_%a.log",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011/resume_budget.slurm",
+      "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/extended_les_yukawa_k0p5_seed17_20261011"
+    ],
+    [
+      "scontrol",
+      "update",
+      "JobId=16193550",
+      "Dependency=afterok:16195546"
+    ],
+    [
+      "scontrol",
+      "update",
+      "JobId=16194804",
+      "Dependency=afterok:16195547:16193550"
+    ],
+    [
+      "scontrol",
+      "update",
+      "JobId=16195346",
+      "Dependency=afterok:16195548_1"
+    ],
+    [
+      "scancel",
+      "16193549",
+      "16194803",
+      "16195345"
+    ],
+    [
+      "scontrol",
+      "release",
+      "16195546"
+    ],
+    [
+      "scontrol",
+      "release",
+      "16195547"
+    ],
+    [
+      "scontrol",
+      "release",
+      "16195548"
+    ]
+  ],
+  "stage": "all_twelve_running_and_checkpoint_restoration_verified",
+  "verified_utc": "2026-10-11T20:55:58.133422+00:00"
+}

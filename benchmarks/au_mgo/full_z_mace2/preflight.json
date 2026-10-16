@@ -1,0 +1,10 @@
+{
+  "state": "passed",
+  "production_tasks": 10,
+  "smoke_tasks": 2,
+  "backbone_interactions": 2,
+  "backbone_parameters": 960144,
+  "interaction_first": "RealAgnosticInteractionBlock",
+  "cutoff_A": 5.5,
+  "smoke": "Both modes use the complete production inputs and batching; joint gradients activate after two warmup steps."
+}

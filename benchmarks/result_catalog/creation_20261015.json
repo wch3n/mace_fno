@@ -1,0 +1,18 @@
+{
+  "snapshot": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/results/snapshots/20261015T145807.320148Z",
+  "records": 966,
+  "validated_symlinks": 4142,
+  "system_counts": {
+    "au2_mgo": 249,
+    "cross_system": 5,
+    "heterogeneous_screening": 63,
+    "homogeneous_yukawa": 225,
+    "liquid_water": 242,
+    "llzo": 172,
+    "water_rpbe_d3": 10
+  },
+  "excluded_records": 37,
+  "original_run_files_moved": 0,
+  "original_run_files_modified": 0,
+  "tests": "Four organizer boundary tests passed; all central links resolve; recent completed campaigns checked; active 3D production excluded."
+}

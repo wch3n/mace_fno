@@ -1,0 +1,181 @@
+{
+  "campaign": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012",
+  "checks": [
+    {
+      "state": "complete",
+      "stage": "complete",
+      "job_id": "16205160",
+      "started": "2026-10-12T16:30:48.516720+00:00",
+      "task": "les_nonres_contact_kappa0p05_seed17",
+      "commands": [
+        {
+          "stage": "native_smoke",
+          "argv": [
+            "-m",
+            "mace.cli.run_train",
+            "--config",
+            "configs/smoke_kappa0p05_native.yaml"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "backend_parity",
+          "argv": [
+            "check_cueq.py",
+            "0"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "cueq_smoke",
+          "argv": [
+            "train_cueq.py",
+            "--config",
+            "configs/smoke_kappa0p05_cueq.yaml"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "smoke_export",
+          "argv": [
+            "verify.py",
+            "--smoke",
+            "0"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "model_validation",
+          "argv": [
+            "evaluate.py",
+            "check",
+            "0"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "md_driver",
+          "argv": [
+            "md_wrapper.py",
+            "equilibrate",
+            "--calc",
+            "mace",
+            "--model",
+            "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012/smoke/kappa0p05/cueq/models/smoke_kappa0p05_cueq_stagetwo.model",
+            "--kappa",
+            "0p05",
+            "--time",
+            "0.02",
+            "--dt",
+            "2",
+            "--seed",
+            "17",
+            "--out",
+            "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012/validation/kappa0p05/md_driver"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "szz_estimator",
+          "argv": [
+            "analyze.py",
+            "check",
+            "0"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "gpu": "NVIDIA A100-SXM4-40GB",
+      "manifest_sha256": "238fb694c7e06ce26d74197d6dc8fc0de1311dc3550017c25aef8a7c0090d7e8",
+      "finished": "2026-10-12T16:33:51.733536+00:00"
+    },
+    {
+      "state": "complete",
+      "stage": "complete",
+      "job_id": "16205157",
+      "started": "2026-10-12T16:30:48.521430+00:00",
+      "task": "les_nonres_contact_kappa0p5_seed17",
+      "commands": [
+        {
+          "stage": "native_smoke",
+          "argv": [
+            "-m",
+            "mace.cli.run_train",
+            "--config",
+            "configs/smoke_kappa0p5_native.yaml"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "backend_parity",
+          "argv": [
+            "check_cueq.py",
+            "1"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "cueq_smoke",
+          "argv": [
+            "train_cueq.py",
+            "--config",
+            "configs/smoke_kappa0p5_cueq.yaml"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "smoke_export",
+          "argv": [
+            "verify.py",
+            "--smoke",
+            "1"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "model_validation",
+          "argv": [
+            "evaluate.py",
+            "check",
+            "1"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "md_driver",
+          "argv": [
+            "md_wrapper.py",
+            "equilibrate",
+            "--calc",
+            "mace",
+            "--model",
+            "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012/smoke/kappa0p5/cueq/models/smoke_kappa0p5_cueq_stagetwo.model",
+            "--kappa",
+            "0p5",
+            "--time",
+            "0.02",
+            "--dt",
+            "2",
+            "--seed",
+            "17",
+            "--out",
+            "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012/validation/kappa0p5/md_driver"
+          ],
+          "exit_code": 0
+        },
+        {
+          "stage": "szz_estimator",
+          "argv": [
+            "analyze.py",
+            "check",
+            "1"
+          ],
+          "exit_code": 0
+        }
+      ],
+      "gpu": "NVIDIA A100-SXM4-40GB",
+      "manifest_sha256": "238fb694c7e06ce26d74197d6dc8fc0de1311dc3550017c25aef8a7c0090d7e8",
+      "finished": "2026-10-12T16:34:08.445906+00:00"
+    }
+  ]
+}

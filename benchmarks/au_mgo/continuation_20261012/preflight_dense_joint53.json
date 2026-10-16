@@ -1,0 +1,19 @@
+{
+  "task": "au2_mgo_nl1_joint_full_z_seed53",
+  "seed": 53,
+  "rank": 0,
+  "completed_steps": 115500,
+  "target_steps": 240000,
+  "best_step": 115000,
+  "learning_rates": [
+    1e-06,
+    1e-06
+  ],
+  "compatible": true,
+  "committed_history_rows": 232,
+  "uncommitted_history_rows": 0,
+  "optimizer_present": true,
+  "rng_present": true,
+  "energy_selection_present": true,
+  "last_checkpoint_sha256": "3744149c3d8c067ea0427a5c805ddd094361fb23a670b2302a4d89bbe021c132"
+}

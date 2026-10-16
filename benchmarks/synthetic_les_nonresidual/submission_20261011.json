@@ -1,0 +1,16 @@
+{
+  "campaign": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_20261011",
+  "validation_array": "16194179",
+  "production_array": "16194181",
+  "production_tasks": "0-19%5",
+  "collection_job": "16194184",
+  "partition": "gpu",
+  "first_interaction": "RealAgnosticInteractionBlock",
+  "seeds": [17, 29, 41, 53, 67],
+  "datasets": ["kappa0p05", "kappa0p2", "kappa0p5", "hetscreen"],
+  "preflight": "passed",
+  "gpu_validation_at_submission": "pending: QOSMaxNodePerUserLimit",
+  "production_dependency": "afterok:16194179",
+  "collection_dependency": "afterok:16194181",
+  "manuscript_values": "Original residual-first values retained and marked pending matched reruns."
+}

@@ -1,0 +1,104 @@
+{
+  "state": "passed",
+  "models": 13,
+  "checks": [
+    {
+      "index": 0,
+      "name": "au2_mgo_nl1_frozen_linear_seed17",
+      "checkpoint_sha256": "88090cb7118b7c4122f870bd98d3002f7093590d8d4bb2b91e745cb19858e515",
+      "selected_step": 226500,
+      "completed_steps": 240000,
+      "loaded_operator": "LinearMetricSlabFNO2D",
+      "loaded_mace_depth": 1
+    },
+    {
+      "index": 1,
+      "name": "au2_mgo_nl1_frozen_linear_seed29",
+      "checkpoint_sha256": "e54b5b1e906acde68a42aa42881d4d36da6cd4a4b0619e005e1a7aeddc603f9f",
+      "selected_step": 239000,
+      "completed_steps": 240000
+    },
+    {
+      "index": 2,
+      "name": "au2_mgo_nl1_frozen_linear_seed41",
+      "checkpoint_sha256": "18d60bc27f1092074f8a64b7b055f18ee3daef560838b259609bbcac59e80ddc",
+      "selected_step": 234500,
+      "completed_steps": 240000
+    },
+    {
+      "index": 3,
+      "name": "au2_mgo_nl1_frozen_linear_seed53",
+      "checkpoint_sha256": "2b12c88dc1cbb4a698906523fe4d9fc8095d6304f5a438e4d52fac4e67796927",
+      "selected_step": 227000,
+      "completed_steps": 240000
+    },
+    {
+      "index": 4,
+      "name": "au2_mgo_nl1_frozen_linear_seed67",
+      "checkpoint_sha256": "78956c96b9451d4f95f745d531a9c058c98273ba51b711d5816f1169f29a6401",
+      "selected_step": 238500,
+      "completed_steps": 240000
+    },
+    {
+      "index": 5,
+      "name": "au2_mgo_nl1_joint_linear_seed17",
+      "checkpoint_sha256": "9e8600143411a6dc03adf73a88030b49d2d37fd46e8a58257338d07a7f3de5c9",
+      "selected_step": 234500,
+      "completed_steps": 240000,
+      "loaded_operator": "LinearMetricSlabFNO2D",
+      "loaded_mace_depth": 1
+    },
+    {
+      "index": 6,
+      "name": "au2_mgo_nl1_joint_linear_seed29",
+      "checkpoint_sha256": "2aadc3f69b340d50d13df29fe393b3b8ccc584f01e35446d088eb6344dc7eb9a",
+      "selected_step": 239000,
+      "completed_steps": 240000
+    },
+    {
+      "index": 7,
+      "name": "au2_mgo_nl1_joint_linear_seed41",
+      "checkpoint_sha256": "3e77148e5c41905d9f0033b17f614c1f57f48e402f8647b77e434628b59399c5",
+      "selected_step": 238000,
+      "completed_steps": 240000
+    },
+    {
+      "index": 8,
+      "name": "au2_mgo_nl1_joint_linear_seed53",
+      "checkpoint_sha256": "e6e407b40e5e96dc78ab20ecd603730d2c9bbdb6ed0ff5bcf6f1d5c1af53c0da",
+      "selected_step": 239500,
+      "completed_steps": 240000
+    },
+    {
+      "index": 9,
+      "name": "au2_mgo_nl1_joint_linear_seed67",
+      "checkpoint_sha256": "ed7cce714529cc902411e7a4bb76cb714709ea9dedb6d9dd65b233fbd3fcab42",
+      "selected_step": 237000,
+      "completed_steps": 240000
+    },
+    {
+      "index": 10,
+      "name": "au2_mgo_nl2_frozen_linear_seed17",
+      "checkpoint_sha256": "7efb3f55569021c7654abe4288711ccb41acd51acde812e5e3ee6abcbce9aac9",
+      "selected_step": 16000,
+      "completed_steps": 240000,
+      "loaded_operator": "LinearMetricSlabFNO2D",
+      "loaded_mace_depth": 2
+    },
+    {
+      "index": 11,
+      "name": "au2_mgo_nl2_frozen_linear_gpu_seed29",
+      "checkpoint_sha256": "31ae9ef00472ecab00da38d05a2304a5c2a83bb215ec6f2fd8bea2ee30b6734d",
+      "selected_step": 14500,
+      "completed_steps": 240000
+    },
+    {
+      "index": 12,
+      "name": "au2_mgo_nl2_frozen_linear_gpu_seed41",
+      "checkpoint_sha256": "1d8479d75dfaff5c84327ecf47625d67a4bcf64f6a3389b5f6a5e09f4f2d67e8",
+      "selected_step": 240000,
+      "completed_steps": 240000
+    }
+  ],
+  "pending_gpu_force_check": true
+}

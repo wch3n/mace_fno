@@ -1,0 +1,44 @@
+{
+  "measured_2026_10_14": {
+    "frozen": {
+      "source": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/smoke/au2_mgo_nl1_frozen_full_z_smoke/memory.json",
+      "record": {
+        "gpu": "NVIDIA A100-SXM4-80GB",
+        "total_memory_bytes": 85125496832,
+        "peak_allocated_bytes": 16144475648,
+        "peak_reserved_bytes": 16827547648,
+        "elapsed_seconds": 57.00695738289505,
+        "batch_size": 1,
+        "accumulation_steps": 4,
+        "evaluation_batch_size": 1
+      }
+    },
+    "joint": {
+      "source": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/smoke/au2_mgo_nl1_joint_full_z_smoke/memory.json",
+      "record": {
+        "gpu": "NVIDIA A100-SXM4-80GB",
+        "total_memory_bytes": 85125496832,
+        "peak_allocated_bytes": 16362789376,
+        "peak_reserved_bytes": 16838033408,
+        "elapsed_seconds": 35.551123251905665,
+        "batch_size": 1,
+        "accumulation_steps": 4,
+        "evaluation_batch_size": 1
+      }
+    }
+  },
+  "live_gpu_memory_MiB": {
+    "frozen_seed17": 16903,
+    "joint_seed17": 16997
+  },
+  "live_host_MaxRSS_KiB": {
+    "frozen_seed17": 10785652,
+    "joint_seed17": 24791844
+  },
+  "batch_size": 1,
+  "accumulation_steps": 4,
+  "evaluation_batch_size": 1,
+  "gpu_partition_memory_GiB": 40,
+  "ia_partition_memory_GiB": 80,
+  "host_memory_request_GiB": 64
+}

@@ -1,0 +1,34 @@
+{
+  "training_job": 16256497,
+  "smoke_job": 16256495,
+  "smoke_state": "complete",
+  "continuation_job": 16256498,
+  "continuation_dependency": "afterany:16256497",
+  "continuation_policy": "Resume only after TIMEOUT; skip COMPLETED; refuse other terminal states.",
+  "simultaneous_reference_job": 16252721,
+  "grid_xyz": [
+    24,
+    24,
+    32
+  ],
+  "modes_xyz": [
+    8,
+    8,
+    8
+  ],
+  "mesh_origins": 8,
+  "interlacing_training": "full",
+  "seed": 17,
+  "mace_training": "joint",
+  "partition": "gpu",
+  "walltime_per_allocation": "48:00:00",
+  "training_step_budget": 240000,
+  "smoke_peak_allocated_GiB": 1.8643860816955566,
+  "configuration_changes_vs_z24": {
+    "z_grid": [
+      24,
+      32
+    ]
+  },
+  "campaign": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_periodic_3d_z32_20261015"
+}

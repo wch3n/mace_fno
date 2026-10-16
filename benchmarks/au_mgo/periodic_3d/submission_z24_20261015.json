@@ -1,0 +1,25 @@
+{
+  "training_job": 16252721,
+  "smoke_job": 16252680,
+  "smoke_state": "complete",
+  "replaced_job": 16252112,
+  "replaced_job_state": "cancelled_by_user",
+  "grid_xyz": [
+    24,
+    24,
+    24
+  ],
+  "modes_xyz": [
+    8,
+    8,
+    8
+  ],
+  "mesh_origins": 8,
+  "interlacing_training": "full",
+  "seed": 17,
+  "mace_training": "joint",
+  "partition": "gpu",
+  "walltime": "48:00:00",
+  "training_step_budget": 240000,
+  "smoke_peak_allocated_GiB": 1.7374730110168457
+}

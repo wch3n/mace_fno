@@ -1,0 +1,142 @@
+{
+  "jobs": [
+    {
+      "key": "rank64_frozen",
+      "job_id": "16206373",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--partition=gpu",
+        "--qos=gpu",
+        "--time=12:00:00",
+        "--job-name=au-r64-frozen-s17-resume",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009/resume_20261012/rank64_frozen-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009/resume_20261012/rank64_frozen-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009/resume_20261012/resume.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009",
+        "2",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009/resume_20261012/resume_run.py"
+      ],
+      "submitted_utc": "2026-10-12T20:38:50.277741+00:00",
+      "start_step": 210500,
+      "target_steps": 240000
+    },
+    {
+      "key": "rank64_joint",
+      "job_id": "16206374",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--partition=gpu",
+        "--qos=gpu",
+        "--time=12:00:00",
+        "--job-name=au-r64-joint-s17-resume",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009/resume_20261012/rank64_joint-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009/resume_20261012/rank64_joint-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009/resume_20261012/resume.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009",
+        "3",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_low_rank_full_z_seed17_20261009/resume_20261012/resume_run.py"
+      ],
+      "submitted_utc": "2026-10-12T20:38:50.351656+00:00",
+      "start_step": 207000,
+      "target_steps": 240000
+    },
+    {
+      "key": "dense_joint53",
+      "job_id": "16206375",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--partition=ia",
+        "--qos=ia",
+        "--time=48:00:00",
+        "--job-name=au-full-z-joint-s53",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/dense_joint53-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/dense_joint53-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/resume.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z",
+        "8",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/resume_run.py"
+      ],
+      "submitted_utc": "2026-10-12T20:38:50.386616+00:00",
+      "start_step": 115500,
+      "target_steps": 240000
+    },
+    {
+      "key": "dense_joint67",
+      "job_id": "16206376",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--partition=ia",
+        "--qos=ia",
+        "--time=48:00:00",
+        "--job-name=au-full-z-joint-s67",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/dense_joint67-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/dense_joint67-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/resume.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z",
+        "9",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/resume_run.py"
+      ],
+      "submitted_utc": "2026-10-12T20:38:50.425106+00:00",
+      "start_step": 117000,
+      "target_steps": 240000
+    },
+    {
+      "key": "dense_joint53_timeout_followon",
+      "job_id": "16206377",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--dependency=afterany:16206375",
+        "--kill-on-invalid-dep=yes",
+        "--partition=ia",
+        "--qos=ia",
+        "--time=12:00:00",
+        "--job-name=au-full-z-joint-s53-finish",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/dense_joint53-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/dense_joint53-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/resume.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z",
+        "8",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/resume_run.py",
+        "16206375"
+      ],
+      "submitted_utc": "2026-10-12T20:38:50.461680+00:00",
+      "parent_job_id": "16206375",
+      "condition": "Train only if parent Slurm state is TIMEOUT; skip on COMPLETED; refuse other terminal states"
+    },
+    {
+      "key": "dense_joint67_timeout_followon",
+      "job_id": "16206378",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--dependency=afterany:16206376",
+        "--kill-on-invalid-dep=yes",
+        "--partition=ia",
+        "--qos=ia",
+        "--time=12:00:00",
+        "--job-name=au-full-z-joint-s67-finish",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/dense_joint67-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/dense_joint67-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/resume.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z",
+        "9",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_full_zmix_nl1_5seed_20261006T070300Z/resume_20261012/resume_run.py",
+        "16206376"
+      ],
+      "submitted_utc": "2026-10-12T20:38:50.480729+00:00",
+      "parent_job_id": "16206376",
+      "condition": "Train only if parent Slurm state is TIMEOUT; skip on COMPLETED; refuse other terminal states"
+    }
+  ]
+}

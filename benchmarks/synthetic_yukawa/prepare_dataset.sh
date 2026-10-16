@@ -44,9 +44,18 @@ case "${stage}" in
         # About 9 h per kappa on 40 cores: 10 ps burn-in, then 30 frames 1 ps apart.
         kappa=${1:?md needs KAPPA (0.05 or 0.5)}
         case "${kappa}" in
-            0.05) scale=1.851164318158901; tag=k0p05 ;;
-            0.5)  scale=2.9920082180339316; tag=k0p5 ;;
-            *) printf 'md: KAPPA must be 0.05 or 0.5, got %s\n' "${kappa}" >&2; exit 2 ;;
+            0.05)
+                scale=1.851164318158901
+                tag=k0p05
+                ;;
+            0.5)
+                scale=2.9920082180339316
+                tag=k0p5
+                ;;
+            *)
+                printf 'md: KAPPA must be 0.05 or 0.5, got %s\n' "${kappa}" >&2
+                exit 2
+                ;;
         esac
         "${PYTHON}" "${HERE}/gen_yukawa.py" --out "${DATA_ROOT}/md2800/data_${tag}" \
             --cells 32.0 --kappa "${kappa}" --fixed-scale "${scale}" --temp 2800 \

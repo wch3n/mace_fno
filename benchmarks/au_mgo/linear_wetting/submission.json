@@ -1,0 +1,173 @@
+{
+  "jobs": [
+    {
+      "key": "ready",
+      "job_id": "16209413",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-ready",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/ready-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/ready-%j.err",
+        "--gres=gpu:4",
+        "--cpus-per-task=16",
+        "--mem=128G",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "ready"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.544333+00:00"
+    },
+    {
+      "key": "task13",
+      "job_id": "16209414",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-task13",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task13-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task13-%j.err",
+        "--dependency=afterok:16191322_22",
+        "--kill-on-invalid-dep=yes",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "worker",
+        "13"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.561354+00:00"
+    },
+    {
+      "key": "task14",
+      "job_id": "16209415",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-task14",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task14-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task14-%j.err",
+        "--dependency=afterok:16191322_23",
+        "--kill-on-invalid-dep=yes",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "worker",
+        "14"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.577414+00:00"
+    },
+    {
+      "key": "task15",
+      "job_id": "16209416",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-task15",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task15-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task15-%j.err",
+        "--dependency=afterok:16191322_24",
+        "--kill-on-invalid-dep=yes",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "worker",
+        "15"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.594368+00:00"
+    },
+    {
+      "key": "task16",
+      "job_id": "16209417",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-task16",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task16-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task16-%j.err",
+        "--dependency=afterok:16191322_25",
+        "--kill-on-invalid-dep=yes",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "worker",
+        "16"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.609775+00:00"
+    },
+    {
+      "key": "task17",
+      "job_id": "16209418",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-task17",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task17-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task17-%j.err",
+        "--dependency=afterok:16191322_26",
+        "--kill-on-invalid-dep=yes",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "worker",
+        "17"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.623993+00:00"
+    },
+    {
+      "key": "task18",
+      "job_id": "16209419",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-task18",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task18-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task18-%j.err",
+        "--dependency=afterok:16191322_27",
+        "--kill-on-invalid-dep=yes",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "worker",
+        "18"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.638801+00:00"
+    },
+    {
+      "key": "task19",
+      "job_id": "16209420",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-task19",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task19-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/task19-%j.err",
+        "--dependency=afterok:16191322_28",
+        "--kill-on-invalid-dep=yes",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "worker",
+        "19"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.655313+00:00"
+    },
+    {
+      "key": "collect",
+      "job_id": "16209421",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--chdir=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013",
+        "--job-name=linear-wet-collect",
+        "--output=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/collect-%j.out",
+        "--error=/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/logs/collect-%j.err",
+        "--dependency=afterok:16209413:16209414:16209415:16209416:16209417:16209418:16209419:16209420",
+        "--kill-on-invalid-dep=yes",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013/collect.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/au2_mgo_linear_wetting_20261013"
+      ],
+      "submitted_utc": "2026-10-13T07:40:24.671259+00:00"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+{
+  "submitted": "2026-10-12T16:29:42.578397+00:00",
+  "root": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012",
+  "jobs": {
+    "checks": {
+      "id": "16205157",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--job-name=les-nonres-md-check",
+        "--array=0-1",
+        "--time=00:30:00",
+        "--output=logs/check-%A_%a.out",
+        "--error=logs/check-%A_%a.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012",
+        "check"
+      ],
+      "stderr": ""
+    },
+    "training_and_md": {
+      "id": "16205158",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--job-name=les-nonres-md",
+        "--array=0-1",
+        "--dependency=afterok:16205157",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/production-%A_%a.out",
+        "--error=logs/production-%A_%a.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012/job.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012",
+        "run"
+      ],
+      "stderr": ""
+    },
+    "figure_update": {
+      "id": "16205159",
+      "command": [
+        "sbatch",
+        "--parsable",
+        "--dependency=afterok:16205158",
+        "--kill-on-invalid-dep=yes",
+        "--output=logs/figure-%j.out",
+        "--error=logs/figure-%j.err",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012/update_figure.slurm",
+        "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/synthetic_les_nonresidual_md_20261012"
+      ],
+      "stderr": ""
+    }
+  }
+}

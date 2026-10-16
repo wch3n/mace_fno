@@ -1,0 +1,33 @@
+{
+  "campaign": "/gpfs/home/acad/ucl-modl/wchen/mace_fno_runs/_campaigns/inference_au_periodic_3d_20261015",
+  "job": 16252117,
+  "scope": "3D architecture cost using 16-step smoke weights; accuracy not converged; not inserted into manuscript",
+  "checkpoint_sha256": "2e2292b57e8c499011b446850524d88bf1c61060b64eb3bf423f9e0d7e11ba87",
+  "grid_xyz": [
+    24,
+    24,
+    72
+  ],
+  "modes_xyz": [
+    8,
+    8,
+    24
+  ],
+  "mesh_origins": 8,
+  "parameters": 909504,
+  "timing": {
+    "calls": 90,
+    "median_ms": 63.034167499999995,
+    "mean_ms": 63.169597966666664,
+    "std_ms": 0.5534624682611442,
+    "p10_ms": 62.961779899999996,
+    "p90_ms": 63.2652006
+  },
+  "peak_tensor_MiB": 2019.18212890625,
+  "full_z_reference_time_ms": 174.7450395,
+  "full_z_reference_tensor_MiB": 7683.154296875,
+  "time_reduction_percent": 63.92792168501011,
+  "memory_reduction_percent": 73.71935990238384,
+  "mace1_timing_control_change_percent": -1.3692331679195369,
+  "checks": "Source/checkpoint hashes, frame identities, raw 90-call median, nine-call tensor peak, ASE energy-force agreement"
+}

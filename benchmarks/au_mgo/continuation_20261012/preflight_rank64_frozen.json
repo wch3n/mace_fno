@@ -1,0 +1,18 @@
+{
+  "task": "au2_mgo_nl1_frozen_full_z_rank64_seed17",
+  "seed": 17,
+  "rank": 64,
+  "completed_steps": 210500,
+  "target_steps": 240000,
+  "best_step": 207500,
+  "learning_rates": [
+    1e-06
+  ],
+  "compatible": true,
+  "committed_history_rows": 422,
+  "uncommitted_history_rows": 0,
+  "optimizer_present": true,
+  "rng_present": true,
+  "energy_selection_present": true,
+  "last_checkpoint_sha256": "6dab2a461d4d53afd15f354fef26d22c4b5a21f0462020ef95fb745546189e93"
+}
