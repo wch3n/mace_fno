@@ -5,6 +5,9 @@ nonlocal interaction is known by construction. It covers the data generation and
 the training of every model compared on these data: the local MACE baselines,
 MACE-LES, and frozen and joint MACE1-FNO.
 
+For spatially varying screening and the remote-medium probe, see the
+[inhomogeneous screening benchmark](../heterogeneous_screening/README.md).
+
 ## System
 
 A charge-neutral, NaCl-like ionic system of 1146 ions with charges +-0.4 e in a

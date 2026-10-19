@@ -59,6 +59,7 @@ stress is not yet supported.
 | Benchmark | Physical setting |
 |---|---|
 | [Synthetic Yukawa](benchmarks/synthetic_yukawa/README.md) | Known screened interactions and charge correlations |
+| [Inhomogeneous screening](benchmarks/heterogeneous_screening/README.md) | Spatially varying screening and remote-medium modulation of interionic coupling |
 | [Liquid water](benchmarks/water_scan_qnep/README.md) | Periodic 3D liquid, SCAN reference data |
 | [LLZO](benchmarks/llzo_qnep/README.md) | Ionic conductor with different cell sizes and shapes |
 | [Au₂/MgO](benchmarks/au_mgo/README.md) | Slab energies, forces, and dopant-induced wetting reversal |
