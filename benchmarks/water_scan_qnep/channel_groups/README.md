@@ -2,10 +2,10 @@
 
 ## Scope
 
-This historical seed-29 comparison tests G=1 against G=4 for frozen MACE1 on
-the clean SCAN-water split. The manuscript now uses the complete
-[G=1 campaign](../groups1_complete/README.md). The comparison below records
-the earlier controlled test and its configuration.
+This seed-29 comparison tests G=1 against G=4 for frozen MACE1 on the
+geometry-disjoint SCAN-water split. The manuscript uses the complete
+[five-seed G=1 campaign](../groups1_complete/README.md). This directory
+documents the controlled grouping comparison and its configuration.
 
 Only `spectral_groups` changes from 4 to 1, apart from the output checkpoint
 path. The experiment preserves the reference code snapshot, backbone, data,
@@ -31,7 +31,7 @@ One seed provides a preliminary comparison, without a seed-variability estimate.
 python3 -B prepare.py --reference-campaign /path/to/physical_convergence_matched_20260930 --output /path/to/new_campaign
 ```
 
-The new campaign copies the reference source and archives its control records
+The campaign copies the reference source and archives its control records
 and raw training/validation inputs. Existing feature caches are shared read-only.
 SHA-256 checks cover the source, configurations, inputs, caches, and control.
 Run `preflight.py` with the matching Python packages and `source/src` of the campaign on PYTHONPATH. It verifies the full validation history of the control,

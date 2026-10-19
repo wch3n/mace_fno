@@ -21,4 +21,4 @@ The scripts derive from `../matched_les_wetting/`. Preparation verifies the
 model hash and copies its training source so the saved scalar-vector model
 loads with the matching implementation. The manuscript import is handled by
 `docs/source/data/au2_mgo_converged/collect_wetting.py --refresh-matched-mace2`.
-Previous results are archived before replacement.
+The importer archives its input results before writing the evaluated values.

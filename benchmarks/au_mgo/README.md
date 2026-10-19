@@ -15,7 +15,7 @@ training pool, 225 form the fixed validation subset. The resulting split is
 **4,275/225/500** training/validation/test structures.
 `validation_indices_seed123.txt` specifies the validation indices.
 
-The current nonlinear slab campaign uses **full z-mixing**: a spectral matrix
+The nonlinear slab campaign uses **full z-mixing**: a spectral matrix
 couples hidden channels and heights jointly at each in-plane wavevector.
 Only the plane is Fourier transformed. The height mesh is finite and does
 not connect periodic slab images through the vacuum. The model uses a
@@ -23,11 +23,11 @@ not connect periodic slab images through the vacuum. The model uses a
 and hidden channels, four Fourier layers, one spectral group, and four lateral
 mesh origins. Radial shell-spline weights impose the in-plane metric symmetry.
 
-The earlier channel-wise height scheme is a separate comparison. Its
+Channel-wise height mixing is a separate comparison. Its
 configuration key is `z_mixing: global`. The direct **linear** slab model uses
-one dense channel-height matrix even when this historical key is `global`.
+one dense channel-height matrix when configured with `z_mixing: global`.
 It has no pointwise branch or activation. See the
-[operator description](../../README.md#2d-fno-for-slabs) for the equations,
+[operator description](../../guides/operators.md#2d-fno-for-slabs) for the equations,
 parameter counts, and low-rank option.
 
 ## Campaign records
@@ -36,7 +36,7 @@ parameter counts, and low-rank option.
 |---|---|
 | Dense full z-mixing, MACE1 | [Test and wetting evaluations](full_z_tables/README.md) |
 | Dense full z-mixing, MACE2 | [Five-seed frozen and joint campaign](full_z_mace2/README.md) |
-| Revised stopping budgets | [16 October finalization](full_z_budget_20261016/README.md) |
+| Training budgets | [16 October finalization](full_z_budget_20261016/README.md) |
 | Direct linear FNO | [Physical linear campaign](../physical_linear_gpu/README.md), [wetting evaluation](linear_wetting/README.md) |
 | Scalar–vector MACE1–LES | [Matched wetting results](matched_les_wetting/README.md) |
 | Scalar–vector MACE2–LES | [Five-seed rerun](matched_mace2_les/README.md) |
@@ -69,8 +69,8 @@ variable is unset. Set it explicitly for a new installation.
 
 ## Introductory launchers
 
-The original launchers are available for local-MACE evaluation, planar
-projection, and the earlier slab configuration:
+The launchers cover local-MACE evaluation, planar projection, and
+channel-wise slab training:
 
 ```bash
 sbatch benchmarks/au_mgo/evaluate_mace.slurm
@@ -79,8 +79,8 @@ sbatch benchmarks/au_mgo/train_fno_2p5d.slurm
 ```
 
 `train_fno_2p5d.yaml` is an introductory channel-wise configuration.
-`train_joint_2p5d.yaml` describes the earlier 20,000-step, symmetry-averaged
-joint run. Neither reproduces the current full z-mixing campaign. Use the
+`train_joint_2p5d.yaml` describes a 20,000-step, symmetry-averaged
+joint run. Neither reproduces the full z-mixing campaign. Use the
 campaign records above for manuscript reproduction, or supply a separate
 configuration through `FNO_CONFIG` for a new calculation.
 

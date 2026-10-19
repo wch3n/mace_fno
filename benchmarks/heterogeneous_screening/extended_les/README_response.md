@@ -22,10 +22,10 @@ were trained, while the omitted heads were not stepped by the optimizer.
 weight decay, following the monopole-readout convention. It asserts complete,
 nonduplicated optimizer coverage and records actual updates to every added
 parameter tensor on the first training step. This correction applies only to
-the new training processes. Pilot artifacts and installed packages are preserved.
+the training processes. Pilot artifacts and installed packages are preserved.
 
 The existing cuEquivariance conversion certificate is inherited for the identical
-architecture. A new GPU check exercises the corrected optimizer for four epochs,
+architecture. A GPU check exercises the corrected optimizer for four epochs,
 including stage two, standard e3nn model export/reload and finite-difference
 forces. The five training jobs depend on that check succeeding. Check results
 are tied to the full campaign manifest hash.
@@ -48,7 +48,7 @@ are automatically replaced.
 
 Campaign: `~/mace_fno_runs/_campaigns/extended_les_response_5seed_20261011`.
 GPU check **16193545** passed: all 337,920 trainable parameters are covered,
-all nine formerly omitted readout tensors changed on the first optimizer step,
+all nine additional readout tensors changed on the first optimizer step,
 and the exported model passed a finite-difference force check (5.8e-10 eV/A).
 
 Production array **16193549**, tasks 0 through 4, maps to seeds
@@ -62,7 +62,7 @@ under `runs/les_response_seed*/`.
 The user set all extended-LES fits to the ordinary synthetic LES budget of
 1200 total epochs, keeping stage two at 450. Array 16195546 continues the
 five residual-first checkpoints (saved epochs 523--529), replacing 16193549.
-Collector 16193550 now depends on the replacement array. The archived manifests,
+Collector 16193550 depends on the replacement array. The archived manifests,
 configs, checkpoints and histories are referenced by `budget_resume.json`.
 
 The guarded restart verifies exact model, optimizer and learning-rate state

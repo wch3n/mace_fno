@@ -16,7 +16,7 @@ remain intact. Per-task `training.yaml` changes only the total step budget.
 `prepare.py` snapshots the audited continuation and evaluation helpers and
 wetting structures. Preflight checks validate all 15 checkpoints before
 `submit.py` changes the queue. Replacements are submitted held. Only after all
-submissions succeed are obsolete continuations cancelled and MACE1 stopped.
+submissions succeed are duplicate continuations cancelled and MACE1 stopped.
 MACE2 continues in its current allocation, then resumes natively up to 100,000
 steps. Its optimizer, scheduler, RNG, and validation-selection history persist.
 

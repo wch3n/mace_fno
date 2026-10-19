@@ -13,7 +13,7 @@ orthogonal, but their three lengths vary independently. The source contains
 a useful test of heterogeneous bulk cells and of long-range contributions in a
 polar solid electrolyte.
 
-## Current manuscript comparison
+## Manuscript comparison
 
 The manuscript uses the source-block split of **1,578 training, 200 validation,
 and 200 test structures**. It includes local MACE1/MACE2, charge-only LES, and
@@ -23,7 +23,7 @@ frozen/joint linear and nonlinear FNO models. FNO uses G=1 and five seeds
 [linear campaign](../physical_linear_gpu/README.md) uses the same split.
 Completed results are indexed by the [result catalog](../result_catalog/README.md).
 
-The launchers below describe the introductory and earlier three-seed workflows.
+The launchers below describe the introductory and three-seed workflows.
 Their default split, architecture, and budget differ from the manuscript campaign.
 Use the archived resolved configurations for manuscript reproduction.
 
@@ -99,7 +99,7 @@ From the repository root:
 
     bash benchmarks/llzo_qnep/submit.sh
 
-The earlier follow-up uses a blocked source-order split, metric-aware
+The three-seed workflow uses a blocked source-order split, metric-aware
 EqGINO, mesh-origin augmentation, full interlaced validation, and FNO seeds 17,
 29, and 41:
 

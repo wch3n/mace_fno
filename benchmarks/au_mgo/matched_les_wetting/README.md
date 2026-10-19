@@ -5,8 +5,8 @@ Table VI, seeds 17, 29, 41, 53, and 67. These are the charge-only LES models
 from `au2_mgo_matched_irreps_20260929T182640Z`. This campaign performs inference
 and relaxation only.
 
-The four DFT starting geometries and evaluator are copied from the previous
-wetting campaign. Only Au moves, the cell and substrate are fixed, and ASE
+The four DFT starting geometries and evaluator are copied from the shared
+wetting inputs. Only Au moves, the cell and substrate are fixed, and ASE
 FIRE runs in float64 to 0.01 eV/angstrom, at most 500 steps. Input/source and
 model hashes are checked. Each saved model must have `128x0e+128x1o` product
 outputs. Endpoint checks cover force convergence, substrate/cell constraints,
@@ -20,11 +20,11 @@ Preference means and sample SDs are **941.717 +/- 4.176 meV** (undoped) and
 
 `collect.py CAMPAIGN --data-dir docs/source/data/au2_mgo_converged` verifies
 checkpoint identity against the accuracy snapshot, replaces only the five
-MACE1-LES records, and regenerates the macros of Table VII. The previous snapshot
+MACE1-LES records, and regenerates the macros of Table VII. The input snapshot
 is archived before replacement. All other model records are checked to be
 unchanged. Paired energy differences are computed before calculating seed
 means and sample SDs. All endpoint energies use the same DFT non-wetting zero
 for the corresponding substrate composition.
 
-The full updated table is reproducible offline using
+The complete table is reproducible offline using
 `python3 -B docs/source/data/au2_mgo_converged/collect_wetting.py`.

@@ -59,11 +59,12 @@ or trailing `, with ...` clauses. Prefer a specific verb to repeated uses of
 `retain` or `remain`. Preserve command names, configuration keys, citations,
 and quoted text.
 
-Document current workflows in the benchmark overview. Label dated submission
-records and archived configurations as historical, and link to their successor
-when one exists. Do not rewrite recorded settings or results as though they
-came from a newer model. For slabs, use **full z-mixing** and **channel-wise
-height mixing** in prose. Keep the configuration identifier `z_mixing: global`
+Describe supported options and workflows directly in tutorials and README
+files. Avoid temporal labels such as "earlier", "older", and "legacy". Identify
+comparisons by their architecture, data split, or training settings. Keep dates
+and job IDs in campaign records and link to the configuration that supplies
+the reported results. Preserve the settings and results of each campaign.
+For slabs, use **full z-mixing** and **channel-wise height mixing** in prose. Keep the configuration identifier `z_mixing: global`
 where needed to reproduce the latter.
 
 ## Pull requests

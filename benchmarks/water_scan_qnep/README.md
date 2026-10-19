@@ -36,10 +36,10 @@ structure and 1e-5 eV/Å per force component. Labels are not averaged.
 
 The protocol is `exact-geometry-disjoint-source-roles-v1`. Train the local
 backbones on this split and use compatible caches. Models trained on the
-older overlapping split cannot be reused. Literature NEP/qNEP errors use a
+overlapping split cannot be reused. Literature NEP/qNEP errors use a
 different evaluation protocol and provide context rather than a matched test.
 
-## Current models
+## Models
 
 The comparison includes one- and two-interaction MACE backbones at a 4.5 Å
 cutoff, charge-only LES, and frozen and joint linear/nonlinear FNO models.
@@ -57,9 +57,9 @@ The completed campaigns are documented in:
 
 - [Nonlinear G=1 fits and convergence checks](groups1_complete/README.md).
 - [Linear G=1 fits](../physical_linear_gpu/README.md).
-- [Historical single-seed grouping comparison](channel_groups/README.md).
+- [Single-seed grouping comparison](channel_groups/README.md).
 
-The manuscript uses the complete five-seed test summaries. Current water
+The manuscript uses the complete five-seed test summaries. Water
 budgets are 120,000 steps, except joint MACE1 at 200,000. Checkpoint selection
 uses the combined validation loss. Energy errors are unshifted per-atom RMSEs,
 and force errors average Cartesian components. Seed spreads describe
@@ -74,9 +74,9 @@ bash benchmarks/water_scan_qnep/submit.sh
 
 The launcher creates a timestamped directory under
 `$MACE_FNO_WORK_ROOT/water_scan_qnep/runs/`. Set `RUN_ID` to name the run.
-The tracked `train_fno_3d.yaml` and `train_joint_3d.yaml` are earlier starter
+The tracked `train_fno_3d.yaml` and `train_joint_3d.yaml` are introductory
 configurations. Their grouping and training budgets do not reproduce the
-current manuscript. For a new run, copy the appropriate YAML, set
+manuscript. For a new run, copy the appropriate YAML, set
 `spectral_groups: 1`, and pass its path through `FNO_CONFIG`. Use the saved
 campaign configuration for exact reproduction.
 
@@ -88,9 +88,9 @@ FNO_CONFIG=/path/to/g1_train.yaml RUN_ID=small-fno \
   bash benchmarks/water_scan_qnep/submit.sh
 ```
 
-The original launcher also submits a separate spectral audit. It belongs to
-that historical workflow. **No further water spectral checks are required**
-for the current campaign. The G=1 campaign provides numerical-only checks.
+The introductory launcher also submits a spectral audit. Spectral checks are
+optional and are not part of the G=1 benchmark protocol. Use the G=1 campaign
+for numerical-only checks.
 
 ## Evaluation
 

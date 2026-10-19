@@ -23,10 +23,10 @@ python3 -B -m unittest discover -s benchmarks/result_catalog -p 'test_*.py'
 ```
 
 Completion evidence includes terminal run status, explicit completion markers,
-finished GPU benchmark records, and successful finalization in legacy training
+finished GPU benchmark records, and successful finalization in training
 logs. Explicit early stopping is accepted. Active jobs, unsuccessful runs,
-smoke tests, pilots, archives and scratch directories are excluded. Obsolete
-per-leg `resume_*` status records do not override a completed parent run.
+smoke tests, pilots, archives and scratch directories are excluded.
+Per-leg `resume_*` status records do not override a completed parent run.
 Completion does not certify convergence, scientific accuracy, or selection
 for the manuscript. Completed evaluations of interim checkpoints remain
 evaluations, not completed training runs.
@@ -48,7 +48,7 @@ before each inventory. Inability to read it aborts the refresh.
 
 `audit_benchmarks.py` checks the selected physical and synthetic accuracy records
 against their collectors, saved evaluations, configurations, checkpoint hashes
-(where recorded), and complete seed sets. It also reproduces the current Au2/MgO
+(where recorded), and complete seed sets. It also reproduces the Au2/MgO
 linear and full-z wetting rows from their archived evaluations. It performs no
 training or inference and does not edit the manuscript.
 

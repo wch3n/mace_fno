@@ -86,7 +86,7 @@ Verification status:
 - `gen_contacts.py` reproduces all six contact files and `data_contact_summary.json` byte-identically (2026-10-01).
 - the static benchmark regenerates byte-identically (2026-10-01).
 
-## Current LES protocol
+## LES protocol
 
 The manuscript uses the nonresidual first block
 `RealAgnosticInteractionBlock`, matching the synthetic local backbones.
@@ -98,8 +98,8 @@ to stage two at epoch 450. Fig. 4 uses separate
 
 The generic `mace.yaml` below does not specify `interaction_first` and depends
 on the installed MACE default. Use the explicit matched campaign for the
-current LES results. The original configurations are available for
-reproducing the earlier comparisons.
+manuscript LES results. The generic configurations are available for
+comparisons using the installed MACE defaults.
 
 ## Train the models
 
@@ -172,7 +172,7 @@ nonresidual-first LES replacements use the campaign linked above.
 
 ## Analysis and molecular dynamics
 
-The revised LES MD workflow and Fig. 4 update are in
+The nonresidual-first LES MD workflow and Fig. 4 update are in
 [nonresidual_les_md](nonresidual_les_md/README.md). The original reference,
 local-MACE, and FNO trajectories keep their recorded inputs. Shell-resolved
 analysis and spectral-fit plotting data are documented in the local manuscript

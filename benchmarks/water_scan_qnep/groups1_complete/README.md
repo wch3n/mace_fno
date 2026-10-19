@@ -9,8 +9,8 @@ variants (five settings, seeds 29/41/53) with G=1.
 The starting backbones, clean 471/52/134 split, source snapshot, loss scales,
 optimizer, batch size, and validation-selection rule are preserved.
 Training budgets are 120000 steps, except joint MACE1 at 200000. Only
-spectral_groups changes, along with output paths and removal of old G=4
-resume paths. New fits start from the original local backbone, not a G=4
+spectral_groups changes, along with output paths and removal of G=4
+resume paths. The fits start from the original local backbone, not a G=4
 FNO checkpoint. Shared caches and original campaigns are read-only.
 
 Preparation verifies source and input hashes. GPU smoke tests exercise
@@ -30,10 +30,10 @@ Import requires complete verification of the following dependent quantities:
   29/41/53 as its reference setting.
 - Parameter counts, GPU runtime/memory, and seed-17 interlacing measurements.
 - Optional residual parity and standalone spectral/numerical diagnostics,
-  regenerated from the new checkpoints before describing them as G=1.
+  regenerated from the G=1 checkpoints before describing them as G=1.
 
 Archived grouped results keep their original model identities. They do not
-supply the current manuscript entries.
+supply the manuscript entries.
 
 ## Completed imports
 
@@ -42,7 +42,7 @@ The twenty accuracy fits, GPU costs, and interlacing results were imported on
 completed 120,000 steps and entered the appendix on 12 October. The manuscript
 uses G=1 throughout. Further water spectral checks have been discontinued.
 Use `numerical_only.py` and `numerical_only.slurm` for numerical checks.
-Historical spectral-recovery scripts and submitted snapshots document the
-previous workflow. [SUBMITTED.md](SUBMITTED.md) records its submissions and
+Spectral-recovery scripts and submitted snapshots are separate from the
+numerical-only checks. [SUBMITTED.md](SUBMITTED.md) records submissions and
 cancellations. The local manuscript evidence is documented in
 `docs/source/data/water_groups1/README.md`.

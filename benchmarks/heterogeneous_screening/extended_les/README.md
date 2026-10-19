@@ -1,6 +1,6 @@
 # Extended LES on the heterogeneous-screening probe
 
-This exploratory seed-17 pilot is outside the current paper. Its status and
+This exploratory seed-17 pilot is outside the paper. Its status and
 inputs are recorded in the external campaign. Reference: [Park et al., arXiv:2605.05746v2](https://arxiv.org/abs/2605.05746v2).
 
 The five-seed full-response follow-up is documented in
@@ -24,8 +24,8 @@ possibility. Learning the correct medium response must be measured.
 
 The campaign is `~/mace_fno_runs/_campaigns/extended_les_heterogeneous_20261011`.
 Its venv contains separate MACE and LES installations. The existing PyTorch and
-other dependencies are reused read-only through a `.pth` path. The old MACE/LES
-environment is not upgraded. Jobs disable user-site processing and clear
+other dependencies are reused read-only through a `.pth` path. The benchmark MACE/LES
+environment is left unchanged. Jobs disable user-site processing and clear
 `PYTHONPATH`. Preparation and each run verify the imported module locations.
 Upstream commits, installed source hashes, configs, input hashes and package
 versions are recorded in `manifest.json` and `environment.json`.
@@ -43,10 +43,10 @@ the same stage-one fraction, to fit each training and evaluation task within the
 **two-hour debug-gpu walltime**. These are exploratory fits, not converged accuracy
 results. A nonzero correctly aligned response would demonstrate learned medium
 modulation. A weak response would not establish an architectural limitation.
-The updated MACELES includes vector
-features in its last layer. All three new fits share this backbone. Published
-older LES results provide a historical comparison, not an exact implementation
-control. LES uses sigma=1 A, dl=2 A, self-interaction removal and the legacy
+MACELES includes vector
+features in its last layer. All three fits share this backbone. Published
+LES results use a different implementation and do not provide a matched
+control. LES uses sigma=1 A, dl=2 A, self-interaction removal and
 dynamic reciprocal-vector enumeration (no potentially undersized N_max grid).
 The response coefficients use the unconstrained defaults of the original study. No
 charges, screening fields or response labels are supplied during training.
@@ -89,8 +89,8 @@ Submitted on 2026-10-11:
   forces (maximum discrepancy 2.1e-9 eV/A). These four-epoch smoke models are not
   accuracy results.
 - The original 1200-epoch GPU array **16192164** and collector **16192167** were
-  superseded before training started by the two-hour pilots requested by the user.
-  The original protocol is preserved in `provenance/full_budget_before_pilot/`.
+  cancelled without training. The two-hour pilot protocol is used for the fits
+  below. The 1200-epoch protocol is preserved in `provenance/full_budget_before_pilot/`.
 - Debug-GPU pilot array **16192176**, tasks 0–2: monopole, multipoles, and full
   response, respectively. All seed 17. Batch collector **16192177** runs afterwards.
   Submission receipts are `submission_pilot_train.json` and

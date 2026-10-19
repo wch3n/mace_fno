@@ -4,7 +4,7 @@
 
 This exploratory calculation tests static errors and charge correlations for
 the extended LES architecture used in the heterogeneous-medium study. It is
-outside the current paper. The inputs are the published synthetic datasets,
+outside the paper. The inputs are the published synthetic datasets,
 the pinned extended-LES environment, and the established
 `yukawa_L32_md2800/md` driver and S_ZZ analysis. The dated submission records
 below describe the original jobs. Completion evidence is stored in the campaign.
@@ -60,9 +60,9 @@ the 100 ps NVE diagnostic from the same equilibrated state.
 The campaign writes `results/szz.json`, `results/szz_comparison.csv`, and
 `results/nve.json`. Each fit writes test errors in its own `evaluation.json`.
 
-Budget revision later on 2026-10-11: array **16195548** replaces 16195345 and
+1200-epoch continuation, 2026-10-11: array **16195548** replaces 16195345 and
 continues the static and fluid checkpoints after epochs 44 and 36, respectively,
-with a total cap of 1200 epochs. Job 16195346 now depends on 16195548_1. The NVE
+with a total cap of 1200 epochs. Job 16195346 depends on 16195548_1. The NVE
 dependency remains unchanged. `budget_resume.json` preserves the original
 configuration, logs, checkpoints and certificate binding. Model, optimizer and
 learning-rate state are verified before resuming at the next epoch. Native

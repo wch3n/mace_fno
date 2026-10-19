@@ -1,4 +1,4 @@
-# Current full-z results for Au2/MgO Tables VI and VII
+# Full-z results for Au2/MgO Tables VI and VII
 
 **Import status, 16 October:** frozen MACE1 test and wetting results use all
 five completed fits. Joint wetting uses all five finalized fits from the
@@ -71,6 +71,6 @@ python3 -B docs/source/data/au2_mgo_full_z_current/collect_results.py \
 ```
 
 This importer changes only frozen wetting records. Joint results and all test
-metrics keep their own provenance. The previous manuscript data are archived
+metrics keep their own provenance. The input manuscript data are archived
 before replacement, and offline collection reapplies the completed wetting
 overlay rather than restoring the interim values.

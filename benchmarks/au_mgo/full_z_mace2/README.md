@@ -1,10 +1,9 @@
 # Au2/MgO: MACE2 nonlinear FNO with dense full z-mixing
 
-**Budget update, 16 October:** the ten fits now stop at 100,000 total steps
-after review of the validation curves. The original configuration below
-records the 240,000-step maximum. The
-[finalization campaign](../full_z_budget_20261016/README.md) replaces the old
-continuation schedule and evaluates test errors and wetting preferences.
+The ten fits stop at 100,000 total steps based on the validation curves. The
+configuration below records a 240,000-step maximum. Use the
+[finalization campaign](../full_z_budget_20261016/README.md) for the 100,000-step
+stopping settings and the test-error and wetting evaluations.
 
 The original campaign launched ten fresh fits: frozen and joint MACE2 training
 for seeds 17, 29, 41, 53, and 67. It specified a maximum of 240,000 total

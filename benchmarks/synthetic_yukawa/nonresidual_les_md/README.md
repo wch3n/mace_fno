@@ -62,7 +62,7 @@ reference and model trajectories are preserved.
 A dependent CPU job stages the figure update only after both trajectories
 finish. It changes exactly 30 LES rows, preserves all other raw data, checks
 the reference hashes/values, exports the existing Python figure, and runs
-source, text-size, collision and manuscript data tests. The previous curves
+source, text-size, collision and manuscript data tests. The input curves
 and PDF are archived. Failed rendered checks preserve the candidate for review
 instead of installing it. A successful update rebuilds the manuscript without
 editing prose. The final rendered figure still requires visual review.
@@ -83,7 +83,7 @@ the Fig. 4 update after both production tasks succeed. Exact commands and
 dependencies are saved in `submission_20261012.json` and in the campaign.
 
 Both GPU checks passed, including the actual MD driver and exact reproduction
-of the 15 legacy shell means and sampling errors at each kappa. Production
+of the 15 saved shell means and sampling errors at each kappa. Production
 tasks `16205158_0` and `16205158_1` started on GPUs `cna037` and `cna038`.
 `validation_20261012.json` archives the successful check stages and exit codes.
 

@@ -14,11 +14,11 @@ ordinary charge-only LES.
 `prepare_nonresidual.py ROOT --parent PARENT` creates separate configurations,
 preserves the parent manifest and configs, and reuses the pinned environment and
 immutable datasets. It never resumes a residual checkpoint into the changed
-architecture. The new parameter count is 485,376 (previously 337,920). Only the
-shape of `interactions.0.skip_tp.weight` changes between native model constructors.
+architecture. The nonresidual-first model has 485,376 parameters and the
+residual-first model has 337,920. Only the shape of `interactions.0.skip_tp.weight` changes between native model constructors.
 
-The old cuEquivariance certificate is not used to certify the new architecture.
-The new GPU check compares energy, forces and all latent outputs before and
+The nonresidual architecture requires its own cuEquivariance certificate.
+The GPU check compares energy, forces and all latent outputs before and
 after conversion and one optimizer step, checks complete optimizer coverage,
 then runs four training epochs through stage two, export/reload and a
 finite-difference force test. Five production jobs depend on successful checks.

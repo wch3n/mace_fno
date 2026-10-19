@@ -32,7 +32,7 @@ inference GPU peaks are recorded. No spectral diagnostics are requested.
 Production runs on gpu and is gated on successful smoke completion. Each
 fit uses the original validation-selected checkpoint and unshifted held-out
 test evaluation. Existing model checkpoints and paper tables are untouched.
-Submission and migration receipts record replacement job IDs. The old held tasks were cancelled after their GPU replacements were queued.
+Submission and migration receipts record replacement job IDs. The held ia tasks were cancelled after their GPU replacements were queued.
 
 `submit.py CAMPAIGN` queues separate arrays for water (four concurrent fits)
 and Au2/MgO (two concurrent fits) after `smoke_passed.json` exists.

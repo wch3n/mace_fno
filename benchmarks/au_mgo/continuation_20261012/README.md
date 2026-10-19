@@ -1,10 +1,10 @@
 # Au2/MgO continuations, 12 October 2026
 
-**Historical continuation plan.** Later
+This directory records the 12 October continuation configuration. For dense
+MACE1 queue and stopping settings, use the
 [GPU migration](../gpu_migration_20261014/README.md) and
-[finalization](../full_z_budget_20261016/README.md) records supersede the dense
-MACE1 queue and stopping instructions below. The rank-64 protocol is recorded
-here separately from the main dense comparison.
+[finalization](../full_z_budget_20261016/README.md) records. The rank-64 protocol
+is separate from the main dense comparison.
 
 Author-requested continuation of rank-64 frozen/joint seed 17 and dense joint
 seeds 53/67. The total training budget stays at 240,000 steps. Original campaign

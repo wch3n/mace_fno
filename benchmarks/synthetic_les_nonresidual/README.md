@@ -2,7 +2,7 @@
 
 Tables IV and V and Figs. 3, 5, and 6 use these nonresidual-first results.
 The separate [contact-trained MD campaign](../synthetic_yukawa/nonresidual_les_md/README.md)
-supplies the revised LES curves of Fig. 4.
+supplies the LES curves of Fig. 4.
 
 The twenty completed charge-only MACE1–LES fits change `interaction_first` from
 `RealAgnosticResidualInteractionBlock` to `RealAgnosticInteractionBlock`.
@@ -16,7 +16,7 @@ are retained. The one-layer product output stays scalar (`128x0e`). The existing
 `128x0e+128x1o` hidden representation setting is unchanged. Fits start fresh.
 
 Preparation snapshots unmodified installed MACE/LES sources, all 20 original
-stage-two models, configuration files, and old full-precision metrics.
+stage-two models, configuration files, and their full-precision metrics.
 `manifest.json` records hashes, package versions, and the exact config changes.
 No installed package or original run is edited. Backend conversion preserves
 explicit LES settings through a process-local wrapper around the native trainer.

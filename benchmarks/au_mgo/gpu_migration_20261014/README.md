@@ -1,8 +1,9 @@
 # Au2/MgO GPU allocation update, 2026-10-14
 
-This is the migration record of 14 October. The subsequent
-[budget revision](../full_z_budget_20261016/README.md) supersedes the pending
-full-mixing continuations listed below.
+This directory records the GPU migration of 14 October. Use the
+[finalization campaign](../full_z_budget_20261016/README.md) for full-mixing
+stopping settings and evaluation. The job IDs below identify the migration
+allocations.
 
 Dense MACE1 full z-mixing fits in the 40 GB A100 cards of the gpu partition at
 microbatch size one, accumulation four, and evaluation batch size one.

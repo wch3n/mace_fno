@@ -12,10 +12,9 @@ Jobs 16209414--16209420 evaluate tasks 13--19 after training jobs
 on all eight evaluation jobs. Submission commands and the completed CPU
 checkpoint/model-load checks are archived in submission.json and preflight.json.
 
-Preparation initially exposed two path assumptions in the new orchestration:
-the GPU campaign only has the MACE2 slab backbone, and configuration hashes
-belong to source_hashes. Both were corrected before job submission. The
-incomplete preparation is archived separately. No training inputs were changed.
+Preparation obtains the MACE2 slab backbone from the GPU campaign and the
+MACE1 backbone from the parent campaign. Configuration hashes are read from
+`source_hashes`. The archived preparation records preserve input provenance.
 
 Twenty Au2/MgO models cover MACE1/MACE2, frozen/joint, and seeds 17/29/41/53/67.
 The campaign evaluates only completed 240000-step training runs. Thirteen
@@ -47,6 +46,6 @@ Endpoint energies share the DFT non-wetting zero for each substrate. Wetting
 differences are formed per seed before averaging. No energy offsets are fitted.
 The collector does not edit manuscript files.
 
-Prepare with campaign.py prepare ROOT --parent PARENT --gpu GPU --wetting OLD.
+Prepare with campaign.py prepare ROOT --parent PARENT --gpu GPU --wetting WETTING_ROOT.
 Review submit.py ROOT --dry-run before calling submit.py ROOT. For a partial
 export use collect.py ROOT --allow-partial --output-dir DESTINATION.

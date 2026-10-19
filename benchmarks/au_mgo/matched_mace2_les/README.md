@@ -3,14 +3,14 @@
 Five fresh fits use seeds 17, 29, 41, 53 and 67, two interactions, a 5.5 Å cutoff,
 and `128x0e+128x1o` at both product outputs. The first interaction is
 `RealAgnosticInteractionBlock`. The second is residual. Local parameter shapes
-must match the scalar-vector MACE2 baseline used for the new full-z FNO fits.
+must match the scalar-vector MACE2 baseline used for the full-z FNO fits.
 
 The protocol matches scalar-vector MACE1-LES: 1,000 epochs, stage two from
 epoch 500, batch size 10, float64, unchanged charge-only LES settings and
 4,275/225/500 training/validation/test structures. The original nested MACE2-LES
 campaign timed out for all five seeds after roughly 812–827 epochs. Its saved
 checkpoints lack EMA/RNG histories and no final models or evaluations were
-exported. Those files are preserved. New fits start independently from scratch.
+exported. Those files are preserved. The fits start independently from scratch.
 
 The only change to the original MACE2-LES training configuration is enabling
 cuEquivariance. Before any production fit, a separate GPU validation job checks
@@ -30,7 +30,7 @@ Campaign: `~/mace_fno_runs/_campaigns/au2_mgo_matched_mace2_les_cueq_5seed_20261
 `submission.json` records GPU jobs. Each `runs/les_nl2_seed*/status.json` records
 progress. Test results go to `evaluation/metrics.json` and wetting results to
 `wetting/results.json` under each run. Manuscript rows are not automatically
-replaced before the new results are checked.
+replaced before the results are checked.
 
 Validation job **16275151** passed on an A100 40 GB. The cuEquivariance
 training-step benchmark measured 0.134 s versus 0.547 s for e3nn (4.08×).

@@ -1,0 +1,50 @@
+# A 200-step workflow check, not a converged benchmark configuration.
+# Replace the model and data paths before running.
+mace_model: /absolute/path/to/local_mace.model
+
+data:
+  train_file: /absolute/path/to/train.xyz
+  validation_file: /absolute/path/to/validation.xyz
+  test_file: /absolute/path/to/test.xyz
+  energy_key: REF_energy
+  forces_key: REF_forces
+  train_cache: cache/train.pt
+  validation_cache: cache/validation.pt
+  test_cache: cache/test.pt
+
+model:
+  spatial_scheme: 3d
+  cell_mode: anisotropic
+  architecture: nonlinear
+  grid: 16
+  z_grid: 16
+  modes: 4
+  z_modes: 4
+  channels: 4
+  fno_hidden_channels: 8
+  fno_layers: 2
+  spectral_symmetry: metric_eqgino
+  metric_parameterization: shell_spline
+  spectral_groups: 1
+  output_initialization_scale: 0.1
+
+training:
+  mace_training: frozen
+  learning_rate: 3.0e-4
+  energy_weight: 1.0
+  force_weight: 1.0
+  # Illustrative loss scales in eV/atom and eV/angstrom.
+  energy_scale: 0.01
+  force_scale: 0.10
+  batch_size: 1
+  evaluation_batch_size: 1
+  steps: 200
+  eval_interval: 50
+  evaluation_scope: validation-test
+  seed: 17
+
+runtime:
+  dtype: float64
+  device: auto
+
+checkpoint: model.pt
