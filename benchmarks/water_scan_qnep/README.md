@@ -74,23 +74,23 @@ bash benchmarks/water_scan_qnep/submit.sh
 
 The launcher creates a timestamped directory under
 `$MACE_FNO_WORK_ROOT/water_scan_qnep/runs/`. Set `RUN_ID` to name the run.
-The tracked `train_fno_3d.yaml` and `train_joint_3d.yaml` are introductory
-configurations. Their grouping and training budgets do not reproduce the
-manuscript. For a new run, copy the appropriate YAML, set
-`spectral_groups: 1`, and pass its path through `FNO_CONFIG`. Use the saved
-campaign configuration for exact reproduction.
+The tracked `train_fno_3d.yaml` and `train_joint_3d.yaml` use `G=1` and the
+frozen or joint MACE1 budgets given above. For joint MACE2, set `STEPS=120000`.
+They are introductory configurations; use the saved campaign configuration
+for exact reproduction of the model settings and numerical precision. Pass
+a separate YAML through `FNO_CONFIG` to customize a run. FNO training requests
+the `gpu` partition for up to 48 hours.
 
 For a short setup check:
 
 ```bash
-FNO_CONFIG=/path/to/g1_train.yaml RUN_ID=small-fno \
-  STEPS=200 GRID=16 MODES=3 SPECTRAL_DIAGNOSTIC_SAMPLES=0 \
+RUN_ID=small-fno STEPS=200 GRID=16 MODES=3 \
+  SBATCH_PARTITION=debug-gpu SBATCH_TIMELIMIT=02:00:00 \
   bash benchmarks/water_scan_qnep/submit.sh
 ```
 
-The introductory launcher also submits a spectral audit. Spectral checks are
-optional and are not part of the G=1 benchmark protocol. Use the G=1 campaign
-for numerical-only checks.
+The launcher evaluates the baseline and submits a numerical audit after FNO
+training. Spectral diagnostics are disabled in the supplied configurations.
 
 ## Evaluation
 

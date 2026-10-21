@@ -88,17 +88,6 @@ def translated_residual_energies(
     return output["residual_energy"].detach().cpu().numpy().reshape(-1, 2)
 
 
-def signed_axis_transform(
-    vectors: torch.Tensor,
-    cell: torch.Tensor,
-    transform: torch.Tensor,
-) -> torch.Tensor:
-    """Apply a signed permutation in the orthonormal cell-axis basis."""
-    basis = cell / torch.linalg.vector_norm(cell, dim=1, keepdim=True)
-    rotation = basis.T @ transform.to(cell) @ basis
-    return torch.einsum("ij,...j->...i", rotation, vectors)
-
-
 def cubic_transformations(
     dtype: torch.dtype, device: torch.device
 ) -> dict[str, torch.Tensor]:

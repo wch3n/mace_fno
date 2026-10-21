@@ -4,9 +4,9 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:1
-#SBATCH --partition=debug-gpu
+#SBATCH --partition=gpu
 #SBATCH --account=htbase
-#SBATCH --time=2:00:00
+#SBATCH --time=48:00:00
 #SBATCH --mem=64G
 # Scheduler output is supplied by submit.sh so it stays outside the checkout.
 
@@ -80,12 +80,6 @@ for override in \
     OUTPUT_INITIALIZATION_SCALE:--output-initialization-scale \
     ENERGY_SCALE:--energy-scale FORCE_SCALE:--force-scale \
     FORCE_WEIGHT:--force-weight EVAL_INTERVAL:--eval-interval \
-    SPECTRAL_DIAGNOSTIC_SAMPLES:--spectral-diagnostic-samples \
-    SPECTRAL_DIAGNOSTIC_MAX_MODE:--spectral-diagnostic-max-mode \
-    SPECTRAL_DIAGNOSTIC_FIT_SHELLS:--spectral-diagnostic-fit-shells \
-    SPECTRAL_DIAGNOSTIC_RELATIVE_AMPLITUDE:--spectral-diagnostic-relative-amplitude \
-    SPECTRAL_DIAGNOSTIC_FIELD_BATCH_SIZE:--spectral-diagnostic-field-batch-size \
-    SPECTRAL_DIAGNOSTIC_DEPTH:--spectral-diagnostic-depth \
     BATCH_SIZE:--batch-size EVALUATION_BATCH_SIZE:--evaluation-batch-size \
     ACCUMULATION_STEPS:--accumulation-steps; do
     mace_fno_append_env_option train_args "${override%%:*}" "${override#*:}"

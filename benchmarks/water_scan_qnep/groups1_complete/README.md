@@ -42,7 +42,6 @@ The twenty accuracy fits, GPU costs, and interlacing results were imported on
 completed 120,000 steps and entered the appendix on 12 October. The manuscript
 uses G=1 throughout. Further water spectral checks have been discontinued.
 Use `numerical_only.py` and `numerical_only.slurm` for numerical checks.
-Spectral-recovery scripts and submitted snapshots are separate from the
-numerical-only checks. [SUBMITTED.md](SUBMITTED.md) records submissions and
+[SUBMITTED.md](SUBMITTED.md) records submissions and
 cancellations. The local manuscript evidence is documented in
 `docs/source/data/water_groups1/README.md`.
