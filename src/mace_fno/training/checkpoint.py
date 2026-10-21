@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING, Any
 import torch
 
 from ..coupling import MACEFNOResidual
+from ._model_settings import checkpoint_model_settings, model_constructor_arguments
 
 if TYPE_CHECKING:
     from .configuration import TrainingConfig
@@ -64,81 +65,7 @@ def training_checkpoint_payload(
             else None
         ),
         "test_file": str(data.test_file) if data.test_file is not None else None,
-        "grid_shape": (model_config.grid, model_config.grid),
-        "n_modes": (
-            (
-                model_config.resolved_z_modes,
-                model_config.modes,
-                model_config.modes,
-            )
-            if model_config.spatial_scheme == "3d"
-            else (model_config.modes, model_config.modes)
-        ),
-        "spatial_scheme": model_config.spatial_scheme,
-        "cell_mode": model_config.cell_mode,
-        "z_grid_size": model_config.z_grid or None,
-        "z_extent": (
-            model_config.z_extent if model_config.spatial_scheme == "2.5d" else None
-        ),
-        "z_center": (
-            model_config.z_center if model_config.spatial_scheme == "2.5d" else None
-        ),
-        "lateral_interlacing": (
-            model_config.lateral_interlacing
-            if model_config.spatial_scheme == "2.5d"
-            else 1
-        ),
-        "volume_interlacing": (
-            model_config.volume_interlacing
-            if model_config.spatial_scheme == "3d"
-            else 1
-        ),
-        "interlacing_training": (
-            model_config.interlacing_training
-            if model_config.spatial_scheme == "3d"
-            else "full"
-        ),
-        "planar_symmetry": (
-            model_config.planar_symmetry
-            if model_config.spatial_scheme == "2.5d"
-            else "none"
-        ),
-        "spectral_symmetry": (
-            model_config.spectral_symmetry
-            if model_config.spatial_scheme in {"2.5d", "3d"}
-            else "none"
-        ),
-        "spectral_groups": (
-            model_config.spectral_groups
-            if model_config.spatial_scheme in {"2.5d", "3d"}
-            else 1
-        ),
-        "metric_hidden_channels": (
-            model_config.metric_hidden_channels
-            if model_config.spatial_scheme in {"2.5d", "3d"}
-            else 16
-        ),
-        "metric_parameterization": model_config.metric_parameterization,
-        "spectral_rank": model_config.spectral_rank,
-        "z_kernel_size": (
-            model_config.z_kernel_size
-            if model_config.spatial_scheme == "2.5d"
-            else None
-        ),
-        "z_mixing": (
-            "spectral"
-            if model_config.spatial_scheme == "2.5d"
-            and model_config.architecture == "linear"
-            and model_config.z_mixing != "full"
-            else model_config.z_mixing
-            if model_config.spatial_scheme == "2.5d"
-            else None
-        ),
-        "channels": model_config.channels,
-        "source_hidden_channels": model_config.source_hidden_channels,
-        "fno_hidden_channels": model_config.fno_hidden_channels,
-        "fno_layers": model_config.fno_layers,
-        "architecture": model_config.architecture,
+        **checkpoint_model_settings(model_config),
         "reference_cell": (
             getattr(model, "reference_cell", prepared.reference_cell).detach().cpu()
         ),
@@ -313,61 +240,58 @@ def checkpoint_model_parameters(checkpoint: Mapping[str, Any]) -> dict[str, Any]
             f"a {scheme} checkpoint must store {expected_modes} Fourier-mode counts"
         )
 
-    parameters: dict[str, Any] = {
+    settings: dict[str, Any] = {
         "grid_shape": grid_shape,
         "channels": int(_required(checkpoint, "channels")),
-        "n_modes": modes[1:] if scheme == "3d" else modes,
+        "n_modes": modes,
         "source_hidden_channels": int(_required(checkpoint, "source_hidden_channels")),
         "fno_hidden_channels": int(_required(checkpoint, "fno_hidden_channels")),
         "fno_layers": int(_required(checkpoint, "fno_layers")),
-        "fno_architecture": str(_required(checkpoint, "architecture")),
+        "architecture": str(_required(checkpoint, "architecture")),
         "spatial_scheme": scheme,
         "reference_cell": _required(checkpoint, "reference_cell"),
         "cell_mode": str(checkpoint.get("cell_mode") or "fixed"),
         "mace_training": str(checkpoint.get("mace_training") or "frozen"),
-        "fno_spectral_rank": int(checkpoint.get("spectral_rank", 0)),
+        "spectral_rank": int(checkpoint.get("spectral_rank", 0)),
     }
     if scheme == "2.5d":
-        parameters.update(
+        settings.update(
             {
                 "z_grid_size": int(_required(checkpoint, "z_grid_size")),
                 "z_extent": float(_required(checkpoint, "z_extent")),
                 "z_center": str(checkpoint.get("z_center") or "mean"),
-                "fno_lateral_interlacing": int(
-                    checkpoint.get("lateral_interlacing", 1)
-                ),
-                "fno_z_kernel_size": int(checkpoint.get("z_kernel_size") or 3),
-                "fno_z_mixing": infer_checkpoint_z_mixing(checkpoint),
-                "fno_planar_symmetry": str(checkpoint.get("planar_symmetry") or "none"),
+                "lateral_interlacing": int(checkpoint.get("lateral_interlacing", 1)),
+                "z_kernel_size": int(checkpoint.get("z_kernel_size") or 3),
+                "z_mixing": infer_checkpoint_z_mixing(checkpoint),
+                "planar_symmetry": str(checkpoint.get("planar_symmetry") or "none"),
             }
         )
     elif scheme == "3d":
-        parameters.update(
+        settings.update(
             {
                 "z_grid_size": int(_required(checkpoint, "z_grid_size")),
-                "fno_z_modes": modes[0],
-                "fno_volume_interlacing": int(checkpoint.get("volume_interlacing", 1)),
-                "fno_interlacing_training": str(
+                "volume_interlacing": int(checkpoint.get("volume_interlacing", 1)),
+                "interlacing_training": str(
                     checkpoint.get("interlacing_training") or "full"
                 ),
             }
         )
     if scheme in {"2.5d", "3d"}:
-        parameters.update(
+        settings.update(
             {
-                "fno_spectral_symmetry": str(
-                    checkpoint.get("spectral_symmetry") or "none"
-                ),
-                "fno_spectral_groups": int(checkpoint.get("spectral_groups", 1)),
-                "fno_metric_hidden_channels": int(
+                "spectral_symmetry": str(checkpoint.get("spectral_symmetry") or "none"),
+                "spectral_groups": int(checkpoint.get("spectral_groups", 1)),
+                "metric_hidden_channels": int(
                     checkpoint.get("metric_hidden_channels", 16)
                 ),
-                "fno_metric_parameterization": infer_metric_parameterization(
-                    checkpoint
-                ),
+                "metric_parameterization": infer_metric_parameterization(checkpoint),
             }
         )
-    return parameters
+    return {
+        **model_constructor_arguments(settings),
+        "reference_cell": settings["reference_cell"],
+        "mace_training": settings["mace_training"],
+    }
 
 
 def build_mace_fno_model(

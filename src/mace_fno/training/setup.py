@@ -9,6 +9,7 @@ import torch
 from torch import Tensor
 
 from ..coupling import MACEFNOResidual
+from ._model_settings import configured_model_settings, model_constructor_arguments
 from .configuration import TrainingConfig
 from .data import load_or_create_samples, save_sample_cache, split_samples
 from .evaluation import ensure_frozen_residual_targets
@@ -162,35 +163,8 @@ def build_training_model(
     optimization = configuration.optimization
     model = MACEFNOResidual(
         mace_model,
-        (model_config.grid, model_config.grid),
-        model_config.channels,
-        (model_config.modes, model_config.modes),
-        source_hidden_channels=model_config.source_hidden_channels,
-        fno_hidden_channels=model_config.fno_hidden_channels,
-        fno_layers=model_config.fno_layers,
-        fno_architecture=model_config.architecture,
-        spatial_scheme=model_config.spatial_scheme,
-        z_grid_size=model_config.z_grid or None,
-        fno_z_modes=(
-            model_config.resolved_z_modes
-            if model_config.spatial_scheme == "3d"
-            else None
-        ),
-        z_extent=model_config.z_extent,
-        z_center=model_config.z_center,
-        fno_lateral_interlacing=model_config.lateral_interlacing,
-        fno_volume_interlacing=model_config.volume_interlacing,
-        fno_interlacing_training=model_config.interlacing_training,
-        fno_z_kernel_size=model_config.z_kernel_size,
-        fno_z_mixing=model_config.z_mixing,
-        fno_planar_symmetry=model_config.planar_symmetry,
-        fno_spectral_symmetry=model_config.spectral_symmetry,
-        fno_spectral_groups=model_config.spectral_groups,
-        fno_spectral_rank=model_config.spectral_rank,
-        fno_metric_hidden_channels=model_config.metric_hidden_channels,
-        fno_metric_parameterization=model_config.metric_parameterization,
+        **model_constructor_arguments(configured_model_settings(model_config)),
         reference_cell=reference_cell,
-        cell_mode=model_config.cell_mode,
         mace_training=optimization.mace_training,
     ).to(device=device, dtype=dtype)
     if optimization.mace_training == "joint" and optimization.mace_warmup_steps:

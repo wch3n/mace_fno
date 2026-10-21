@@ -3,14 +3,20 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from copy import deepcopy
 from dataclasses import dataclass
 from typing import Any
 
-import numpy as np
 import torch
 
-from ..coupling import MACEFNOResidual, energy_force_loss
+from ..coupling import MACEFNOResidual
+from ._optimization import (
+    build_optimizer,
+    finish_warmup,
+    start_second_stage,
+    train_step,
+    update_scheduler,
+)
+from ._training_state import TrainingState
 from .checkpoint import (
     load_mace_state_dict,
     load_residual_state_dict,
@@ -18,19 +24,10 @@ from .checkpoint import (
     residual_state_dict,
 )
 from .configuration import TrainingConfig
-from .data import collate_samples
 from .evaluation import evaluate, print_metrics, validation_objective
-from .initialization import (
-    configure_output_projection_warmup,
-    finish_output_projection_warmup,
-)
 from .monitor import SpectralMonitor
 from .resume import (
-    RESUME_FORMAT_VERSION,
-    capture_rng_state,
-    cpu_snapshot,
     restore_rng_state,
-    resume_configuration,
     validate_resume_checkpoint,
 )
 from .selection import EnergyCheckpointSelector
@@ -128,89 +125,21 @@ def optimize_residual(
         if resume_state["device_type"] != device.type:
             raise ValueError("resume requires the same device type (CPU or CUDA)")
     staged = optimization.stage_two_start_step is not None
-    optimization_stage = (
+    state = TrainingState()
+    state.optimization_stage = (
         resume_state.get("optimization_stage", 1) if resume_state else 1
     )
-    stage_start_step = resume_state.get("stage_start_step", 0) if resume_state else 0
-    loss_settings = optimization.loss_settings(optimization_stage)
+    state.stage_start_step = (
+        resume_state.get("stage_start_step", 0) if resume_state else 0
+    )
+    loss_settings = optimization.loss_settings(state.optimization_stage)
     joint_training = optimization.mace_training == "joint"
     model.train()
     model_dtype = next(model.parameters()).dtype
-    warmup_learning_rate = (
-        optimization.output_warmup_learning_rate or optimization.learning_rate
-    )
-    mace_parameters: list[torch.nn.Parameter] = []
-    if joint_training:
-        mace_parameters = list(model.backbone.mace_model.parameters())
-        if not mace_parameters:
-            raise ValueError("joint training requires a MACE model with parameters")
-        mace_parameter_ids = {id(parameter) for parameter in mace_parameters}
-        parameters = [
-            parameter
-            for parameter in model.parameters()
-            if id(parameter) not in mace_parameter_ids
-        ]
-        model.backbone.set_trainable(optimization.mace_warmup_steps == 0)
-        warmup_parameters: list[torch.nn.Parameter] = []
-        optimizer = torch.optim.Adam(
-            [
-                {"params": parameters, "lr": optimization.learning_rate},
-                {"params": mace_parameters, "lr": optimization.mace_learning_rate},
-            ]
-        )
-        print(
-            "joint MACE-FNO optimization: "
-            f"fno_learning_rate={optimization.learning_rate:.6e}, "
-            f"mace_learning_rate={optimization.mace_learning_rate:.6e}, "
-            f"mace_warmup_steps={optimization.mace_warmup_steps}",
-            flush=True,
-        )
-    else:
-        parameters, warmup_parameters = configure_output_projection_warmup(
-            model,
-            optimization.output_warmup_steps,
-        )
-        optimizer = torch.optim.Adam(
-            parameters,
-            lr=(
-                warmup_learning_rate
-                if optimization.output_warmup_steps
-                else optimization.learning_rate
-            ),
-        )
-    scheduler = (
-        torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode="min",
-            factor=optimization.lr_decay_factor,
-            patience=optimization.lr_patience_evals,
-            min_lr=(
-                [
-                    optimization.minimum_learning_rate,
-                    min(
-                        optimization.minimum_learning_rate,
-                        optimization.mace_learning_rate,
-                    ),
-                ]
-                if joint_training
-                else optimization.minimum_learning_rate
-            ),
-        )
-        if optimization.lr_scheduler == "plateau"
-        else None
-    )
-    initial_scheduler_state = deepcopy(scheduler.state_dict()) if scheduler else None
+    optimizer_setup = build_optimizer(model, optimization)
+    optimizer = optimizer_setup.optimizer
+    warmup_learning_rate = optimizer_setup.warmup_learning_rate
     generator = torch.Generator().manual_seed(configuration.runtime.seed + 1)
-
-    if optimization.output_warmup_steps:
-        print(
-            "output-projection warm-up: "
-            f"steps={optimization.output_warmup_steps}, "
-            f"learning_rate={warmup_learning_rate:.6e}, "
-            f"active_parameters={sum(p.numel() for p in warmup_parameters)}/"
-            f"{sum(p.numel() for p in parameters)}",
-            flush=True,
-        )
 
     baseline_objective = validation_objective(
         baseline_validation,
@@ -226,54 +155,35 @@ def optimize_residual(
             validation_samples,
             batch_size=optimization.evaluation_batch_size,
         )
-        best_step = 0
-        best_objective = validation_objective(
+        state.best_step = 0
+        state.best_objective = validation_objective(
             initial_validation,
             **loss_settings,
         )
-        best_residual_state = residual_state_dict(model)
-        best_mace_state = mace_state_dict(model) if joint_training else None
-        completed_steps = 0
-        stopped_early = False
-        evaluations_at_minimum_lr = 0
+        state.best_residual_state = residual_state_dict(model)
+        state.best_mace_state = mace_state_dict(model) if joint_training else None
+        state.completed_steps = 0
+        state.stopped_early = False
+        state.evaluations_at_minimum_lr = 0
         print(
-            f"validation objective at initialized combined model: {best_objective:.6e}",
+            f"validation objective at initialized combined model: {state.best_objective:.6e}",
             flush=True,
         )
     else:
-        load_residual_state_dict(model, resume_state["residual_state_dict"])
-        if joint_training:
-            load_mace_state_dict(model, resume_state["mace_state_dict"])
-            model.backbone.set_trainable(
-                any(
-                    enabled
-                    for name, enabled in resume_state["requires_grad"].items()
-                    if name.startswith("backbone.mace_model.")
-                )
-            )
-        for name, parameter in model.named_parameters():
-            parameter.requires_grad_(resume_state["requires_grad"][name])
-        model.train()
-        optimizer.load_state_dict(deepcopy(resume_state["optimizer_state_dict"]))
-        if scheduler is not None:
-            scheduler.load_state_dict(deepcopy(resume_state["scheduler_state_dict"]))
-        generator.set_state(resume_state["sample_generator_state"])
-        best_step = resume_state["best_step"]
-        best_objective = resume_state["best_objective"]
-        best_residual_state = resume_state["best_residual_state_dict"]
-        best_mace_state = resume_state["best_mace_state_dict"]
-        completed_steps = resume_state["completed_steps"]
-        stopped_early = resume_state["stopped_early"]
-        evaluations_at_minimum_lr = resume_state["evaluations_at_minimum_lr"]
-        if spectral_monitor is not None:
-            spectral_monitor.history = deepcopy(resume_state["spectral_history"])
-            spectral_monitor.write_history()
+        state.restore(
+            model,
+            resume_state,
+            optimizer_setup,
+            generator,
+            spectral_monitor,
+            joint_training=joint_training,
+        )
         print(
-            f"resuming after step {completed_steps} toward {optimization.steps} total "
-            f"steps (best step {best_step}, objective={best_objective:.6e})",
+            f"resuming after step {state.completed_steps} toward {optimization.steps} total "
+            f"steps (best step {state.best_step}, objective={state.best_objective:.6e})",
             flush=True,
         )
-        if stopped_early:
+        if state.stopped_early:
             print("saved early-stopping condition is already satisfied", flush=True)
 
     energy_selector = None
@@ -293,81 +203,53 @@ def optimize_residual(
             energy_selector.consider(
                 0,
                 initial_validation,
-                best_objective,
+                state.best_objective,
                 lambda: {
-                    "residual_state_dict": best_residual_state,
-                    "mace_state_dict": best_mace_state,
+                    "residual_state_dict": state.best_residual_state,
+                    "mace_state_dict": state.best_mace_state,
                 },
             )
 
     def current_result() -> OptimizationResult:
         return OptimizationResult(
-            best_step=best_step,
-            best_validation_objective=best_objective,
-            completed_steps=completed_steps,
-            stopped_early=stopped_early,
+            best_step=state.best_step,
+            best_validation_objective=state.best_objective,
+            completed_steps=state.completed_steps,
+            stopped_early=state.stopped_early,
             warmup_learning_rate=warmup_learning_rate,
             final_learning_rate=float(optimizer.param_groups[0]["lr"]),
             final_mace_learning_rate=(
                 float(optimizer.param_groups[1]["lr"]) if joint_training else None
             ),
             energy_selection=energy_selector.selected if energy_selector else None,
-            optimization_stage=optimization_stage,
-            stage_start_step=stage_start_step,
+            optimization_stage=state.optimization_stage,
+            stage_start_step=state.stage_start_step,
         )
 
-    last_saved_step = -1
-
     def save_latest() -> None:
-        nonlocal last_saved_step
-        if last_checkpoint_callback is None or last_saved_step == completed_steps:
+        if (
+            last_checkpoint_callback is None
+            or state.last_saved_step == state.completed_steps
+        ):
             return
-        # Save before restoring the best weights: Adam's moments belong to the
-        # current iterate, which need not be the validation-selected model.
-        state = {
-            "resume_format_version": RESUME_FORMAT_VERSION,
-            "configuration": resume_configuration(configuration),
-            "device_type": device.type,
-            "completed_steps": completed_steps,
-            "best_step": best_step,
-            "best_objective": best_objective,
-            "stopped_early": stopped_early,
-            "evaluations_at_minimum_lr": evaluations_at_minimum_lr,
-            "residual_state_dict": residual_state_dict(model),
-            "mace_state_dict": mace_state_dict(model) if joint_training else None,
-            "best_residual_state_dict": best_residual_state,
-            "best_mace_state_dict": best_mace_state,
-            "optimizer_state_dict": cpu_snapshot(optimizer.state_dict()),
-            "scheduler_state_dict": deepcopy(scheduler.state_dict())
-            if scheduler
-            else None,
-            "sample_generator_state": generator.get_state(),
-            "rng_state": capture_rng_state(device),
-            "requires_grad": {
-                name: parameter.requires_grad
-                for name, parameter in model.named_parameters()
-            },
-            "spectral_history": deepcopy(spectral_monitor.history)
-            if spectral_monitor
-            else [],
-            "energy_selector": energy_selector.state_dict()
-            if energy_selector
-            else None,
-        }
-        if staged:
-            state.update(
-                optimization_stage=optimization_stage,
-                stage_start_step=stage_start_step,
-                active_loss_settings=dict(loss_settings),
-            )
-        last_checkpoint_callback(state)
-        last_saved_step = completed_steps
+        payload = state.checkpoint_payload(
+            model,
+            configuration,
+            optimizer_setup,
+            generator,
+            device=device,
+            spectral_monitor=spectral_monitor,
+            energy_selector=energy_selector,
+            loss_settings=loss_settings,
+        )
+        last_checkpoint_callback(payload)
+        state.last_saved_step = state.completed_steps
 
     if best_checkpoint_callback is not None:
         if resume_state is not None:
-            load_residual_state_dict(model, best_residual_state)
-            if best_mace_state is not None:
-                load_mace_state_dict(model, best_mace_state)
+            load_residual_state_dict(model, state.best_residual_state)
+            if state.best_mace_state is not None:
+                load_mace_state_dict(model, state.best_mace_state)
         best_checkpoint_callback(model, current_result())
         if resume_state is not None:
             load_residual_state_dict(model, resume_state["residual_state_dict"])
@@ -392,72 +274,38 @@ def optimize_residual(
             flush=True,
         )
 
-    for step in range(completed_steps, optimization.steps):
-        if stopped_early:
+    for step in range(state.completed_steps, optimization.steps):
+        if state.stopped_early:
             break
-        if (
-            step == optimization.mace_warmup_steps
-            and optimization.mace_warmup_steps
-            and optimization_stage == 1
-        ):
-            model.backbone.set_trainable(True)
-            model.train()
-            print(
-                f"MACE warm-up complete at step {step}: "
-                f"unfroze {sum(p.numel() for p in mace_parameters)} parameters",
-                flush=True,
-            )
-        if (
-            step == optimization.output_warmup_steps
-            and optimization.output_warmup_steps
-            and optimization_stage == 1
-        ):
-            finish_output_projection_warmup(parameters)
-            previous_learning_rate = optimizer.param_groups[0]["lr"]
-            for parameter_group in optimizer.param_groups:
-                parameter_group["lr"] = optimization.learning_rate
-            print(
-                f"output-projection warm-up complete at step {step}: "
-                f"unfroze {sum(p.numel() for p in parameters)} parameters, "
-                f"learning_rate={previous_learning_rate:.6e} -> "
-                f"{optimization.learning_rate:.6e}",
-                flush=True,
-            )
+        finish_warmup(
+            model,
+            optimization,
+            optimizer_setup,
+            step=step,
+            optimization_stage=state.optimization_stage,
+        )
 
         if (
             staged
-            and optimization_stage == 1
+            and state.optimization_stage == 1
             and step == optimization.stage_two_start_step
         ):
-            optimization_stage = 2
-            stage_start_step = completed_steps
+            state.optimization_stage = 2
+            state.stage_start_step = state.completed_steps
             loss_settings = optimization.loss_settings(2)
-            for index, new_rate in enumerate(
-                (
-                    optimization.stage_two_learning_rate,
-                    optimization.stage_two_mace_learning_rate,
-                )
-            ):
-                if new_rate is not None:
-                    optimizer.param_groups[index]["lr"] = new_rate
-            if scheduler is not None:
-                scheduler.load_state_dict(deepcopy(initial_scheduler_state))
-                # A smaller second-stage MACE rate must not be raised by its floor.
-                scheduler.min_lrs = [
-                    min(floor, group["lr"])
-                    for floor, group in zip(scheduler.min_lrs, optimizer.param_groups)
-                ]
-                scheduler._last_lr = [group["lr"] for group in optimizer.param_groups]
-            evaluations_at_minimum_lr = 0
+            start_second_stage(optimization, optimizer_setup)
+            state.evaluations_at_minimum_lr = 0
             transition_metrics = evaluate(
                 model,
                 validation_samples,
                 batch_size=optimization.evaluation_batch_size,
             )
-            best_objective = validation_objective(transition_metrics, **loss_settings)
-            best_step = completed_steps
-            best_residual_state = residual_state_dict(model)
-            best_mace_state = mace_state_dict(model) if joint_training else None
+            state.best_objective = validation_objective(
+                transition_metrics, **loss_settings
+            )
+            state.best_step = state.completed_steps
+            state.best_residual_state = residual_state_dict(model)
+            state.best_mace_state = mace_state_dict(model) if joint_training else None
             if energy_selector is not None:
                 energy_selector = EnergyCheckpointSelector(
                     optimization.energy_checkpoint_tolerance,
@@ -465,21 +313,21 @@ def optimize_residual(
                     optimization.energy_checkpoint_metric,
                 )
                 energy_selector.consider(
-                    completed_steps,
+                    state.completed_steps,
                     transition_metrics,
-                    best_objective,
+                    state.best_objective,
                     lambda: {
-                        "residual_state_dict": best_residual_state,
-                        "mace_state_dict": best_mace_state,
+                        "residual_state_dict": state.best_residual_state,
+                        "mace_state_dict": state.best_mace_state,
                     },
                 )
             print(
-                f"stage two starts after step {completed_steps}: "
+                f"stage two starts after step {state.completed_steps}: "
                 + ", ".join(
                     f"{key}={value:.6e}" for key, value in loss_settings.items()
                 )
                 + f", learning_rates={[group['lr'] for group in optimizer.param_groups]}"
-                + f", initial validation objective={best_objective:.6e}",
+                + f", initial validation objective={state.best_objective:.6e}",
                 flush=True,
             )
             if best_checkpoint_callback is not None:
@@ -487,78 +335,36 @@ def optimize_residual(
             if energy_selector is not None and energy_checkpoint_callback is not None:
                 energy_checkpoint_callback(current_result())
             # Persist the reset state even though no new update has occurred.
-            last_saved_step = -1
+            state.last_saved_step = -1
             save_latest()
 
-        optimizer.zero_grad(set_to_none=True)
-        accumulated = {"loss": 0.0, "energy": 0.0, "forces": 0.0}
-        for _ in range(optimization.accumulation_steps):
-            sample_indices = torch.randint(
-                len(train_samples),
-                (optimization.batch_size,),
-                generator=generator,
-            ).tolist()
-            sample_batch = [train_samples[index] for index in sample_indices]
-            graph, target_energy, target_forces = collate_samples(
-                sample_batch, device, model_dtype
-            )
-            if joint_training:
-                output = model(
-                    graph,
-                    training=True,
-                    compute_force=True,
-                    compute_residual_force=False,
-                )
-                predicted_energy = output["energy"]
-                predicted_forces = output["forces"]
-            else:
-                target_energy = torch.cat(
-                    [sample["residual_energy"] for sample in sample_batch]
-                ).to(device=device)
-                target_forces = torch.cat(
-                    [sample["residual_forces"] for sample in sample_batch]
-                ).to(device=device)
-                output = model(
-                    graph,
-                    training=True,
-                    compute_force=False,
-                    compute_residual_force=True,
-                )
-                predicted_energy = output["residual_energy"]
-                predicted_forces = output["residual_forces"]
-            target_energy = target_energy.to(dtype=predicted_energy.dtype)
-            target_forces = target_forces.to(dtype=predicted_forces.dtype)
-            terms = energy_force_loss(
-                predicted_energy,
-                predicted_forces,
-                target_energy,
-                target_forces,
-                graph["batch"],
-                **loss_settings,
-            )
-            (terms["loss"] / optimization.accumulation_steps).backward()
-            for name in accumulated:
-                accumulated[name] += (
-                    terms[name].item() / optimization.accumulation_steps
-                )
-        optimizer.step()
-        completed_steps = step + 1
+        accumulated = train_step(
+            model,
+            train_samples,
+            optimization,
+            optimizer,
+            generator,
+            device=device,
+            model_dtype=model_dtype,
+            loss_settings=loss_settings,
+        )
+        state.completed_steps = step + 1
 
-        if step == 0 or completed_steps % max(1, optimization.steps // 10) == 0:
+        if step == 0 or state.completed_steps % max(1, optimization.steps // 10) == 0:
             print(
-                f"step {completed_steps:5d}/{optimization.steps}: "
+                f"step {state.completed_steps:5d}/{optimization.steps}: "
                 f"loss={accumulated['loss']:.6e}, "
                 f"energy={accumulated['energy']:.6e}, "
                 f"forces={accumulated['forces']:.6e}",
                 flush=True,
             )
         if (
-            completed_steps % optimization.eval_interval != 0
-            and completed_steps != optimization.steps
-            and completed_steps != optimization.stage_two_start_step
+            state.completed_steps % optimization.eval_interval != 0
+            and state.completed_steps != optimization.steps
+            and state.completed_steps != optimization.stage_two_start_step
         ):
             interval = configuration.runtime.checkpoint_interval
-            if interval and completed_steps % interval == 0:
+            if interval and state.completed_steps % interval == 0:
                 save_latest()
             continue
 
@@ -567,19 +373,19 @@ def optimize_residual(
             validation_samples,
             batch_size=optimization.evaluation_batch_size,
         )
-        print_metrics(f"validation step {completed_steps}", validation_metrics)
+        print_metrics(f"validation step {state.completed_steps}", validation_metrics)
         score = validation_objective(
             validation_metrics,
             **loss_settings,
         )
-        stage_label = f" (stage {optimization_stage})" if staged else ""
+        stage_label = f" (stage {state.optimization_stage})" if staged else ""
         print(
-            f"validation objective step {completed_steps}: {score:.6e}{stage_label}",
+            f"validation objective step {state.completed_steps}: {score:.6e}{stage_label}",
             flush=True,
         )
         if energy_selector is not None:
             selection_changed = energy_selector.consider(
-                completed_steps,
+                state.completed_steps,
                 validation_metrics,
                 score,
                 lambda: {
@@ -594,92 +400,55 @@ def optimize_residual(
         if spectral_monitor is not None:
             spectral_monitor.evaluate_validation(
                 model,
-                step=completed_steps,
+                step=state.completed_steps,
                 validation_objective=score,
-                **({"optimization_stage": optimization_stage} if staged else {}),
+                **({"optimization_stage": state.optimization_stage} if staged else {}),
             )
 
-        improved = score < best_objective
+        improved = score < state.best_objective
         if improved:
-            best_step = completed_steps
-            best_objective = score
-            best_residual_state = residual_state_dict(model)
+            state.best_step = state.completed_steps
+            state.best_objective = score
+            state.best_residual_state = residual_state_dict(model)
             if joint_training:
-                best_mace_state = mace_state_dict(model)
-            print(f"new best validation step: {best_step}", flush=True)
+                state.best_mace_state = mace_state_dict(model)
+            print(f"new best validation step: {state.best_step}", flush=True)
             if best_checkpoint_callback is not None:
                 best_checkpoint_callback(model, current_result())
 
-        scheduler_start_step = max(
-            optimization.output_warmup_steps,
-            optimization.mace_warmup_steps,
+        state.evaluations_at_minimum_lr, state.stopped_early = update_scheduler(
+            optimization,
+            optimizer_setup,
+            completed_steps=state.completed_steps,
+            optimization_stage=state.optimization_stage,
+            score=score,
+            improved=improved,
+            evaluations_at_minimum_lr=state.evaluations_at_minimum_lr,
         )
-        if scheduler is not None and completed_steps > scheduler_start_step:
-            previous_learning_rate = optimizer.param_groups[0]["lr"]
-            previous_mace_learning_rate = (
-                optimizer.param_groups[1]["lr"] if joint_training else None
-            )
-            scheduler.step(score)
-            current_learning_rate = optimizer.param_groups[0]["lr"]
-            if current_learning_rate != previous_learning_rate:
-                message = (
-                    f"learning rate step {completed_steps}: "
-                    f"FNO {previous_learning_rate:.6e} -> "
-                    f"{current_learning_rate:.6e}"
-                )
-                if joint_training:
-                    message += (
-                        f", MACE {previous_mace_learning_rate:.6e} -> "
-                        f"{optimizer.param_groups[1]['lr']:.6e}"
-                    )
-                print(message, flush=True)
-            at_minimum_learning_rate = current_learning_rate <= (
-                optimization.minimum_learning_rate
-                * (1.0 + 16.0 * np.finfo(np.float64).eps)
-            )
-            if at_minimum_learning_rate:
-                evaluations_at_minimum_lr = (
-                    0 if improved else evaluations_at_minimum_lr + 1
-                )
-            else:
-                evaluations_at_minimum_lr = 0
-            if (
-                optimization.early_stopping_patience_evals
-                and (not staged or optimization_stage == 2)
-                and evaluations_at_minimum_lr
-                >= optimization.early_stopping_patience_evals
-            ):
-                stopped_early = True
-                print(
-                    f"early stopping at step {completed_steps}: no validation "
-                    f"improvement in {evaluations_at_minimum_lr} checks at "
-                    f"minimum learning rate {current_learning_rate:.6e}",
-                    flush=True,
-                )
 
         if (
             optimization.early_stopping_patience_steps
-            and (not staged or optimization_stage == 2)
-            and completed_steps < optimization.steps
-            and completed_steps - best_step
+            and (not staged or state.optimization_stage == 2)
+            and state.completed_steps < optimization.steps
+            and state.completed_steps - state.best_step
             >= optimization.early_stopping_patience_steps
         ):
-            stopped_early = True
+            state.stopped_early = True
             print(
-                f"early stopping at step {completed_steps}: validation objective "
-                f"has not improved for {completed_steps - best_step} optimizer steps",
+                f"early stopping at step {state.completed_steps}: validation objective "
+                f"has not improved for {state.completed_steps - state.best_step} optimizer steps",
                 flush=True,
             )
         save_latest()
-        if stopped_early:
+        if state.stopped_early:
             break
 
     save_latest()
-    load_residual_state_dict(model, best_residual_state)
-    if best_mace_state is not None:
-        load_mace_state_dict(model, best_mace_state)
+    load_residual_state_dict(model, state.best_residual_state)
+    if state.best_mace_state is not None:
+        load_mace_state_dict(model, state.best_mace_state)
     print(
-        f"restored best validation step {best_step} (objective={best_objective:.6e})",
+        f"restored best validation step {state.best_step} (objective={state.best_objective:.6e})",
         flush=True,
     )
     return current_result()

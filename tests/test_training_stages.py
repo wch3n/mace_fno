@@ -21,7 +21,7 @@ from test_training_resume import _ProjectionResidual, _StochasticResidual
 from mace_fno.cli import train_residual
 from mace_fno.cli.config import parse_arguments
 from mace_fno.training import TrainingConfig
-from mace_fno.training import trainer as trainer_module
+from mace_fno.training import _optimization as optimization_module
 from mace_fno.training.evaluation import evaluate, validation_objective
 from mace_fno.training.resume import resume_configuration, validate_resume_checkpoint
 
@@ -249,9 +249,9 @@ class TrainingStageTests(unittest.TestCase):
             "0.02",
         )
         with mock.patch.object(
-            trainer_module,
+            optimization_module,
             "energy_force_loss",
-            wraps=trainer_module.energy_force_loss,
+            wraps=optimization_module.energy_force_loss,
         ) as loss:
             full = self.helper.run_training(_ToyResidual, config)
         self.assertEqual(loss.call_count, 12)
