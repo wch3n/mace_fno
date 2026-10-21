@@ -1,4 +1,4 @@
-# MACE–FNO: Learning nonlocal interactions
+# MACE–FNO: Learning nonlocal interactions using Fourier neural operator
 
 MACE–FNO adds a learned nonlocal energy correction to a local MACE interatomic
 potential. Atomic descriptors are mapped to latent source fields on a mesh.
