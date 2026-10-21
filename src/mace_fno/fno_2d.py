@@ -8,6 +8,8 @@ import torch
 from torch import Tensor, nn
 from torch.nn import functional as F
 
+from ._normalization import _fit_channel_normalization
+
 
 class SpectralConv2D(nn.Module):
     """Learned global convolution on a truncated set of 2D Fourier modes.
@@ -221,14 +223,13 @@ class FNOFieldOperator2D(nn.Module):
         minimum_scale: float = 1.0e-12,
     ) -> None:
         """Store per-channel RMS scales from batched training fields."""
-        if inputs.ndim != 4 or targets.shape != inputs.shape:
-            raise ValueError(
-                "inputs and targets must have matching (batch, channels, nx, ny) shapes"
-            )
-        input_rms = inputs.square().mean(dim=(0, 2, 3), keepdim=True).sqrt()
-        output_rms = targets.square().mean(dim=(0, 2, 3), keepdim=True).sqrt()
-        self.input_scale.copy_(input_rms.clamp_min(minimum_scale))
-        self.output_scale.copy_(output_rms.clamp_min(minimum_scale))
+        _fit_channel_normalization(
+            inputs,
+            targets,
+            self.input_scale,
+            self.output_scale,
+            minimum_scale=minimum_scale,
+        )
 
     def forward(self, density: Tensor, cell: Tensor | None = None) -> Tensor:
         del cell

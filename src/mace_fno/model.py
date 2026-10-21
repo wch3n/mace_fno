@@ -23,6 +23,19 @@ from .spectral import (
 )
 
 
+def _validate_source_neutrality(values: Tensor, tolerance: float) -> None:
+    """Check each source channel against the same relative neutrality tolerance."""
+    values_2d = values[:, None] if values.ndim == 1 else values
+    total = values_2d.sum(dim=0).abs()
+    scale = values_2d.abs().sum(dim=0).clamp_min(1.0)
+    invalid = total > tolerance * scale
+    if bool(invalid.any().detach().cpu()):
+        raise ValueError(
+            "every input channel must be neutral when check_neutrality=True; "
+            f"channel sums are {values_2d.sum(dim=0).detach().cpu().tolist()}"
+        )
+
+
 class ParticleMeshEnergy(nn.Module):
     """Compose particle assignment with an interchangeable mesh-field operator."""
 
@@ -41,15 +54,7 @@ class ParticleMeshEnergy(nn.Module):
         self.neutrality_tolerance = float(neutrality_tolerance)
 
     def _validate_neutrality(self, values: Tensor) -> None:
-        values_2d = values[:, None] if values.ndim == 1 else values
-        total = values_2d.sum(dim=0).abs()
-        scale = values_2d.abs().sum(dim=0).clamp_min(1.0)
-        invalid = total > self.neutrality_tolerance * scale
-        if bool(invalid.any().detach().cpu()):
-            raise ValueError(
-                "every input channel must be neutral when check_neutrality=True; "
-                f"channel sums are {values_2d.sum(dim=0).detach().cpu().tolist()}"
-            )
+        _validate_source_neutrality(values, self.neutrality_tolerance)
 
     def energy_from_density(
         self,
@@ -172,15 +177,7 @@ class SlabParticleMeshEnergy(nn.Module):
         self.neutrality_tolerance = float(neutrality_tolerance)
 
     def _validate_neutrality(self, values: Tensor) -> None:
-        values_2d = values[:, None] if values.ndim == 1 else values
-        total = values_2d.sum(dim=0).abs()
-        scale = values_2d.abs().sum(dim=0).clamp_min(1.0)
-        invalid = total > self.neutrality_tolerance * scale
-        if bool(invalid.any().detach().cpu()):
-            raise ValueError(
-                "every input channel must be neutral when check_neutrality=True; "
-                f"channel sums are {values_2d.sum(dim=0).detach().cpu().tolist()}"
-            )
+        _validate_source_neutrality(values, self.neutrality_tolerance)
 
     def energy_from_density(
         self,
@@ -383,15 +380,7 @@ class ParticleMeshEnergy3D(nn.Module):
         self.neutrality_tolerance = float(neutrality_tolerance)
 
     def _validate_neutrality(self, values: Tensor) -> None:
-        values_2d = values[:, None] if values.ndim == 1 else values
-        total = values_2d.sum(dim=0).abs()
-        scale = values_2d.abs().sum(dim=0).clamp_min(1.0)
-        invalid = total > self.neutrality_tolerance * scale
-        if bool(invalid.any().detach().cpu()):
-            raise ValueError(
-                "every input channel must be neutral when check_neutrality=True; "
-                f"channel sums are {values_2d.sum(dim=0).detach().cpu().tolist()}"
-            )
+        _validate_source_neutrality(values, self.neutrality_tolerance)
 
     def energy_from_density(
         self,

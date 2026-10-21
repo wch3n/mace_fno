@@ -7,6 +7,7 @@ import math
 import torch
 from torch import Tensor, nn
 
+from ._normalization import _fit_channel_normalization
 from .fno_2d import SpectralConv2D
 from .fno_slab_eqgino import MetricEqGINOSpectralConv2D
 
@@ -552,15 +553,13 @@ class SlabFNOFieldOperator2D(nn.Module):
         *,
         minimum_scale: float = 1.0e-12,
     ) -> None:
-        if inputs.ndim != 5 or targets.shape != inputs.shape:
-            raise ValueError(
-                "inputs and targets must have matching "
-                "(batch, channels, nz, nx, ny) shapes"
-            )
-        input_rms = inputs.square().mean(dim=(0, 2, 3, 4), keepdim=True).sqrt()
-        output_rms = targets.square().mean(dim=(0, 2, 3, 4), keepdim=True).sqrt()
-        self.input_scale.copy_(input_rms.clamp_min(minimum_scale))
-        self.output_scale.copy_(output_rms.clamp_min(minimum_scale))
+        _fit_channel_normalization(
+            inputs,
+            targets,
+            self.input_scale,
+            self.output_scale,
+            minimum_scale=minimum_scale,
+        )
 
     @staticmethod
     def _validate_symmetry_cell(cell: Tensor | None, batch_size: int) -> None:
