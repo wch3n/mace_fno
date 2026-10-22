@@ -92,11 +92,11 @@ The launcher uses `/tmp` for scheduler output when none is supplied.
 
 ```bash
 source benchmarks/runtime_paths.sh
-run_root="$MACE_FNO_WORK_ROOT/les_au_mgo/audits"
+run_root="$MACE_FNO_WORK_ROOT/les_au_mgo/checks"
 mkdir -p "$run_root"
-sbatch --output="$run_root/audit-2p5d-%j.out" \
-  --export=ALL,CHECKPOINT=/path/to/checkpoint.pt,AUDIT_OUTPUT="$run_root/audit.json" \
-  benchmarks/au_mgo/audit_2p5d.slurm
+sbatch --output="$run_root/check-2p5d-%j.out" \
+  --export=ALL,CHECKPOINT=/path/to/checkpoint.pt,CHECK_OUTPUT="$run_root/check.json" \
+  benchmarks/au_mgo/check_2p5d.slurm
 ```
 
 The check tests source neutrality, translations, applicable in-plane symmetry,

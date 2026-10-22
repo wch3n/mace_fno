@@ -410,7 +410,7 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default="fast",
         help=(
             "Use one final spectral probe (fast), or run a final finite-amplitude "
-            "convergence audit in addition to cheap validation probes (deep)"
+            "convergence check in addition to cheap validation probes (deep)"
         ),
     )
     parser.add_argument(
@@ -418,7 +418,7 @@ def parse_arguments(argv: Sequence[str] | None = None) -> argparse.Namespace:
         type=float,
         nargs="+",
         default=(0.025, 0.05, 0.1),
-        help="Relative field amplitudes for the deep selected-checkpoint audit",
+        help="Relative field amplitudes for the selected-checkpoint diagnostic",
     )
     parser.add_argument(
         "--spectral-diagnostic-relative-span-tolerance",

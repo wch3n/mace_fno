@@ -1963,8 +1963,8 @@
     }
   ],
   "finding": "All 15 homogeneous and five heterogeneous synthetic LES models use a residual first block. Their one-layer local references use a nonresidual first block. The compared seed17 local parameter-shape maps differ only at interactions.0.skip_tp.weight.",
-  "manuscript_status": "The just-added clarification was reverted at the user request; no manuscript change is part of this audit.",
-  "accuracy_implication": "The architecture differs. Its effect on numerical accuracy or method ranking has not been measured by this audit.",
+  "manuscript_status": "The just-added clarification was reverted at the user request; no manuscript change is part of this check.",
+  "accuracy_implication": "The architecture differs. Its effect on numerical accuracy or method ranking has not been measured by this check.",
   "counts": {
     "homogeneous": {
       "local_backbone": 278400,

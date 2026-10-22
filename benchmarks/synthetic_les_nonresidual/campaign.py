@@ -48,8 +48,8 @@ def prepare(root, runs_root, repo):
     for name in ("eval_probe.py", "eval_probe2.py", "analyze_probe2.py"):
         shutil.copy2(repo / "benchmarks/heterogeneous_screening" / name, root / name)
     shutil.copy2(
-        repo / "benchmarks/les_backbone_audit_20261011.json",
-        root / "provenance/backbone_audit.json",
+        repo / "benchmarks/les_backbone_check_20261011.json",
+        root / "provenance/backbone_check.json",
     )
     shutil.copy2(
         runs_root / "yukawa_L32_kappa_production/analysis/maceles1200_metrics.json",

@@ -75,13 +75,13 @@ def fit(m, task, mode):
         updated = json.loads((directory / "first_response_updates.json").read_text())
         assert covered["all_trainable_parameters_covered"] and updated
         assert all(v["max_abs_update"] > 0 for v in updated.values())
-        audit = convergence(directory, 2 if mode == "smoke" else 450)
-        dump(directory / "convergence.json", audit)
+        check = convergence(directory, 2 if mode == "smoke" else 450)
+        dump(directory / "convergence.json", check)
         command(
             [ROOT / "evaluate.py", mode, task["index"]], directory / "evaluation.log"
         )
         record.update(
-            state="complete", convergence=audit, model_sha256=sha(run["model"])
+            state="complete", convergence=check, model_sha256=sha(run["model"])
         )
     except BaseException as exc:
         record.update(state="failed", error=repr(exc))

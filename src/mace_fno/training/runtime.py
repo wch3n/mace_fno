@@ -1,4 +1,4 @@
-"""Runtime helpers shared by training and audit commands."""
+"""Runtime helpers shared by training and diagnostic commands."""
 
 from __future__ import annotations
 

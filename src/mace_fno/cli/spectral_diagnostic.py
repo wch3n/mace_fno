@@ -1,4 +1,4 @@
-"""Audit the low-wavevector response of a trained MACE-FNO checkpoint.
+"""Diagnose the low-wavevector response of a trained MACE-FNO checkpoint.
 
 The geometry-aware diagnostic dispatches to the planar 2D, open-boundary
 2.5D slab, or fully periodic 3D probe.  An optional amplitude sweep checks
@@ -46,7 +46,7 @@ def parse_arguments() -> argparse.Namespace:
         type=float,
         nargs="+",
         help=(
-            "run a post-training amplitude-convergence audit instead of one "
+            "run a post-training amplitude-convergence check instead of one "
             "probe; for example: 0.025 0.05 0.1"
         ),
     )

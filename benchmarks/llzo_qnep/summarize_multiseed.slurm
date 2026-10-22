@@ -30,12 +30,12 @@ IFS=',' read -r -a seeds <<< "${FNO_SEEDS_CSV}"
 run_args=()
 for seed in "${seeds[@]}"; do
     fno_result="${REPORT_ROOT}/mace-fno-seed${seed}.json"
-    audit_result="${REPORT_ROOT}/mace-fno-audit-seed${seed}.json"
+    check_result="${REPORT_ROOT}/mace-fno-check-seed${seed}.json"
     spectral_result="${REPORT_ROOT}/mace-fno-spectral-seed${seed}.json"
     test -s "${fno_result}"
-    test -s "${audit_result}"
+    test -s "${check_result}"
     test -s "${spectral_result}"
-    run_args+=(--run "${seed}" "${fno_result}" "${audit_result}" "${spectral_result}")
+    run_args+=(--run "${seed}" "${fno_result}" "${check_result}" "${spectral_result}")
 done
 
 python3 -u "${PROJECT_ROOT}/benchmarks/llzo_qnep/summarize_multiseed.py" \

@@ -13,7 +13,7 @@ selection rule, and Slurm predecessors. `submission.json` records the actual
 replacement jobs and cancellations. Parent manifests and input configurations
 remain intact. Per-task `training.yaml` changes only the total step budget.
 
-`prepare.py` snapshots the audited continuation and evaluation helpers and
+`prepare.py` snapshots the checked continuation and evaluation helpers and
 wetting structures. Preflight checks validate all 15 checkpoints before
 `submit.py` changes the queue. Replacements are submitted held. Only after all
 submissions succeed are duplicate continuations cancelled and MACE1 stopped.

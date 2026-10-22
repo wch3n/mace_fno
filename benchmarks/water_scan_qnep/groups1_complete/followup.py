@@ -50,13 +50,14 @@ def checked_result(task):
     return result
 
 
-def audits(root, manifest, index):
+def checks(root, manifest, index):
     task = manifest["tasks"][index]
     assert task["role"] == "accuracy" and task["spectral_groups"] == 1
     result = checked_result(task)
     system = manifest["systems"][task["system"]]
     cache = system["test_cache"]
     assert digest(cache) == system["input_checksums"][cache]
+    # Preserve the report location in this archived campaign.
     output = root / "audits" / task["name"]
     output.mkdir(parents=True, exist_ok=False)
     common = [
@@ -77,7 +78,7 @@ def audits(root, manifest, index):
             "-B",
             "-u",
             "-m",
-            "mace_fno.cli.audit_3d",
+            "mace_fno.cli.check_3d",
             *common,
             "--fd-step",
             "1e-4",
@@ -271,7 +272,7 @@ def measurements(root, manifest, scripts):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("campaign", type=Path)
-    parser.add_argument("mode", choices=("audits", "measurements"))
+    parser.add_argument("mode", choices=("checks", "measurements"))
     parser.add_argument("--index", type=int)
     args = parser.parse_args()
     root = args.campaign.resolve()
@@ -281,9 +282,9 @@ def main():
     manifest = read(root / "manifest.json")
     for relative, expected in manifest["source_checksums"].items():
         assert digest(root / relative) == expected, relative
-    if args.mode == "audits":
+    if args.mode == "checks":
         assert args.index is not None and 0 <= args.index < 20
-        audits(root, manifest, args.index)
+        checks(root, manifest, args.index)
     else:
         measurements(root, manifest, scripts)
 

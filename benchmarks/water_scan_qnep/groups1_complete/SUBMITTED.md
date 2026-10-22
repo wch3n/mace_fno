@@ -13,7 +13,7 @@ Slurm submission records (`submission_*.json`).
 |---|---|---|
 | 16181132 | Nine GPU smoke tests; all passed on an A100-SXM4-40GB | None |
 | 16181135 | 35 array tasks, at most four concurrent GPUs | Successful smoke test |
-| 16181140 | Numerical and spectral audits of all 20 accuracy models | Corresponding successful training task |
+| 16181140 | Numerical and spectral diagnostics of all 20 accuracy models | Corresponding successful training task |
 | 16181141 | Seed-17 GPU runtime, memory, parameters, and interlacing | Successful frozen and joint MACE1 training tasks |
 | 16181142 | Accuracy and convergence result collection | Entire training array succeeds |
 
@@ -70,10 +70,10 @@ Eight accuracy models completed by the morning check: all five frozen
 MACE1 seeds and joint MACE1 seeds 17, 29, and 41. The seed-17 GPU cost and
 interlacing job 16181141 completed successfully in 4 minutes 38 seconds.
 
-Audit tasks 16181140_0 through 16181140_4 reached their two-hour walltime
+Check tasks 16181140_0 through 16181140_4 reached their two-hour walltime
 after writing complete numerical and cosine-sweep reports. All promised
 exact numerical checks passed for these five models. Their sine sweeps
-did not finish. The remaining original audit tasks were extended to eight
+did not finish. The remaining original check tasks were extended to eight
 hours using `scontrol update`. The command and result are recorded in
 `audit_walltime_update_20261010.json` in the campaign.
 
@@ -88,26 +88,26 @@ written only after the sine sweep completes and the inputs are rechecked.
 
 ## MACE2 diagnostic memory recovery, 10 October 2026 evening
 
-All ten MACE1 accuracy fits and their numerical/spectral audits completed.
+All ten MACE1 accuracy fits and their numerical/spectral diagnostics completed.
 The five-seed joint G=1 test RMSEs are 0.696824 +/- 0.026991 meV/atom
 and 71.777284 +/- 0.479744 meV/angstrom (sample standard deviations).
 
 The first four frozen MACE2 fits and test evaluations also completed, but
 their diagnostic tasks 16181140_10--13 exhausted the 40 GB GPU memory in
-the numerical audit. The failure occurred when all 24 displaced structures
+the numerical check. The failure occurred when all 24 displaced structures
 for the 12-component finite-difference check were evaluated together.
 
-The audit now accepts `--fd-batch-size` (default 4). Recovery uses batches
+The check now accepts `--fd-batch-size` (default 4). Recovery uses batches
 of two without changing the 12 components, displacement, 32 sampled test
-frames, strict thresholds, or spectral probes. All 16 audit unit/integration
+frames, strict thresholds, or spectral probes. All 16 check unit/integration
 tests passed, including equivalence of chunked and unchunked finite
 differences. The training source snapshot and model checkpoints are unchanged.
 
 Replacement array **16189094**, tasks 10--19 with at most two concurrent
 GPUs and an eight-hour walltime, depends on the corresponding successful
-training tasks. It runs a separately hashed audit/recovery snapshot under
+training tasks. It runs a separately hashed check/recovery snapshot under
 `audit_mace2_recovery_20261010/`. Preflight passed for the four completed
-MACE2 fits. The six pending original MACE2 audits 16181140_14--19 were
+MACE2 fits. The six pending original MACE2 checks 16181140_14--19 were
 cancelled after the replacement was submitted. Failed-attempt logs are
 preserved, and recovery uses distinct log names. Submission and patch
 provenance are recorded in `submission_mace2_audit_recovery_20261010.json`
@@ -117,14 +117,14 @@ and `audit_mace2_batching_fix_20261010.json` in the campaign.
 
 The user no longer requests water spectral checks. Cancelled array tasks
 16189094_15--19: two running spectral stages and three pending combined
-audits. Tasks 15 and 16 had already completed all numerical criteria. Their
+checks. Tasks 15 and 16 had already completed all numerical criteria. Their
 numerical reports remain unchanged and have separate numerical_status.json
 completion records. Earlier completed spectral reports remain archived.
 
 Numerical-only array **16191146**, tasks 17--19, completes the three missing
 joint-MACE2 numerical checks. It has a 30-minute GPU budget, at most two
 concurrent tasks, and the validated finite-difference batch size of two.
-All five relevant preflights passed. The new immutable wrapper and audit are
+All five relevant preflights passed. The new immutable wrapper and check are
 in numerical_only_20261011/, with hashed inputs and submission.json.
 Cancellation is recorded in spectral_checks_cancelled_20261011.json.
 No training, accuracy, convergence, or GPU measurement job was cancelled.

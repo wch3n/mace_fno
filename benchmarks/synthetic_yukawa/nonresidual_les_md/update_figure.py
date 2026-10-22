@@ -102,6 +102,7 @@ def main():
             ],
         )
         pdf = stage / "figures/md_structure.pdf"
+        # These helper filenames belong to the external figure tooling.
         run(
             "text_check",
             [
@@ -123,7 +124,7 @@ def main():
                 pdf,
                 "--strict",
                 "--json-out",
-                stage / "figures/md_structure.collision-audit.json",
+                stage / "figures/md_structure.collision-check.json",
             ],
         )
         import pymupdf
@@ -145,7 +146,7 @@ def main():
             for n in (
                 "md_structure.pdf",
                 "md_structure.json",
-                "md_structure.collision-audit.json",
+                "md_structure.collision-check.json",
             )
         ]
         assert all(sha(p) == value for p, value in original_data.items()), (

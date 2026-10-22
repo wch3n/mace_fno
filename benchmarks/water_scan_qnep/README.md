@@ -89,7 +89,7 @@ RUN_ID=small-fno STEPS=200 GRID=16 MODES=3 \
   bash benchmarks/water_scan_qnep/submit.sh
 ```
 
-The launcher evaluates the baseline and submits a numerical audit after FNO
+The launcher evaluates the baseline and submits a numerical check after FNO
 training. Spectral diagnostics are disabled in the supplied configurations.
 
 ## Evaluation

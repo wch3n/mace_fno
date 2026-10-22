@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=audit-au-mgo-2p5d
+#SBATCH --job-name=check-au-mgo-2p5d
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
@@ -8,7 +8,7 @@
 #SBATCH --account=htbase
 #SBATCH --time=00:20:00
 #SBATCH --mem=32G
-#SBATCH --output=/tmp/audit-au-mgo-2p5d-%j.out
+#SBATCH --output=/tmp/check-au-mgo-2p5d-%j.out
 
 set -Eeuo pipefail
 
@@ -22,11 +22,11 @@ if [[ -z "${PROJECT_ROOT}" || ! -f "${PROJECT_ROOT}/benchmarks/runtime_paths.sh"
     exit 2
 fi
 : "${CHECKPOINT:?Set CHECKPOINT to the trained 2.5D residual checkpoint}"
-AUDIT_SAMPLES=${AUDIT_SAMPLES:-32}
-AUDIT_OUTPUT=${AUDIT_OUTPUT:-${CHECKPOINT%.pt}_audit.json}
-JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${AUDIT_OUTPUT}")/work}
+CHECK_SAMPLES=${CHECK_SAMPLES:-32}
+CHECK_OUTPUT=${CHECK_OUTPUT:-${CHECKPOINT%.pt}_check.json}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${CHECK_OUTPUT}")/work}
 
-mkdir -p "$(dirname "${AUDIT_OUTPUT}")" "${JOB_WORK_ROOT}"
+mkdir -p "$(dirname "${CHECK_OUTPUT}")" "${JOB_WORK_ROOT}"
 test -s "${CHECKPOINT}"
 cd "${JOB_WORK_ROOT}"
 
@@ -35,13 +35,13 @@ export PYTHONUNBUFFERED=1
 export PYTHONDONTWRITEBYTECODE=1
 export PYTHONPATH="${PROJECT_ROOT}/src"
 export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
-export MPLCONFIGDIR="${TMPDIR:-/tmp}/mace-fno-audit-matplotlib-${SLURM_JOB_ID}"
+export MPLCONFIGDIR="${TMPDIR:-/tmp}/mace-fno-check-matplotlib-${SLURM_JOB_ID}"
 mkdir -p "${MPLCONFIGDIR}"
 
-python3 -u -m mace_fno.cli.audit_2p5d \
+python3 -u -m mace_fno.cli.check_2p5d \
     --checkpoint "${CHECKPOINT}" \
-    --samples "${AUDIT_SAMPLES}" \
+    --samples "${CHECK_SAMPLES}" \
     --fd-components 12 \
     --device cuda \
-    --output "${AUDIT_OUTPUT}" \
+    --output "${CHECK_OUTPUT}" \
     --strict

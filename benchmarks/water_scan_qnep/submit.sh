@@ -52,13 +52,13 @@ baseline_job=$(sbatch "${common_sbatch[@]}" "${dependency[@]}" \
 fno_job=$(sbatch "${common_sbatch[@]}" "${dependency[@]}" \
     --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},DATA_ROOT=${DATA_ROOT},RUN_ROOT=${FNO_RUN_ROOT},MACE_MODEL=${MACE_MODEL},CHECKPOINT=${CHECKPOINT},JOB_WORK_ROOT=${JOB_WORK_ROOT},FNO_CONFIG=${FNO_CONFIG},FNO_SEED=${FNO_SEED},MODEL_DTYPE=${MODEL_DTYPE}" \
     "${PROJECT_ROOT}/benchmarks/water_scan_qnep/train_fno_3d.slurm")
-audit_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
+check_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
     --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${CHECKPOINT},JOB_WORK_ROOT=${JOB_WORK_ROOT},FNO_SEED=${FNO_SEED},MODEL_DTYPE=${MODEL_DTYPE}" \
-    "${PROJECT_ROOT}/benchmarks/water_scan_qnep/audit_3d.slurm")
+    "${PROJECT_ROOT}/benchmarks/water_scan_qnep/check_3d.slurm")
 
 printf 'Experiment root:    %s\n' "${EXPERIMENT_ROOT}"
 printf 'FNO configuration:  %s\n' "${FNO_CONFIG}"
 printf 'MACE training:      %s\n' "${mace_job}"
 printf 'MACE validation:    %s\n' "${baseline_job}"
 printf 'MACE+FNO training:  %s\n' "${fno_job}"
-printf 'MACE+FNO audit:     %s\n' "${audit_job}"
+printf 'MACE+FNO check:     %s\n' "${check_job}"

@@ -159,7 +159,7 @@ def reference_forces(atoms: Any) -> np.ndarray:
     return np.asarray(results["forces"], dtype=float)
 
 
-def audit_structures(filename: Path) -> tuple[list[Any], np.ndarray, dict[str, Any]]:
+def check_structures(filename: Path) -> tuple[list[Any], np.ndarray, dict[str, Any]]:
     structures = read(filename, index=":")
     if not isinstance(structures, list):
         structures = [structures]
@@ -209,7 +209,7 @@ def audit_structures(filename: Path) -> tuple[list[Any], np.ndarray, dict[str, A
         },
     }
     print(
-        f"audited {filename.name}: {len(structures)} frames, "
+        f"checked {filename.name}: {len(structures)} frames, "
         f"L={lengths.min():.6f}--{lengths.max():.6f} A",
         flush=True,
     )
@@ -426,8 +426,8 @@ def main() -> None:
     )
     source_train = data_root / "reference-structures-training-water-SCAN.xyz"
     source_test = data_root / "reference-structures-validation-water-SCAN.xyz"
-    official_train, _, train_summary = audit_structures(source_train)
-    official_test, _, test_summary = audit_structures(source_test)
+    official_train, _, train_summary = check_structures(source_train)
+    official_test, _, test_summary = check_structures(source_test)
 
     splits, deduplication = geometry_disjoint_split(
         official_train, official_test, args.validation_fraction, args.seed

@@ -120,10 +120,10 @@ def main():
         ]
         updates = json.loads((directory / "first_response_updates.json").read_text())
         assert updates and all(v["max_abs_update"] > 0 for v in updates.values())
-        audit = convergence(directory, 450)
-        assert audit["last"]["epoch"] < 1200
-        dump(directory / "convergence.json", audit)
-        record["convergence"] = audit
+        check = convergence(directory, 450)
+        assert check["last"]["epoch"] < 1200
+        dump(directory / "convergence.json", check)
+        record["convergence"] = check
         with (directory / "evaluation.log").open("x") as stream:
             subprocess.run(
                 [

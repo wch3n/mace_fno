@@ -88,7 +88,7 @@ for seed in "${seed_values[@]}"; do
     fno_root="${EXPERIMENT_ROOT}/fno/seed${seed}"
     checkpoint="${fno_root}/llzo_fno_3d_seed${seed}_${MODEL_DTYPE}.pt"
     fno_result="${REPORT_ROOT}/mace-fno-seed${seed}.json"
-    audit_result="${REPORT_ROOT}/mace-fno-audit-seed${seed}.json"
+    check_result="${REPORT_ROOT}/mace-fno-check-seed${seed}.json"
     spectral_result="${REPORT_ROOT}/mace-fno-spectral-seed${seed}.json"
 
     fno_job=$(sbatch "${gpu_sbatch[@]}" --dependency="afterok:${mace_one_job}" \
@@ -97,16 +97,16 @@ for seed in "${seed_values[@]}"; do
     fno_eval_job=$(sbatch "${gpu_sbatch[@]}" --dependency="afterok:${fno_job}" \
         --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${checkpoint},RESULT_PATH=${fno_result},JOB_WORK_ROOT=${JOB_WORK_ROOT}/fno-eval-seed${seed},MODEL_DTYPE=${MODEL_DTYPE}" \
         "${PROJECT_ROOT}/benchmarks/llzo_qnep/evaluate_fno.slurm")
-    audit_job=$(sbatch "${gpu_sbatch[@]}" --dependency="afterok:${fno_job}" \
-        --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${checkpoint},AUDIT_OUTPUT=${audit_result},JOB_WORK_ROOT=${JOB_WORK_ROOT}/audit-seed${seed}" \
-        "${PROJECT_ROOT}/benchmarks/llzo_qnep/audit_3d.slurm")
+    check_job=$(sbatch "${gpu_sbatch[@]}" --dependency="afterok:${fno_job}" \
+        --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${checkpoint},CHECK_OUTPUT=${check_result},JOB_WORK_ROOT=${JOB_WORK_ROOT}/check-seed${seed}" \
+        "${PROJECT_ROOT}/benchmarks/llzo_qnep/check_3d.slurm")
     spectral_job=$(sbatch "${gpu_sbatch[@]}" --dependency="afterok:${fno_job}" \
         --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${checkpoint},SPECTRUM_OUTPUT=${spectral_result},JOB_WORK_ROOT=${JOB_WORK_ROOT}/spectrum-seed${seed}" \
-        "${PROJECT_ROOT}/benchmarks/llzo_qnep/audit_spectral.slurm")
-    summary_dependencies+=("${fno_eval_job}" "${audit_job}" "${spectral_job}")
+        "${PROJECT_ROOT}/benchmarks/llzo_qnep/spectral_diagnostic.slurm")
+    summary_dependencies+=("${fno_eval_job}" "${check_job}" "${spectral_job}")
 
-    printf 'FNO seed %-4s training/eval/audit/spectral: %s %s %s %s\n' \
-        "${seed}" "${fno_job}" "${fno_eval_job}" "${audit_job}" "${spectral_job}"
+    printf 'FNO seed %-4s training/eval/check/spectral: %s %s %s %s\n' \
+        "${seed}" "${fno_job}" "${fno_eval_job}" "${check_job}" "${spectral_job}"
 done
 
 dependency_list=$(IFS=:; printf '%s' "${summary_dependencies[*]}")

@@ -144,7 +144,7 @@ require a square mesh and a square physical plane and cannot be combined with
 
 `lateral_interlacing: 2` averages four half-grid origins to reduce mesh-origin
 dependence. It is independent of the spectral symmetry. The strict
-`mace-fno-audit-2p5d` command checks the applicable symmetry and force identities.
+`mace-fno-check-2p5d` command checks the applicable symmetry and force identities.
 
 ### Two linear slab implementations
 
@@ -248,7 +248,7 @@ are appended to the source field. It is therefore homogeneous and linear
 in that field at a fixed cell. The source head and the atomic energy model are
 not thereby made linear. This choice requires a linear-operator checkpoint.
 
-`mace-fno-audit-3d --strict` distinguishes two symmetry checks. For a cubic
+`mace-fno-check-3d --strict` distinguishes two symmetry checks. For a cubic
 cell held fixed, an EqGINO signed-axis transformation is exact only if it
 preserves both the mesh sizes and Fourier cutoffs. For example, a
 `24 x 24 x 32` xyz mesh permits exact x/y exchanges but not exchanges with z.

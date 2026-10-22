@@ -65,16 +65,16 @@ assessing the FNO correction.
 For a periodic 3D model, run:
 
 ```bash
-mace-fno-audit-3d \
+mace-fno-check-3d \
   --checkpoint /absolute/path/to/run/model.pt \
   --samples 8 \
   --fd-components 12 \
   --strict \
   --device cuda \
-  --output /absolute/path/to/run/audit.json
+  --output /absolute/path/to/run/check.json
 ```
 
-For a slab, use `mace-fno-audit-2p5d`. The commands check source neutrality,
+For a slab, use `mace-fno-check-2p5d`. The commands check source neutrality,
 translations, finite-difference forces, and the applicable energy/force
 symmetries. Train with `dtype: float64` for quantitative finite-difference
 checks. A short training run can test the workflow but does not establish
@@ -90,7 +90,7 @@ The post-deposition response can be probed without adding a spectral training
 loss:
 
 ```bash
-mace-fno-audit-spectral \
+mace-fno-spectral-diagnostic \
   --checkpoint /path/to/model.pt \
   --samples 4 \
   --max-mode 2

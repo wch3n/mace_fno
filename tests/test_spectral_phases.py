@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import torch
 
-from mace_fno.cli.audit_spectral import parse_arguments
+from mace_fno.cli.spectral_diagnostic import parse_arguments
 from mace_fno.spectral_response import (
     quadratic_mode_response,
     unit_rms_cosine_mode,
@@ -127,7 +127,9 @@ class SpectralPhaseTests(unittest.TestCase):
 
     def test_cli_phase_default_and_override(self) -> None:
         for extra, expected in (([], "cosine"), (["--probe-phase", "sine"], "sine")):
-            with patch("sys.argv", ["audit", "--checkpoint", "model.pt", *extra]):
+            with patch(
+                "sys.argv", ["spectral-diagnostic", "--checkpoint", "model.pt", *extra]
+            ):
                 self.assertEqual(parse_arguments().probe_phase, expected)
 
     def test_amplitude_summary_rejects_mixed_phases(self) -> None:

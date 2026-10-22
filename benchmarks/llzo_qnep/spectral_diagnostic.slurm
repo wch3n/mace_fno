@@ -36,7 +36,7 @@ export PYTHONDONTWRITEBYTECODE=1
 export PYTHONPATH="${PROJECT_ROOT}/src"
 export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
 
-python3 -u -m mace_fno.cli.audit_spectral \
+python3 -u -m mace_fno.cli.spectral_diagnostic \
     --checkpoint "${CHECKPOINT}" \
     --samples "${SPECTRUM_SAMPLES}" \
     --max-mode "${SPECTRUM_MAX_MODE}" \

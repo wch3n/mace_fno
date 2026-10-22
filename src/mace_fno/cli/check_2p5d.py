@@ -1,4 +1,4 @@
-"""Audit a trained 2.5D MACE-FNO residual checkpoint.
+"""Check a trained 2.5D MACE-FNO residual checkpoint.
 
 The training RMSE alone does not test whether the learned correction respects
 the symmetries of an atomistic energy.  This script checks held-out errors,
@@ -101,7 +101,7 @@ def main() -> None:
     device = choose_device(args.device)
     model, checkpoint = load_mace_fno_model(args.checkpoint, device=device)
     if model.spatial_scheme != "2.5d":
-        raise ValueError("this audit requires a 2.5D residual checkpoint")
+        raise ValueError("this check requires a 2.5D residual checkpoint")
     dtype = next(model.parameters()).dtype
     cache_path = args.sample_cache or Path(checkpoint["test_cache"])
     cache = torch.load(cache_path, map_location="cpu", weights_only=False)
@@ -357,7 +357,7 @@ def main() -> None:
                 failures.append("normal acoustic sum rule")
         if checkpoint.get("planar_symmetry", "none") == "c4":
             if c4_report is None:
-                failures.append("C4 audit geometry")
+                failures.append("C4 check geometry")
             elif (
                 c4_report["residual_energy_change_mev"] > 1.0e-7
                 or c4_report["residual_force_equivariance_rmse_mev_per_angstrom"]
@@ -372,7 +372,7 @@ def main() -> None:
         )
         if checkpoint.get("planar_symmetry", "none") == "d4" or intrinsic_d4:
             if c4_report is None or reflection_report is None:
-                failures.append("D4 audit geometry")
+                failures.append("D4 check geometry")
             elif (
                 c4_report["residual_energy_change_mev"] > 1.0e-7
                 or c4_report["residual_force_equivariance_rmse_mev_per_angstrom"]
@@ -385,7 +385,7 @@ def main() -> None:
             ):
                 failures.append("D4 residual equivariance")
         if failures:
-            raise RuntimeError("failed audit checks: " + ", ".join(failures))
+            raise RuntimeError("failed numerical checks: " + ", ".join(failures))
 
 
 if __name__ == "__main__":

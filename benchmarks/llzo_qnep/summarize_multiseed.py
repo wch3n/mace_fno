@@ -20,7 +20,7 @@ def parse_arguments() -> argparse.Namespace:
         nargs=4,
         action="append",
         required=True,
-        metavar=("SEED", "FNO_JSON", "AUDIT_JSON", "SPECTRAL_JSON"),
+        metavar=("SEED", "FNO_JSON", "CHECK_JSON", "SPECTRAL_JSON"),
     )
     parser.add_argument("--output-json", type=Path, required=True)
     parser.add_argument("--output-markdown", type=Path, required=True)
@@ -56,28 +56,28 @@ def distribution(values: list[float]) -> dict[str, float | int]:
     }
 
 
-def maximum_cubic_metric(audit: dict[str, Any], key: str) -> float | None:
-    transformations = audit.get("cubic_signed_axis_transformations")
+def maximum_cubic_metric(check: dict[str, Any], key: str) -> float | None:
+    transformations = check.get("cubic_signed_axis_transformations")
     if not transformations:
         return None
     return max(float(values[key]) for values in transformations.values())
 
 
 def parse_run(fields: list[str], baseline: dict[str, float]) -> dict[str, Any]:
-    seed_text, fno_path, audit_path, spectral_path = fields
+    seed_text, fno_path, check_path, spectral_path = fields
     seed = int(seed_text)
     evaluation = load_json(fno_path)
-    audit = load_json(audit_path)
+    check = load_json(check_path)
     spectral = load_json(spectral_path)
     test = evaluation["splits"]["test"]["mace_fno"]
     energy_rmse = float(test["energy_rmse"])
     force_rmse = float(test["force_rmse"])
-    exact_checks = audit["promised_exact_checks"]
+    exact_checks = check["promised_exact_checks"]
     power = spectral.get("low_k_dominant_eigenvalue_fit") or {}
     return {
         "seed": seed,
         "evaluation": fno_path,
-        "audit": audit_path,
+        "check": check_path,
         "spectral": spectral_path,
         "best_step": evaluation.get("best_step"),
         "energy_rmse": energy_rmse,
@@ -88,16 +88,16 @@ def parse_run(fields: list[str], baseline: dict[str, float]) -> dict[str, Any]:
         "all_promised_exact_checks_passed": all(
             bool(check["passed"]) for check in exact_checks.values()
         ),
-        "diagnostic_status": audit.get("diagnostic_status", {}),
+        "diagnostic_status": check.get("diagnostic_status", {}),
         "maximum_translation_energy_change_mev": max(
             float(value)
-            for value in audit["rigid_translation_energy_max_mev_by_cell_axis"]
+            for value in check["rigid_translation_energy_max_mev_by_cell_axis"]
         ),
         "maximum_cubic_energy_change_mev": maximum_cubic_metric(
-            audit, "residual_energy_change_mev"
+            check, "residual_energy_change_mev"
         ),
         "maximum_cubic_force_rmse_mev_per_angstrom": maximum_cubic_metric(
-            audit, "residual_force_equivariance_rmse_mev_per_angstrom"
+            check, "residual_force_equivariance_rmse_mev_per_angstrom"
         ),
         "low_k_power_exponent": power.get("free_power_exponent_p"),
         "low_k_free_log_r2": power.get("free_log_r2"),

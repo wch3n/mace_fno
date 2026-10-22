@@ -16,7 +16,7 @@ completed using the verified local Python runtime. Its results are in
 updated, all 300 other raw rows were preserved, and both manuscript PDFs
 were rebuilt without changing the prose or numerical macros.
 
-The four existing tests, PDF text audit, and strict collision audit passed.
+The four existing tests, PDF text check, and strict collision check passed.
 Both panels and insets were visually reviewed. The width warning of the source validator is resolved by the measured 183 x 86 mm PDF size. The repository
 record is `docs/source/data/md_structure/nonresidual_les/verification.json`.
 

@@ -180,7 +180,7 @@ class SpectralMonitor:
         validation_objective: float,
         optimization_stage: int | None = None,
     ) -> None:
-        """Evaluate the restored best checkpoint, including an optional deep audit."""
+        """Evaluate the best checkpoint and optionally check amplitude convergence."""
         diagnostic = self.configuration.diagnostic
         amplitude_report: dict[str, Any] | None = None
         if diagnostic.depth == "deep":

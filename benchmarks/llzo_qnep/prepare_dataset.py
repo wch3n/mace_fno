@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Download, audit, and split the published LLZO NEP/QNEP data.
+"""Download, check, and split the published LLZO NEP/QNEP data.
 
 The Zenodo record supplies one 1,978-configuration file and no official
 train/test partition or trajectory identifiers.  The default reproduces the
@@ -186,7 +186,7 @@ def classify_cell(cell: np.ndarray, tolerance: float = 2.0e-6) -> str:
     return "orthorhombic"
 
 
-def audit_structures(filename: Path) -> tuple[list[Any], list[str], dict[str, Any]]:
+def check_structures(filename: Path) -> tuple[list[Any], list[str], dict[str, Any]]:
     structures = read(filename, index=":")
     if not isinstance(structures, list):
         structures = [structures]
@@ -265,7 +265,7 @@ def audit_structures(filename: Path) -> tuple[list[Any], list[str], dict[str, An
         "virial_labels": len(structures),
     }
     print(
-        f"audited {filename.name}: {len(structures)} frames; "
+        f"checked {filename.name}: {len(structures)} frames; "
         + ", ".join(f"{name}={count}" for name, count in sorted(group_counts.items())),
         flush=True,
     )
@@ -404,7 +404,7 @@ def main() -> None:
         download=args.download,
         include_models=args.download_published_models,
     )
-    structures, groups, source_summary = audit_structures(data_root / SOURCE_FILE)
+    structures, groups, source_summary = check_structures(data_root / SOURCE_FILE)
     if args.split_method == "frame-stratified":
         split_indices = stratified_split_indices(
             groups,
@@ -476,7 +476,7 @@ def main() -> None:
             "zenodo_record": RECORD_ID,
             "url": RECORD_URL,
             "files": provenance,
-            "audit": source_summary,
+            "check": source_summary,
         },
         "split": {
             "method": (

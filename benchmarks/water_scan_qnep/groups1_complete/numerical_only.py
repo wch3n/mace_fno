@@ -31,6 +31,7 @@ def main():
     system = manifest["systems"][task["system"]]
     cache = system["test_cache"]
     assert digest(cache) == system["input_checksums"][cache]
+    # Preserve the report location in this archived campaign.
     output = root / "audits" / task["name"]
     report = output / "numerical.json"
     if report.exists():
@@ -50,6 +51,7 @@ def main():
     previous = {p.name: digest(p) for p in output.iterdir() if p.is_file()}
     if not report.exists():
         job = os.environ["SLURM_JOB_ID"]
+        # Execute the hashed script snapshot stored in the campaign.
         command(
             [
                 sys.executable,

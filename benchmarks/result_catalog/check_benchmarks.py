@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Audit manuscript-selected accuracy records; optionally link cross-campaign seed sets.
+"""Check manuscript-selected accuracy records; optionally link cross-campaign seed sets.
 
 Does not run inference/training or change manuscript data. Checkpoint hashes are
 checked when archived hashes are available; legacy logs are checked numerically.
@@ -37,7 +37,7 @@ def csvrows(path):
 
 def module(name):
     spec = importlib.util.spec_from_file_location(
-        "audit_" + name, DATA / name / "collect_results.py"
+        "check_" + name, DATA / name / "collect_results.py"
     )
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -78,7 +78,7 @@ def compare(actual, saved):
                 )
 
 
-class Audit:
+class BenchmarkChecks:
     def __init__(self):
         self.records, self.checks, self.hashes = [], [], {}
         self.verified_expected_hashes = set()
@@ -474,7 +474,7 @@ def link(path, target):
         )
 
 
-def publish(audit, destination, report):
+def publish(check, destination, report):
     destination.mkdir(parents=True, exist_ok=True)
     lines = [
         "# Manuscript benchmark seed collections",
@@ -484,7 +484,7 @@ def publish(audit, destination, report):
         "Local MACE baselines have one checkpoint; other groups have seeds 17, 29, 41, 53 and 67.",
         "",
         "Au2/MgO nonlinear entries here are the archived channel-wise runs. "
-        "Dense full-z accuracy/wetting snapshots and ongoing jobs are separate; see the audit report. "
+        "Dense full-z accuracy/wetting snapshots and ongoing jobs are separate; see the check report. "
         "The old scalar-only MACE2 baseline is explicitly marked `scalar_archive`.",
         "",
         "| System | Model | Records |",
@@ -495,7 +495,7 @@ def publish(audit, destination, report):
         path.mkdir(parents=True, exist_ok=True)
         selected = [
             r
-            for r in audit.records
+            for r in check.records
             if (r["system"], r["group"]) == (group["system"], group["group"])
         ]
         for r in selected:
@@ -525,7 +525,7 @@ def publish(audit, destination, report):
             f"| {group['system']} | [{group['group']}]({relative}/README.md) | {group['n']} |"
         )
     (destination / "README.md").write_text("\n".join(lines) + "\n")
-    (destination / "audit.json").write_text(json.dumps(report, indent=2) + "\n")
+    (destination / "check.json").write_text(json.dumps(report, indent=2) + "\n")
     for path in destination.rglob("*"):
         if path.is_symlink():
             assert path.exists(), path
@@ -536,31 +536,31 @@ def main():
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--collection", type=Path)
     args = parser.parse_args()
-    audit = Audit()
-    audit.archived_tables()
-    audit.physical()
-    audit.synthetic()
+    check = BenchmarkChecks()
+    check.archived_tables()
+    check.physical()
+    check.synthetic()
     report = dict(
         created_utc=datetime.now(timezone.utc).isoformat(),
         verification_status="ANALYZED",
         scope="Saved-result consistency and selected-file availability; no new inference or training.",
-        checks=audit.checks,
-        coverage=audit.coverage(),
-        records=audit.records,
-        hashes=audit.hashes,
-        matched_archived_hashes=len(audit.verified_expected_hashes),
+        checks=check.checks,
+        coverage=check.coverage(),
+        records=check.records,
+        hashes=check.hashes,
+        matched_archived_hashes=len(check.verified_expected_hashes),
     )
     args.output.write_text(json.dumps(report, indent=2) + "\n")
     if args.collection:
-        publish(audit, args.collection, report)
+        publish(check, args.collection, report)
     print(
         json.dumps(
             dict(
-                records=len(audit.records),
+                records=len(check.records),
                 groups=len(report["coverage"]),
-                saved_rows_checked=sum(c["rows"] for c in audit.checks),
+                saved_rows_checked=sum(c["rows"] for c in check.checks),
                 matched_archived_hashes=report["matched_archived_hashes"],
-                files_hashed=len(audit.hashes),
+                files_hashed=len(check.hashes),
                 output=str(args.output),
             ),
             indent=2,

@@ -42,7 +42,9 @@ SKIP = {
     ".venv",
     "venv",
     "site-packages",
-    "audits",
+    "audits",  # Directory name in archived campaigns.
+    "checks",
+    "diagnostics",
 }
 TERMINAL = {
     "complete",

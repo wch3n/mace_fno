@@ -21,4 +21,4 @@ if [ "$2" = measurements ]; then
     export PYTHONPATH="$WATER_CAMPAIGN/source/src:$WATER_CAMPAIGN/followup/native_sources"
     exec python3 -B -u followup/followup.py "$WATER_CAMPAIGN" measurements
 fi
-exec python3 -B -u followup/followup.py "$WATER_CAMPAIGN" audits --index "$SLURM_ARRAY_TASK_ID"
+exec python3 -B -u followup/followup.py "$WATER_CAMPAIGN" checks --index "$SLURM_ARRAY_TASK_ID"

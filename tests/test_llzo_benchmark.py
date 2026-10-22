@@ -144,7 +144,7 @@ class LLZOBenchmarkTests(unittest.TestCase):
                 block_size=10,
             )
 
-    def test_summary_combines_metrics_and_audits(self) -> None:
+    def test_summary_combines_metrics_and_checks(self) -> None:
         group = {
             "structures": 10,
             "energy_eV_per_atom": {"rmse": 0.010},
@@ -193,7 +193,7 @@ class LLZOBenchmarkTests(unittest.TestCase):
                 "counts": {"train": 1582, "validation": 198, "test": 198},
             }
         }
-        audit = {
+        check = {
             "promised_exact_checks": {
                 "force_additivity": {
                     "observed": 1.0e-8,
@@ -218,7 +218,7 @@ class LLZOBenchmarkTests(unittest.TestCase):
                 "mace-one": mace_one,
                 "mace-two": mace_two,
                 "fno": fno,
-                "audit": audit,
+                "check": check,
                 "spectral": spectral,
             }
             arguments = ["summarize_results.py"]
@@ -241,7 +241,7 @@ class LLZOBenchmarkTests(unittest.TestCase):
             report = json.loads(output_json.read_text())
             self.assertTrue(report["assessment"]["held_out_energy_improved"])
             self.assertTrue(report["assessment"]["held_out_force_improved"])
-            self.assertTrue(report["assessment"]["exact_audit_passed"])
+            self.assertTrue(report["assessment"]["exact_check_passed"])
             self.assertIn("MACE, one interaction + FNO", output_markdown.read_text())
 
     def test_multiseed_summary_reports_sample_variation(self) -> None:
@@ -266,7 +266,7 @@ class LLZOBenchmarkTests(unittest.TestCase):
                 "counts": {"train": 1578, "validation": 200, "test": 200},
             }
         }
-        audit = {
+        check = {
             "promised_exact_checks": {
                 "force_additivity": {
                     "observed": 1.0e-8,
@@ -324,7 +324,7 @@ class LLZOBenchmarkTests(unittest.TestCase):
                 files = []
                 for name, payload in (
                     ("fno", fno),
-                    ("audit", audit),
+                    ("check", check),
                     ("spectral", spectral),
                 ):
                     filename = root / f"{name}-{seed}.json"

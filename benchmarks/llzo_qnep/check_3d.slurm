@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-#SBATCH --job-name=llzo-audit
+#SBATCH --job-name=llzo-check
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
@@ -18,25 +18,25 @@ ulimit -s unlimited
 
 PROJECT_ROOT=${PROJECT_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)}
 CHECKPOINT=${CHECKPOINT:?Set CHECKPOINT to the trained MACE+FNO checkpoint}
-AUDIT_SAMPLES=${AUDIT_SAMPLES:-8}
-AUDIT_FD_STEP=${AUDIT_FD_STEP:-1.0e-3}
-AUDIT_FD_COMPONENTS=${AUDIT_FD_COMPONENTS:-12}
-AUDIT_STRICT=${AUDIT_STRICT:-1}
-AUDIT_OUTPUT=${AUDIT_OUTPUT:-${CHECKPOINT%.pt}_audit.json}
-JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${AUDIT_OUTPUT}")/work}
+CHECK_SAMPLES=${CHECK_SAMPLES:-8}
+CHECK_FD_STEP=${CHECK_FD_STEP:-1.0e-3}
+CHECK_FD_COMPONENTS=${CHECK_FD_COMPONENTS:-12}
+CHECK_STRICT=${CHECK_STRICT:-1}
+CHECK_OUTPUT=${CHECK_OUTPUT:-${CHECKPOINT%.pt}_check.json}
+JOB_WORK_ROOT=${JOB_WORK_ROOT:-$(dirname "${CHECK_OUTPUT}")/work}
 
 strict_args=()
-case "${AUDIT_STRICT}" in
+case "${CHECK_STRICT}" in
     0|false|FALSE|no|NO) ;;
     1|true|TRUE|yes|YES) strict_args+=(--strict) ;;
     *)
-        printf 'AUDIT_STRICT must be 0/1, true/false, or yes/no; got: %s\n' \
-            "${AUDIT_STRICT}" >&2
+        printf 'CHECK_STRICT must be 0/1, true/false, or yes/no; got: %s\n' \
+            "${CHECK_STRICT}" >&2
         exit 2
         ;;
 esac
 
-mkdir -p "$(dirname "${AUDIT_OUTPUT}")" "${JOB_WORK_ROOT}"
+mkdir -p "$(dirname "${CHECK_OUTPUT}")" "${JOB_WORK_ROOT}"
 test -s "${CHECKPOINT}"
 cd "${JOB_WORK_ROOT}"
 
@@ -46,13 +46,13 @@ export PYTHONDONTWRITEBYTECODE=1
 export PYTHONPATH="${PROJECT_ROOT}/src"
 export TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD=1
 
-python3 -u -m mace_fno.cli.audit_3d \
+python3 -u -m mace_fno.cli.check_3d \
     --checkpoint "${CHECKPOINT}" \
-    --samples "${AUDIT_SAMPLES}" \
-    --fd-step "${AUDIT_FD_STEP}" \
-    --fd-components "${AUDIT_FD_COMPONENTS}" \
+    --samples "${CHECK_SAMPLES}" \
+    --fd-step "${CHECK_FD_STEP}" \
+    --fd-components "${CHECK_FD_COMPONENTS}" \
     --device cuda \
-    --output "${AUDIT_OUTPUT}" \
+    --output "${CHECK_OUTPUT}" \
     "${strict_args[@]}"
 
-test -s "${AUDIT_OUTPUT}"
+test -s "${CHECK_OUTPUT}"

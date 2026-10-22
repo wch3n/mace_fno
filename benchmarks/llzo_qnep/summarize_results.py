@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Combine LLZO baseline, residual, and physics-audit reports."""
+"""Combine LLZO baseline, residual, and numerical-check reports."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--mace-one", type=Path, required=True)
     parser.add_argument("--mace-two", type=Path, required=True)
     parser.add_argument("--fno", type=Path, required=True)
-    parser.add_argument("--audit", type=Path, required=True)
+    parser.add_argument("--check", type=Path, required=True)
     parser.add_argument("--spectral", type=Path, required=True)
     parser.add_argument("--published", type=Path)
     parser.add_argument("--output-json", type=Path, required=True)
@@ -101,7 +101,7 @@ def main() -> None:
     mace_one_report = load_json(args.mace_one)
     mace_two_report = load_json(args.mace_two)
     fno_report = load_json(args.fno)
-    audit_report = load_json(args.audit)
+    check_report = load_json(args.check)
     spectral_report = load_json(args.spectral)
     published_report = (
         load_json(args.published)
@@ -135,8 +135,8 @@ def main() -> None:
             mace_one["force_rmse"] - frozen_in_fno["force_rmse"]
         ),
     }
-    exact_checks = audit_report["promised_exact_checks"]
-    exact_audit_passed = all(bool(check["passed"]) for check in exact_checks.values())
+    exact_checks = check_report["promised_exact_checks"]
+    exact_check_passed = all(bool(check["passed"]) for check in exact_checks.values())
 
     one_groups = baseline_group_metrics(mace_one_report)
     two_groups = baseline_group_metrics(mace_two_report)
@@ -171,8 +171,8 @@ def main() -> None:
                 ]
             )
         },
-        "audit": {
-            "all_promised_exact_checks_passed": exact_audit_passed,
+        "check": {
+            "all_promised_exact_checks_passed": exact_check_passed,
             "checks": exact_checks,
         },
         "spectral": {
@@ -192,7 +192,7 @@ def main() -> None:
                     ]["rmse"]
                 )
             ),
-            "exact_audit_passed": exact_audit_passed,
+            "exact_check_passed": exact_check_passed,
         },
     }
 
@@ -243,7 +243,7 @@ def main() -> None:
     lines.extend(
         [
             "",
-            "## Physics audit",
+            "## Physics check",
             "",
             "| Check | Observed | Threshold | Passed |",
             "|---|---:|---:|:---:|",

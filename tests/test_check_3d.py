@@ -13,7 +13,7 @@ import torch
 from torch import nn
 
 from mace_fno import LearnedParticleMeshLongRange3D
-from mace_fno.cli import audit_3d
+from mace_fno.cli import check_3d
 
 DTYPE = torch.float64
 CPU = torch.device("cpu")
@@ -21,11 +21,11 @@ CPU = torch.device("cpu")
 
 class CubicDiscretizationTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.transforms = audit_3d.cubic_transformations(DTYPE, CPU)
+        self.transforms = check_3d.cubic_transformations(DTYPE, CPU)
 
     def statuses(self, grid=(32, 24, 24), modes=(6, 6, 6), symmetry="metric_eqgino"):
         return {
-            name: audit_3d.cubic_discretization_status(transform, grid, modes, symmetry)
+            name: check_3d.cubic_discretization_status(transform, grid, modes, symmetry)
             for name, transform in self.transforms.items()
         }
 
@@ -113,7 +113,7 @@ class CubicDiscretizationTests(unittest.TestCase):
 
     def test_invalid_transform_is_not_silently_classified(self) -> None:
         with self.assertRaisesRegex(ValueError, "signed permutation"):
-            audit_3d.cubic_discretization_status(
+            check_3d.cubic_discretization_status(
                 torch.ones(3, 3), (8,) * 3, (2,) * 3, "metric_eqgino"
             )
 
@@ -125,7 +125,7 @@ class CubicDiscretizationTests(unittest.TestCase):
                 residual_energy_change_mev=error,
                 residual_force_equivariance_rmse_mev_per_angstrom=error,
             )
-        checks = audit_3d.spatial_exact_checks(report, None, DTYPE)
+        checks = check_3d.spatial_exact_checks(report, None, DTYPE)
         for check in checks.values():
             self.assertLess(check["observed"], check["threshold"])
             self.assertEqual(
@@ -133,7 +133,7 @@ class CubicDiscretizationTests(unittest.TestCase):
             )
         # A genuine failure in the compatible subgroup must remain a failure.
         report["c4_z"]["residual_energy_change_mev"] = 1.0
-        checks = audit_3d.spatial_exact_checks(report, None, DTYPE)
+        checks = check_3d.spatial_exact_checks(report, None, DTYPE)
         check = checks["cubic_residual_energy_invariance"]
         self.assertGreater(check["observed"], check["threshold"])
 
@@ -145,14 +145,14 @@ class CubicDiscretizationTests(unittest.TestCase):
                 "residual_force_equivariance_rmse_mev_per_angstrom": 1.0,
             }
         }
-        checks = audit_3d.spatial_exact_checks(None, report, DTYPE)
+        checks = check_3d.spatial_exact_checks(None, report, DTYPE)
         self.assertEqual(len(checks), 2)
         self.assertTrue(all(c["observed"] > c["threshold"] for c in checks.values()))
 
 
 class SymmetryGeometryTests(unittest.TestCase):
     def test_selection_finds_actual_cube_without_cubic_metadata(self) -> None:
-        rotation = audit_3d.rigid_cell_rotation(DTYPE, CPU)
+        rotation = check_3d.rigid_cell_rotation(DTYPE, CPU)
         samples = [
             {
                 "benchmark_group": "cubic",
@@ -163,14 +163,14 @@ class SymmetryGeometryTests(unittest.TestCase):
             {"benchmark_group": "Cl32Li32", "data": {"cell": 8.0 * rotation}},
         ]
         for seed in range(5):
-            self.assertEqual(audit_3d.select_sample_indices(samples, 1, seed), [1])
-            indices = audit_3d.select_sample_indices(samples, 8, seed)
+            self.assertEqual(check_3d.select_sample_indices(samples, 1, seed), [1])
+            indices = check_3d.select_sample_indices(samples, 8, seed)
             self.assertEqual(indices[0], 1)
             self.assertEqual(sorted(indices), [0, 1])
 
     def test_empty_cache_has_clear_error(self) -> None:
         with self.assertRaisesRegex(ValueError, "at least one sample"):
-            audit_3d.select_sample_indices([], 1, 17)
+            check_3d.select_sample_indices([], 1, 17)
 
     def test_whole_cell_rotation_preserves_fractional_geometry_and_image_indices(
         self,
@@ -186,10 +186,10 @@ class SymmetryGeometryTests(unittest.TestCase):
             "shifts": unit @ cell,
             "unit_shifts": unit.clone(),
         }
-        rotation = audit_3d.rigid_cell_rotation(DTYPE, CPU)
+        rotation = check_3d.rigid_cell_rotation(DTYPE, CPU)
         torch.testing.assert_close(rotation @ rotation.T, torch.eye(3, dtype=DTYPE))
         self.assertAlmostEqual(float(torch.linalg.det(rotation)), 1.0)
-        audit_3d.transform_graph(graph, rotation, rotate_cell=True)
+        check_3d.transform_graph(graph, rotation, rotate_cell=True)
         torch.testing.assert_close(
             graph["positions"] @ torch.linalg.inv(graph["cell"]), fractional
         )
@@ -207,8 +207,8 @@ class SymmetryGeometryTests(unittest.TestCase):
             "shifts": unit @ cell,
             "unit_shifts": unit.clone(),
         }
-        rotation = audit_3d.cubic_transformations(DTYPE, CPU)["c4_y"]
-        audit_3d.transform_graph(graph, rotation, rotate_cell=False)
+        rotation = check_3d.cubic_transformations(DTYPE, CPU)["c4_y"]
+        check_3d.transform_graph(graph, rotation, rotate_cell=False)
         torch.testing.assert_close(graph["cell"], cell, atol=0, rtol=0)
         torch.testing.assert_close(graph["shifts"], graph["unit_shifts"] @ cell)
         torch.testing.assert_close(graph["unit_shifts"], unit @ rotation.T)
@@ -273,8 +273,8 @@ class _ParticleMeshResidual(nn.Module):
         }
 
 
-class Audit3DIntegrationTests(unittest.TestCase):
-    def run_audit(
+class Check3DIntegrationTests(unittest.TestCase):
+    def run_check(
         self,
         *,
         break_rotation=False,
@@ -340,9 +340,9 @@ class Audit3DIntegrationTests(unittest.TestCase):
                 output=root / "report.json",
             )
             with (
-                patch.object(audit_3d, "parse_arguments", return_value=args),
+                patch.object(check_3d, "parse_arguments", return_value=args),
                 patch.object(
-                    audit_3d, "load_mace_fno_model", return_value=(model, checkpoint)
+                    check_3d, "load_mace_fno_model", return_value=(model, checkpoint)
                 ),
                 redirect_stdout(io.StringIO()),
             ):
@@ -350,14 +350,14 @@ class Audit3DIntegrationTests(unittest.TestCase):
                     with self.assertRaisesRegex(
                         RuntimeError, "rigid_cell_rotation_residual_energy_invariance"
                     ):
-                        audit_3d.main()
+                        check_3d.main()
                 else:
-                    audit_3d.main()
+                    check_3d.main()
             return json.loads(args.output.read_text())
 
     def test_finite_difference_chunking_preserves_errors(self) -> None:
-        full = self.run_audit(fd_batch_size=6)
-        chunked = self.run_audit(fd_batch_size=2)
+        full = self.run_check(fd_batch_size=6)
+        chunked = self.run_check(fd_batch_size=2)
         for key in (
             "residual_force_fd_rms_mev_per_angstrom",
             "residual_force_fd_max_mev_per_angstrom",
@@ -368,19 +368,19 @@ class Audit3DIntegrationTests(unittest.TestCase):
         )
 
     def test_strict_pass_keeps_anisotropic_mesh_errors_visible(self) -> None:
-        report = self.run_audit()
+        report = self.run_check()
         self.assertTrue(
             all(c["passed"] for c in report["promised_exact_checks"].values())
         )
         cubic = report["cubic_signed_axis_transformations"]
-        self.assertEqual(set(cubic), set(audit_3d.cubic_transformations(DTYPE, CPU)))
+        self.assertEqual(set(cubic), set(check_3d.cubic_transformations(DTYPE, CPU)))
         self.assertFalse(cubic["c4_x"]["expected_exact"])
         self.assertGreater(cubic["c4_x"]["residual_energy_change_mev"], 1e-5)
         self.assertTrue(cubic["c4_z"]["expected_exact"])
         self.assertIsNotNone(report["rigid_cell_rotation"])
 
     def test_triclinic_cells_do_not_skip_rigid_rotation(self) -> None:
-        report = self.run_audit(triclinic=True)
+        report = self.run_check(triclinic=True)
         self.assertIsNone(report["cubic_signed_axis_transformations"])
         self.assertTrue(
             report["promised_exact_checks"][
@@ -389,7 +389,7 @@ class Audit3DIntegrationTests(unittest.TestCase):
         )
 
     def test_equal_mesh_and_modes_still_enforce_all_cubic_transformations(self) -> None:
-        report = self.run_audit(grid=(8, 8, 8))
+        report = self.run_check(grid=(8, 8, 8))
         self.assertEqual(
             report["diagnostic_status"]["cubic_diagnostic_only_transformations"], []
         )
@@ -398,7 +398,7 @@ class Audit3DIntegrationTests(unittest.TestCase):
         self.assertTrue(check["passed"])
 
     def test_unequal_modes_on_cubic_mesh_are_not_full_cubic_symmetry(self) -> None:
-        report = self.run_audit(grid=(8, 8, 8), modes=(3, 2, 2))
+        report = self.run_check(grid=(8, 8, 8), modes=(3, 2, 2))
         item = report["cubic_signed_axis_transformations"]["c4_x"]
         self.assertTrue(item["preserves_mesh"])
         self.assertFalse(item["preserves_mode_cutoff"])
@@ -406,7 +406,7 @@ class Audit3DIntegrationTests(unittest.TestCase):
         self.assertGreater(item["residual_energy_change_mev"], 1e-5)
 
     def test_interlacing_preserves_compatible_subgroup(self) -> None:
-        report = self.run_audit(interlacing=2)
+        report = self.run_check(interlacing=2)
         self.assertTrue(
             all(check["passed"] for check in report["promised_exact_checks"].values())
         )
@@ -414,7 +414,7 @@ class Audit3DIntegrationTests(unittest.TestCase):
     def test_reference_cell_guards_are_not_bypassed_for_rotation_check(self) -> None:
         for cell_mode in ("fixed", "isotropic"):
             with self.subTest(cell_mode=cell_mode):
-                report = self.run_audit(grid=(8, 8, 8), cell_mode=cell_mode)
+                report = self.run_check(grid=(8, 8, 8), cell_mode=cell_mode)
                 self.assertIsNone(report["rigid_cell_rotation"])
                 self.assertIn(
                     "Not evaluated", report["symmetry_scope"]["rigid_cell_rotation"]
@@ -426,7 +426,7 @@ class Audit3DIntegrationTests(unittest.TestCase):
                 )
 
     def test_broken_rigid_rotation_still_fails_strict_mode(self) -> None:
-        report = self.run_audit(break_rotation=True)
+        report = self.run_check(break_rotation=True)
         self.assertFalse(
             report["promised_exact_checks"][
                 "rigid_cell_rotation_residual_energy_invariance"

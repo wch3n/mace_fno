@@ -1,6 +1,6 @@
-"""Audit a trained fully periodic 3D MACE-FNO residual checkpoint.
+"""Check a trained fully periodic 3D MACE-FNO residual checkpoint.
 
-The audit separates invariants that the current implementation promises from
+The check separates invariants that the current implementation promises from
 physical symmetries that a generic Cartesian-grid FNO does not enforce. It
 checks held-out errors, latent-source neutrality, force additivity, the
 acoustic sum rule, arbitrary rigid translations, exact grid and lattice
@@ -316,7 +316,7 @@ def main() -> None:
     device = choose_device(args.device)
     model, checkpoint = load_mace_fno_model(args.checkpoint, device=device)
     if model.spatial_scheme != "3d":
-        raise ValueError("this audit requires a fully periodic 3D checkpoint")
+        raise ValueError("this check requires a fully periodic 3D checkpoint")
     dtype = next(model.parameters()).dtype
     cache_path = args.sample_cache or Path(checkpoint["test_cache"])
     cache = torch.load(cache_path, map_location="cpu", weights_only=False)

@@ -55,7 +55,7 @@ arbitrary nonsingular cell shapes and supports heterogeneous batches.
 
 The Zenodo record provides one structure file rather than an official test
 split, and it does not identify independent trajectories. The preparation
-script verifies the published byte count and MD5 digest, audits every structure
+script verifies the published byte count and MD5 digest, checks every structure
 and label, and supports two deterministic protocols. The default reproduces an
 80:10:10 frame-level split stratified by cubic, tetragonal, and orthorhombic
 cell class. The stricter `source-blocked` protocol assigns whole contiguous
@@ -107,9 +107,9 @@ EqGINO, mesh-origin augmentation, full interlaced validation, and FNO seeds 17,
         bash benchmarks/llzo_qnep/submit_followup.sh
 
 This launcher trains the two MACE baselines once, trains three FNO corrections
-against the same frozen one-interaction checkpoint, runs strict physics and
-spectral audits for every seed, and writes `summary-multiseed.md` only after all
-dependencies complete.
+against the same frozen one-interaction checkpoint, runs numerical checks and
+spectral diagnostics for every seed, and writes `summary-multiseed.md` only
+after all dependencies complete.
 
 The launcher creates a timestamped experiment under
 `$MACE_FNO_WORK_ROOT/llzo_qnep/runs/`. Data, logs, MACE checkpoints, FNO caches,
@@ -148,7 +148,7 @@ EqGINO is the default. `INTERLACING_TRAINING=random` samples one of the eight
 mesh origins per optimization batch while validation and inference average all
 eight. This provides mesh-origin augmentation without an eightfold training
 cost.
-Float64 is intentionally conservative for the finite-difference force audit.
+Float64 is intentionally conservative for the finite-difference force check.
 `MODEL_DTYPE=float32` is available for a faster exploratory run.
 
 ## Outputs and acceptance criteria
@@ -157,7 +157,7 @@ The `reports` directory contains:
 
 - `mace-nl0.json` and `mace-nl1.json`: independent MACE test metrics.
 - `mace-fno.json`: frozen-baseline and corrected validation/test metrics.
-- `mace-fno-audit.json`: conservative-force and periodicity checks.
+- `mace-fno-check.json`: conservative-force and periodicity checks.
 - `mace-fno-spectral.json`: scalar low-k and anisotropic inverse-quadratic
   response diagnostics.
 - `summary.json` and `summary.md`: the combined comparison.
@@ -169,11 +169,11 @@ The low-k diagnostic is evidence about the learned response, not a training
 loss and not proof that a latent field is physical charge density.
 
 This first workflow is an energy-and-force residual benchmark. The preparation
-script audits the source virials but the model does not train or report stress,
+script checks the source virials but the model does not train or report stress,
 because residual cell derivatives have not yet been validated. For the same
 reason, an NPT heating/cooling reproduction of the approximately 900 K LLZO
 phase transition is intentionally outside this workflow. It should be added
-after conservative residual stress is implemented and audited.
+after conservative residual stress is implemented and checked.
 
 ## Optional published NEP/QNEP context
 

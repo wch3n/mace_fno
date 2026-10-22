@@ -39,8 +39,8 @@ def training_checkpoint_payload(
     """Build the complete, versioned payload for one training run.
 
     Keeping this schema beside the reconstruction code makes additions and
-    compatibility changes auditable in one module. The flat layout is retained
-    so existing inference and benchmark tooling remains valid.
+    compatibility changes easy to inspect in one module. The flat layout is
+    retained so existing inference and benchmark tooling remains valid.
     """
     data = configuration.data
     model_config = configuration.model

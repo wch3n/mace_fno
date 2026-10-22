@@ -4,7 +4,7 @@ This exploratory seed-17 pilot is outside the paper. Its status and
 inputs are recorded in the external campaign. Reference: [Park et al., arXiv:2605.05746v2](https://arxiv.org/abs/2605.05746v2).
 
 The five-seed full-response follow-up is documented in
-[README_response.md](README_response.md). Its optimizer audit found that the
+[README_response.md](README_response.md). Its optimizer check found that the
 pinned upstream optimizer omitted the additional multipole and response readout
 weights in these pilots. The backbone and monopole readout were optimized. The
 full-response follow-up corrects all 98,944 omitted weights and starts fresh.

@@ -179,11 +179,11 @@ def train(manifest, index, mode):
         assert updates and all(r["max_abs_update"] > 0 for r in updates.values()), (
             updates
         )
-        audit = convergence(
+        check = convergence(
             directory, manifest["training"]["stage_two_start"] if mode == "train" else 2
         )
-        (directory / "convergence.json").write_text(json.dumps(audit, indent=2) + "\n")
-        record["convergence"] = audit
+        (directory / "convergence.json").write_text(json.dumps(check, indent=2) + "\n")
+        record["convergence"] = check
         command(
             [sys.executable, "-u", str(ROOT / "evaluate.py"), mode, str(index)],
             directory / "evaluation.log",

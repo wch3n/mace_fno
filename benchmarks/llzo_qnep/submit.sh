@@ -26,7 +26,7 @@ FNO_CONFIG=${FNO_CONFIG:-${PROJECT_ROOT}/benchmarks/llzo_qnep/train_fno_3d.yaml}
 MACE_ONE_RESULT=${MACE_ONE_RESULT:-${REPORT_ROOT}/mace-nl0.json}
 MACE_TWO_RESULT=${MACE_TWO_RESULT:-${REPORT_ROOT}/mace-nl1.json}
 FNO_RESULT=${FNO_RESULT:-${REPORT_ROOT}/mace-fno.json}
-AUDIT_OUTPUT=${AUDIT_OUTPUT:-${REPORT_ROOT}/mace-fno-audit.json}
+CHECK_OUTPUT=${CHECK_OUTPUT:-${REPORT_ROOT}/mace-fno-check.json}
 SPECTRUM_OUTPUT=${SPECTRUM_OUTPUT:-${REPORT_ROOT}/mace-fno-spectral.json}
 PUBLISHED_RESULT=${PUBLISHED_RESULT:-${REPORT_ROOT}/published-nep-qnep.json}
 SUMMARY_JSON=${SUMMARY_JSON:-${REPORT_ROOT}/summary.json}
@@ -117,18 +117,18 @@ fno_job=$(sbatch "${common_sbatch[@]}" "${mace_one_dependency[@]}" \
 fno_eval_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
     --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${CHECKPOINT},RESULT_PATH=${FNO_RESULT},JOB_WORK_ROOT=${JOB_WORK_ROOT}/fno-eval,MODEL_DTYPE=${MODEL_DTYPE}" \
     "${PROJECT_ROOT}/benchmarks/llzo_qnep/evaluate_fno.slurm")
-audit_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
-    --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${CHECKPOINT},AUDIT_OUTPUT=${AUDIT_OUTPUT},JOB_WORK_ROOT=${JOB_WORK_ROOT}/audit" \
-    "${PROJECT_ROOT}/benchmarks/llzo_qnep/audit_3d.slurm")
+check_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
+    --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${CHECKPOINT},CHECK_OUTPUT=${CHECK_OUTPUT},JOB_WORK_ROOT=${JOB_WORK_ROOT}/check" \
+    "${PROJECT_ROOT}/benchmarks/llzo_qnep/check_3d.slurm")
 spectral_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${fno_job}" \
     --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},CHECKPOINT=${CHECKPOINT},SPECTRUM_OUTPUT=${SPECTRUM_OUTPUT},JOB_WORK_ROOT=${JOB_WORK_ROOT}/spectrum" \
-    "${PROJECT_ROOT}/benchmarks/llzo_qnep/audit_spectral.slurm")
+    "${PROJECT_ROOT}/benchmarks/llzo_qnep/spectral_diagnostic.slurm")
 
 summary_dependencies=(
     "${baseline_one_job}"
     "${baseline_two_job}"
     "${fno_eval_job}"
-    "${audit_job}"
+    "${check_job}"
     "${spectral_job}"
 )
 published_job="not requested"
@@ -143,7 +143,7 @@ fi
 
 dependency_list=$(IFS=:; printf '%s' "${summary_dependencies[*]}")
 summary_job=$(sbatch "${common_sbatch[@]}" --dependency="afterok:${dependency_list}" \
-    --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},MANIFEST=${DATA_ROOT}/split_manifest.json,MACE_ONE_RESULT=${MACE_ONE_RESULT},MACE_TWO_RESULT=${MACE_TWO_RESULT},FNO_RESULT=${FNO_RESULT},AUDIT_OUTPUT=${AUDIT_OUTPUT},SPECTRUM_OUTPUT=${SPECTRUM_OUTPUT},SUMMARY_JSON=${SUMMARY_JSON},SUMMARY_MARKDOWN=${SUMMARY_MARKDOWN},JOB_WORK_ROOT=${JOB_WORK_ROOT}/summary${published_export}" \
+    --export="ALL,PROJECT_ROOT=${PROJECT_ROOT},MANIFEST=${DATA_ROOT}/split_manifest.json,MACE_ONE_RESULT=${MACE_ONE_RESULT},MACE_TWO_RESULT=${MACE_TWO_RESULT},FNO_RESULT=${FNO_RESULT},CHECK_OUTPUT=${CHECK_OUTPUT},SPECTRUM_OUTPUT=${SPECTRUM_OUTPUT},SUMMARY_JSON=${SUMMARY_JSON},SUMMARY_MARKDOWN=${SUMMARY_MARKDOWN},JOB_WORK_ROOT=${JOB_WORK_ROOT}/summary${published_export}" \
     "${PROJECT_ROOT}/benchmarks/llzo_qnep/summarize.slurm")
 
 printf 'Experiment root:       %s\n' "${EXPERIMENT_ROOT}"
@@ -154,8 +154,8 @@ printf 'MACE nl0 evaluation:   %s\n' "${baseline_one_job}"
 printf 'MACE nl1 evaluation:   %s\n' "${baseline_two_job}"
 printf 'MACE+FNO training:     %s\n' "${fno_job}"
 printf 'MACE+FNO evaluation:   %s\n' "${fno_eval_job}"
-printf 'MACE+FNO audit:        %s\n' "${audit_job}"
-printf 'Spectral audit:        %s\n' "${spectral_job}"
+printf 'MACE+FNO check:        %s\n' "${check_job}"
+printf 'Spectral diagnostic:   %s\n' "${spectral_job}"
 printf 'Published NEP/QNEP:    %s\n' "${published_job}"
 printf 'Summary:               %s\n' "${summary_job}"
 printf 'Final report:          %s\n' "${SUMMARY_MARKDOWN}"
