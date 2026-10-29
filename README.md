@@ -69,6 +69,16 @@ together with training configurations, data-generation scripts, and MD
 trajectories. Follow the campaign links in each benchmark guide to reproduce
 the reported results. The introductory configurations are separate examples.
 
+## Citation
+
+If you use MACE–FNO in your research, please cite the preprint:
+
+Wei Chen and Gian-Marco Rignanese,
+[When do machine-learning potentials need a configuration-dependent kernel? Learning long-range interactions with Fourier neural operators](https://chemrxiv.org/doi/full/10.26434/chemrxiv.15011048/v1).
+*ChemRxiv* (2026). DOI: 10.26434/chemrxiv.15011048/v1.
+
+Software citation metadata are available in [CITATION.cff](CITATION.cff).
+
 ## Further reading
 
 - [Training and checkpoints](guides/training.md): joint training, resuming,
@@ -78,4 +88,3 @@ the reported results. The introductory configurations are separate examples.
 - [Validation and diagnostics](guides/validation.md): labels, baseline errors,
   force and symmetry checks, and optional spectral probes.
 - [Contributing](CONTRIBUTING.md): development setup and tests.
-- [Citation](CITATION.cff): software citation metadata.
